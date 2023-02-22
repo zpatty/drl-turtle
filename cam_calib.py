@@ -2,20 +2,22 @@ import numpy as np
 import cv2 as cv
 import os
 
-# s=cv.imread(path)
-# cv.imshow('test', s)
-# k = cv.waitKey(0)
+## updates/todo:
+# > term criteria /subpixel corner finding resolved missing module issue:
+# now just need to make sure the images being fed in are grey 
+# (they should be taken as grey images but can just make sure they're 
+# being converted to grey, as they can be changed back to 3 channel later)
+# > img_pts:
+# probably should remove the images where no pattern is found to make it work 
+# earlier tried to achieve this but had issues bc np didn't like my arrays,
+# may work better now that I've done some code cleaning, will probably try again
 
-#what do we do if it can't find the corners
-# -> cut both the left and right images from our data set?
-# if so, should take more images
-
-#######
-
+#calibration pattern, chessboard is 7x10 (internal corners)
 row_corners=7
 col_corners=10
 square_unit=1
-square_dim_mm= 23 #how many units is the side of one square
+#how many units is the side of one square
+square_dim_mm= 23 
 square_dim_cm= 2.3
 square_dim_in= 29/32
 pattern_size=(row_corners,col_corners)
@@ -99,9 +101,14 @@ def find_corners_old(folder):
     for img in images:
         find_chess=cv.findChessboardCorners(img, pattern_size, corners, flags)
         pattern_found.append(find_chess[0])
-        corners_found.append(find_chess[1])
+        #find_chess[0] is a bool of if the pattern was found or not
+        if np.any(find_chess[1])==None:
+            corners_found.append([])
+        else:
+            corners_found.append(find_chess[1])
+        #find_chess[1] is either None if no pattern was found, or an array
 
-    return(images, num_images, pattern_found, corners_found)
+    return (images, num_images, pattern_found, corners_found)
 
 def convert_color(img):
     #takes in a black and white image and returns it as a 
@@ -115,6 +122,10 @@ def convert_color(img):
 def LR_num_check(l,r):
     if l != r:
         print("left and right num images mismatch")
+
+#the below code was trying to delete images with no 
+# found pattern from the data, but didn't work bc numpy doesn't 
+# like arrays where the subarrays are different sizes
 
 # calib_img=find_corners('calibration_images')
 # left_img=find_corners_old('calib_img/left')
@@ -167,20 +178,53 @@ def LR_num_check(l,r):
 # getting image points is worse in the new return version 
 left_img=find_corners_old('calib_img/left')
 right_img=find_corners_old('calib_img/right')
-num_left=left_img[1]
-num_right=right_img[1]
-LR_num_check(num_left,num_right)
-single_n=count*num_left
-#something weird is happening here
+
+#find_corners_old(folder)[0] is a list of images read by cv
+L_images=left_img[0]
+R_images=right_img[0]
+
+#find_corners_old(folder)[1] is the number of images in the folder
+num_L=left_img[1]
+num_R=right_img[1]
+if num_L==num_R:
+    LR_num=num_L
+else:
+    print("left and right num images mismatch")
+
+#find_corners_old(folder)[2] is a list of bools (the bools are gen by find_chess[0])
+L_pat_found=left_img[2]
+R_pat_found=right_img[2]
+
+#find_corners_old(folder)[3] is a list of:
+# if pattern found, length 70 array where each element is a list of a list of 2 floats 
+# if pattern not found, empty list
+L_cor_found=left_img[3]
+R_cor_found=right_img[3]
+
+#N is the number of total points being processed (aka # points per image * num images)
+single_n=count*LR_num
+
+
+#something weird is happening here [resolved, i think - just need to turn images grey]
 
 # criteria=cv.TermCriteria(CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 5, 1 )
-# win=7 #not sure how to find this oops
-# zero_zone=cv.size(-1,-1)
-# subpix=cv.findCornerSubPix(image, corners, count, win, zero_zone, criteria)
-# print(subpix)
+##^ this doesn't work for some reason, the module cannot be found, 
+# tried cv.TermCriteria and cv.termCriteria, as the capitalization 
+# is inconsistent 
+
+criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_MAX_ITER, 5,
+        1)
+
+win=(7,7)
+zero_zone=(-1,-1)
+
+#needs to take in a grey image
+subpix=cv.cornerSubPix(L_images[5], L_cor_found[5], win, zero_zone, criteria)
+print(subpix)
 
 
 
+#find corners debugging using draw corners
 
 # img=images[1]
 # color_img=convert_color(img)
@@ -188,193 +232,29 @@ single_n=count*num_left
 # cv.imshow('drawn_corners', draw)
 # k = cv.waitKey(0)
 
-# single_n=count*single_num_img
-# # print('count:'+str(count)+'single num img:'+str(single_num_img)+'n:'+str(single_n))
-# #whats going on here
+
+#create object points array
 
 obj_pts=[]
 
-for i in range(num_left):
+for i in range(LR_num):
     for x in range(row_corners):
         for y in range(col_corners):
             obj_pts.append([x*square_dim_cm,y*square_dim_cm,0])
 
 obj_pts=np.reshape(obj_pts,(single_n,3))
+
 # img_pts=np.reshape(corners_found, ())
 # print(obj_pts, np.ndim(obj_pts),np.shape(obj_pts),np.size(obj_pts))
 
+#point count per image
+
 point_count=[]
-for i in range(num_left):
+for i in range(LR_num):
     if left_img[2][i]:
         point_count.append(count)
     else:
         point_count.append(0)
-
-
-
-
-#find chess analysis:
-ex_result=(True, array([[[480.9781  , 143.34225 ]],
-
-       [[481.4371  , 159.65384 ]],
-
-       [[481.42267 , 178.04369 ]],
-
-       [[481.83942 , 197.86916 ]],
-
-       [[482.1807  , 217.70683 ]],
-
-       [[481.9107  , 239.45363 ]],
-
-       [[481.05258 , 261.07492 ]],
-
-       [[462.17947 , 139.37393 ]],
-
-       [[461.90216 , 156.2452  ]],
-
-       [[461.86212 , 175.22809 ]],
-
-       [[461.22818 , 193.53577 ]],
-
-       [[460.9207  , 215.21472 ]],
-
-       [[460.05273 , 235.65652 ]],
-
-       [[459.0841  , 257.26187 ]],
-
-       [[441.71634 , 135.42836 ]],
-
-       [[440.71765 , 151.74854 ]],
-
-       [[440.28192 , 170.60892 ]],
-
-       [[439.58435 , 190.03362 ]],
-
-       [[439.3392  , 210.50403 ]],
-
-       [[437.35382 , 231.70042 ]],
-
-       [[436.03696 , 254.75183 ]],
-
-       [[420.71747 , 131.61197 ]],
-
-       [[420.53497 , 148.65512 ]],
-
-       [[419.10593 , 167.4501  ]],
-
-       [[417.11954 , 186.23566 ]],
-
-       [[415.95456 , 206.95787 ]],
-
-       [[414.55746 , 228.67282 ]],
-
-       [[412.38556 , 251.39316 ]],
-
-       [[400.16895 , 128.1994  ]],
-
-       [[399.31546 , 145.24507 ]],
-
-       [[396.93597 , 163.47006 ]],
-
-       [[395.30252 , 183.3717  ]],
-
-       [[392.73816 , 203.36687 ]],
-
-       [[391.30258 , 225.33041 ]],
-
-       [[388.277   , 247.61395 ]],
-
-       [[379.20267 , 125.31188 ]],
-
-       [[376.74405 , 141.82202 ]],
-
-       [[374.66702 , 159.88176 ]],
-
-       [[372.22324 , 179.54276 ]],
-
-       [[369.33105 , 199.613   ]],
-
-       [[366.63623 , 221.64388 ]],
-
-       [[363.57184 , 244.47348 ]],
-
-       [[358.55936 , 122.27923 ]],
-
-       [[355.53275 , 139.0253  ]],
-
-       [[351.99942 , 157.34576 ]],
-
-       [[349.51294 , 176.6644  ]],
-
-       [[346.32608 , 196.84131 ]],
-
-       [[342.95355 , 218.47177 ]],
-
-       [[339.12277 , 241.30563 ]],
-
-       [[336.7944  , 119.454575]],
-
-       [[334.37366 , 136.12148 ]],
-
-       [[329.348   , 153.9406  ]],
-
-       [[326.5733  , 173.49292 ]],
-
-       [[322.21912 , 193.6763  ]],
-
-       [[318.9169  , 215.17314 ]],
-
-       [[314.33667 , 237.62602 ]],
-
-       [[316.21365 , 117.337296]],
-
-       [[311.45468 , 133.89087 ]],
-
-       [[308.3459  , 151.63705 ]],
-
-       [[303.7173  , 170.85869 ]],
-
-       [[299.81332 , 191.07976 ]],
-
-       [[295.41953 , 212.32065 ]],
-
-       [[290.5058  , 234.32616 ]],
-
-       [[295.52893 , 115.077095]],
-
-       [[291.35773 , 131.67152 ]],
-
-       [[286.2486  , 149.64873 ]],
-
-       [[281.4962  , 168.34421 ]],
-
-       [[277.04355 , 188.42224 ]],
-
-       [[271.8141  , 209.15773 ]],
-
-       [[266.97018 , 231.47545 ]]], dtype=float32))
-
-#so, we want to properly understand this and how we're using it
-#its got two elements, a bool, and an array
-# the array has two elements, a list and a type var
-#the list has 70 elements, each of which is a list 
-# of a list of two floats
-# why is it 70?? -> the chessboard is 7 by 10, so each element is 
-#the coord of a chessboard corner
-
-#okay, and sometimes, instead of a list of corners, its None type 
-# because no pattern was detected
-
-x=[]
-y=[]
-# print(left_img[3][2])
-
-# print(np.shape(left_img[3][2]))
-# for coord in left_img[3][2]:
-#     print(coord)
-#     x.append(coord[0])
-#     y.append(coord(1))
-# new_pts=[x,y]
 
 int_mat=[]
 dist_coef=[]
@@ -382,7 +262,11 @@ dist_coef=[]
 # print('IMGPTS'+str(len(left_img[3])))
 # print('PTCOUNT'+str(len(point_count)))
 # print('IMGSIZE'+str(len(image_size)))
-# print(cv.calibrateCamera(obj_pts, new_pts, point_count, image_size, int_mat, dist_coef))
+print(cv.calibrateCamera(obj_pts, L_cor_found, point_count, image_size, int_mat, dist_coef))
+
+#has a problem with image points, which is expected: saying item at [0] has wrong type,
+# so probably the problem is that I have images which are not finding the pattern
+
 
 #getting the following error:
 #cv2.error: OpenCV(4.7.0) :-1: error: (-5:Bad argument) in function 'calibrateCamera'
@@ -393,6 +277,16 @@ dist_coef=[]
 # as the results im printing are that only imgpts and ptcount are of 
 # length 51, so unclear what is being referred to with 'imageSize'
 
+#x=[]
+#y=[]
+# print(left_img[3][2])
+
+# print(np.shape(left_img[3][2]))
+# for coord in left_img[3][2]:
+#     print(coord)
+#     x.append(coord[0])
+#     y.append(coord(1))
+# new_pts=[x,y]
 
 
 #  #params: objpts, imgpts, ptcounts,image_size
@@ -414,6 +308,7 @@ dist_coef=[]
 
 
 # testing
+
 # img=left_img[0][15]
 # pattern=left_img[2][15]
 # corners=left_img[3][15]
