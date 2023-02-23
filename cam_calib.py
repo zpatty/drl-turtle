@@ -4,13 +4,14 @@ import os
 
 ## updates/todo:
 # > term criteria /subpixel corner finding resolved missing module issue:
-# now just need to make sure the images being fed in are grey 
-# (they should be taken as grey images but can just make sure they're 
-# being converted to grey, as they can be changed back to 3 channel later)
+# resolved, convert images to grey as they are being read in
+
 # > img_pts:
-# probably should remove the images where no pattern is found to make it work 
-# earlier tried to achieve this but had issues bc np didn't like my arrays,
-# may work better now that I've done some code cleaning, will probably try again
+# successfully removed images where no pattern is detected and applied 
+# subpixel corner detection
+
+#img points now works, problem that object points should be a vector 
+# of vectors of points, according to error message
 
 #calibration pattern, chessboard is 7x10 (internal corners)
 row_corners=7
@@ -39,19 +40,8 @@ def find_corners(folder):
     #and findchessboardcorners results; pattern found and corners found
 
     result=[]
-    image_names=[]
-    for image in os.walk(folder):
-        image_names=image[2]
-    #remove invisible os folder
-    if '.DS_Store' in image_names:
-        image_names.remove('.DS_Store')
-
-    images=[]
-    for image in image_names:
-        #img_str='calibration_images/'+image
-        img_str=folder+'/'+image
-        img_path=os.path.abspath(img_str)
-        images.append(cv.imread(img_path))
+    image_names=generate_filenames(folder)
+    images=read_images(image_names, folder)
 
     flags=cv.CALIB_CB_ADAPTIVE_THRESH
 
@@ -75,20 +65,9 @@ def find_corners_old(folder):
     #returns: tuple containing list of all images read, num of images
     #and findchessboardcorners results; pattern found and corners found
 
-    image_names=[]
-    for image in os.walk(folder):
-        image_names=image[2]
-    #remove invisible os folder
-    if '.DS_Store' in image_names:
-        image_names.remove('.DS_Store')
+    image_names=generate_filenames(folder)
+    images=read_images(image_names, folder)
     num_images=len(image_names)
-
-    images=[]
-    for image in image_names:
-        #img_str='calibration_images/'+image
-        img_str=folder+'/'+image
-        img_path=os.path.abspath(img_str)
-        images.append(cv.imread(img_path))
     
     flags=cv.CALIB_CB_ADAPTIVE_THRESH
 
@@ -110,6 +89,26 @@ def find_corners_old(folder):
 
     return (images, num_images, pattern_found, corners_found)
 
+def generate_filenames(folder):
+    image_names=[]
+    for image in os.walk(folder):
+        image_names=image[2]
+    #remove invisible os folder
+    if '.DS_Store' in image_names:
+        image_names.remove('.DS_Store')
+    return image_names
+
+def read_images(image_names, folder):
+    images=[]
+    for image in image_names:
+        #img_str='calibration_images/'+image
+        img_str=folder+'/'+image
+        img_path=os.path.abspath(img_str)
+        grey_image=cv.cvtColor(cv.imread(img_path),cv.COLOR_BGR2GRAY)
+        images.append(grey_image)
+    return images
+
+
 def convert_color(img):
     #takes in a black and white image and returns it as a 
     #three channel image
@@ -126,6 +125,15 @@ def LR_num_check(l,r):
 #the below code was trying to delete images with no 
 # found pattern from the data, but didn't work bc numpy doesn't 
 # like arrays where the subarrays are different sizes
+
+def no_pattern(pattern_found):
+    #returns indices of images where no pattern was found
+    indices=set()
+    for i in range(len(pattern_found)):
+        if not pattern_found[i]:
+            indices.add(i)
+    return indices
+
 
 # calib_img=find_corners('calibration_images')
 # left_img=find_corners_old('calib_img/left')
@@ -170,7 +178,6 @@ def LR_num_check(l,r):
 # print('right new')
 # print(r_recognized_img)
 
-
 # now try what if we dont get rid of the bad images, but 
 # instead just acknowledge just some of the images will 
 # get zero point count
@@ -201,29 +208,45 @@ R_pat_found=right_img[2]
 L_cor_found=left_img[3]
 R_cor_found=right_img[3]
 
+
+
+print(no_pattern(L_pat_found), no_pattern(R_pat_found))
+to_remove=no_pattern(L_pat_found).union(no_pattern(R_pat_found))
+print(to_remove)
+
+#we want a list of images and then their corners
+L_new=[[],[]]
+R_new=[[],[]]
+for i in range(LR_num):
+    if i not in to_remove:
+        L_new[0].append(L_images[i])
+        L_new[1].append(L_cor_found[i])
+        R_new[0].append(R_images[i])
+        R_new[1].append(R_cor_found[i])
+
+def get_subpix_corns(images, corners):
+    sub_corners=[]
+    criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_MAX_ITER, 5, 1)
+    win=(7,7)
+    zero_zone=(-1,-1)
+    for i in range(len(images)):
+        sub_corners.append(cv.cornerSubPix(images[i], corners[5], win, zero_zone, criteria))
+    return sub_corners
+
+L_sub_corn=get_subpix_corns(L_new[0],L_new[1])
+R_sub_corn=get_subpix_corns(R_new[0],R_new[1])
+
+if len(L_new[0])==len(R_new[0]):
+    LR_num=len(L_new[0])
+else:
+    print("left and right num new images mismatch")
+
+
 #N is the number of total points being processed (aka # points per image * num images)
 single_n=count*LR_num
 
-
-#something weird is happening here [resolved, i think - just need to turn images grey]
-
-# criteria=cv.TermCriteria(CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 5, 1 )
-##^ this doesn't work for some reason, the module cannot be found, 
-# tried cv.TermCriteria and cv.termCriteria, as the capitalization 
-# is inconsistent 
-
-criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_MAX_ITER, 5,
-        1)
-
-win=(7,7)
-zero_zone=(-1,-1)
-
-#needs to take in a grey image
-subpix=cv.cornerSubPix(L_images[5], L_cor_found[5], win, zero_zone, criteria)
-print(subpix)
-
-
-
+L_img_pts=np.reshape(L_sub_corn,(single_n,2))
+R_img_pts=np.reshape(R_sub_corn,(single_n,2))
 #find corners debugging using draw corners
 
 # img=images[1]
@@ -240,7 +263,7 @@ obj_pts=[]
 for i in range(LR_num):
     for x in range(row_corners):
         for y in range(col_corners):
-            obj_pts.append([x*square_dim_cm,y*square_dim_cm,0])
+            obj_pts.append((x*square_dim_cm,y*square_dim_cm,0))
 
 obj_pts=np.reshape(obj_pts,(single_n,3))
 
@@ -249,12 +272,12 @@ obj_pts=np.reshape(obj_pts,(single_n,3))
 
 #point count per image
 
-point_count=[]
-for i in range(LR_num):
-    if left_img[2][i]:
-        point_count.append(count)
-    else:
-        point_count.append(0)
+# point_count=[]
+# for i in range(LR_num):
+#     if left_img[2][i]:
+#         point_count.append(count)
+#     else:
+#         point_count.append(0)
 
 int_mat=[]
 dist_coef=[]
@@ -262,7 +285,7 @@ dist_coef=[]
 # print('IMGPTS'+str(len(left_img[3])))
 # print('PTCOUNT'+str(len(point_count)))
 # print('IMGSIZE'+str(len(image_size)))
-print(cv.calibrateCamera(obj_pts, L_cor_found, point_count, image_size, int_mat, dist_coef))
+print(cv.calibrateCamera(obj_pts, L_img_pts, image_size, None, None))
 
 #has a problem with image points, which is expected: saying item at [0] has wrong type,
 # so probably the problem is that I have images which are not finding the pattern
