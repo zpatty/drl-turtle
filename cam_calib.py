@@ -3,15 +3,33 @@ import cv2 as cv
 import os
 
 ## updates/todo:
-# > term criteria /subpixel corner finding resolved missing module issue:
-# resolved, convert images to grey as they are being read in
 
-# > img_pts:
-# successfully removed images where no pattern is detected and applied 
-# subpixel corner detection
+# current function return/error, unsure what's wrong bc i do have a 
+# float 32 vector of vectors for both img and obj points?
 
-#img points now works, problem that object points should be a vector 
-# of vectors of points, according to error message
+# [len obj pts] 2660
+# object points[[0. 0. 0.]
+#  [1. 0. 0.]
+#  [2. 0. 0.]
+#  ...
+#  [4. 9. 0.]
+#  [5. 9. 0.]
+#  [6. 9. 0.]]
+# [len L_img pts] 2660
+# image points[[372.4533   89.39769]
+#  [385.2277   67.90735]
+#  [385.2277   67.90735]
+#  ...
+#  [532.5826  193.42139]
+#  [556.0339  190.97856]
+#  [578.6726  213.57054]]
+# Traceback (most recent call last):
+#   File "cam_calib.py", line 241, in <module>
+#     print(cv.calibrateCamera(new_obj_pts, L_img_pts, image_size, None, None))
+# cv2.error: OpenCV(4.7.0) /Users/runner/miniforge3/conda-bld/libopencv_1674428343625/work/modules/calib3d/src/calibration.cpp:3405: 
+# error: (-210:Unsupported format or combination of formats) 
+# objectPoints should contain vector of vectors of points of type Point3f in function 'collectCalibrationData'
+
 
 #calibration pattern, chessboard is 7x10 (internal corners)
 row_corners=7
@@ -24,6 +42,7 @@ square_dim_in= 29/32
 pattern_size=(row_corners,col_corners)
 count=row_corners*col_corners
 image_size=(1280,360)
+
 #goes through the folder of sample images, and adds paths to the images
 #to a list, and also counts the number of images in the folder
 
@@ -48,7 +67,6 @@ def find_corners(folder):
     #given images of the chessboard at different 
     #positions/angles in space, find the corners
 
-    #want to split into two, left vs right
     corners=np.empty((row_corners,col_corners))
     for img in images:
         find_chess=cv.findChessboardCorners(img, pattern_size, corners, flags)
@@ -56,7 +74,6 @@ def find_corners(folder):
 
     # return(images, num_images, pattern_found, corners_found)
     return result
-
 
 def find_corners_old(folder):
     #param: folder is the string of the name of 
@@ -75,7 +92,6 @@ def find_corners_old(folder):
     #positions/angles in space, find the corners
     pattern_found=[]
     corners_found=[]
-    #want to split into two, left vs right
     corners=np.empty((row_corners,col_corners))
     for img in images:
         find_chess=cv.findChessboardCorners(img, pattern_size, corners, flags)
@@ -90,6 +106,8 @@ def find_corners_old(folder):
     return (images, num_images, pattern_found, corners_found)
 
 def generate_filenames(folder):
+    #takes in the name of a folder (str)
+    # returns a list of file names in the folder
     image_names=[]
     for image in os.walk(folder):
         image_names=image[2]
@@ -99,6 +117,8 @@ def generate_filenames(folder):
     return image_names
 
 def read_images(image_names, folder):
+    #takes in a list of file names and the name of the folder (str) they're in 
+    #returns list of read in images
     images=[]
     for image in image_names:
         #img_str='calibration_images/'+image
@@ -107,7 +127,6 @@ def read_images(image_names, folder):
         grey_image=cv.cvtColor(cv.imread(img_path),cv.COLOR_BGR2GRAY)
         images.append(grey_image)
     return images
-
 
 def convert_color(img):
     #takes in a black and white image and returns it as a 
@@ -118,69 +137,14 @@ def convert_color(img):
         color_img[:,:,n] = grey
     return color_img
 
-def LR_num_check(l,r):
-    if l != r:
-        print("left and right num images mismatch")
-
-#the below code was trying to delete images with no 
-# found pattern from the data, but didn't work bc numpy doesn't 
-# like arrays where the subarrays are different sizes
-
 def no_pattern(pattern_found):
+    #takes in a list of bools, whether a pattern was found
     #returns indices of images where no pattern was found
     indices=set()
     for i in range(len(pattern_found)):
         if not pattern_found[i]:
             indices.add(i)
     return indices
-
-
-# calib_img=find_corners('calibration_images')
-# left_img=find_corners_old('calib_img/left')
-# right_img=find_corners('calib_img/right')
-
-# l_img=left_img[0]
-# l_num_img=left_img[1]
-# l_pattern=left_img[2]
-# l_corners=left_img[3]
-# r_img=right_img[0]
-# r_num_img=right_img[1]
-# r_pattern=right_img[2]
-# r_corners=right_img[3]
-
-# num_left=left_img[1]
-# print(num_left)
-# num_right=len(right_img)
-# LR_num_check(num_left,num_right)
-
-# l_recognized_img=left_img.copy()
-# r_recognized_img=right_img.copy()
-
-# for i in range(num_left):
-#     if not (left_img[i][1] and right_img[i][1]):
-#         L_ind=l_recognized_img.index(np.all(left_img[i]))
-#         R_ind=r_recognized_img.index(np.all(right_img[i]))
-#         if L_ind != R_ind:
-#             print("left and right indices unequal :/")
-#         l_recognized_img.pop(L_ind)
-#         r_recognized_img.pop(R_ind)
-#         # L_ind=np.argwhere(l_recognized_img==left_img[i])
-#         # R_ind=np.argwhere(r_recognized_img==right_img[i])
-#         # if L_ind != R_ind:
-#         #     print("left and right indices unequal :/")
-#         # np.delete(l_recognized_img,L_ind)
-#         # np.delete(r_recognized_img,R_ind)
-
-# print('left right new recheck')
-# LR_num_check(len(l_recognized_img),len(r_recognized_img))
-# print('left new')
-# print(l_recognized_img)
-# print('right new')
-# print(r_recognized_img)
-
-# now try what if we dont get rid of the bad images, but 
-# instead just acknowledge just some of the images will 
-# get zero point count
 
 # getting image points is worse in the new return version 
 left_img=find_corners_old('calib_img/left')
@@ -208,11 +172,7 @@ R_pat_found=right_img[2]
 L_cor_found=left_img[3]
 R_cor_found=right_img[3]
 
-
-
-print(no_pattern(L_pat_found), no_pattern(R_pat_found))
 to_remove=no_pattern(L_pat_found).union(no_pattern(R_pat_found))
-print(to_remove)
 
 #we want a list of images and then their corners
 L_new=[[],[]]
@@ -245,8 +205,9 @@ else:
 #N is the number of total points being processed (aka # points per image * num images)
 single_n=count*LR_num
 
-L_img_pts=np.reshape(L_sub_corn,(single_n,2))
-R_img_pts=np.reshape(R_sub_corn,(single_n,2))
+L_img_pts=np.float32(np.reshape(L_sub_corn,(single_n,2)))
+R_img_pts=np.float32(np.reshape(R_sub_corn,(single_n,2)))
+
 #find corners debugging using draw corners
 
 # img=images[1]
@@ -256,28 +217,34 @@ R_img_pts=np.reshape(R_sub_corn,(single_n,2))
 # k = cv.waitKey(0)
 
 
-#create object points array
+#create object points array 
+# should be N by 3
 
-obj_pts=[]
 
+obj_pts=np.zeros((count,3),  np.float32)
+obj_pts[:, :2]=np.mgrid[0:row_corners,0:col_corners].T.reshape(-1,2)
+new_obj_pts=[]
 for i in range(LR_num):
-    for x in range(row_corners):
-        for y in range(col_corners):
-            obj_pts.append((x*square_dim_cm,y*square_dim_cm,0))
+    new_obj_pts.append(obj_pts)
 
-obj_pts=np.reshape(obj_pts,(single_n,3))
+new_obj_pts=np.float32((np.reshape(new_obj_pts,(single_n,3))))
 
-# img_pts=np.reshape(corners_found, ())
+# for i in range(single_n):
+#         for x in range(row_corners):
+#             for y in range(col_corners):
+                
+#                 obj_pts[i]=[x*square_dim_cm,y*square_dim_cm,0]
+print(len(new_obj_pts))
+print("object points"+str(new_obj_pts))
+
+#for i in range(single_n):
+#obj_pts[i]=(x*square_dim_cm,y*square_dim_cm,0)
+
+#should contain vector of vectors of points of type Point3f 
+
 # print(obj_pts, np.ndim(obj_pts),np.shape(obj_pts),np.size(obj_pts))
-
-#point count per image
-
-# point_count=[]
-# for i in range(LR_num):
-#     if left_img[2][i]:
-#         point_count.append(count)
-#     else:
-#         point_count.append(0)
+print(len(L_img_pts))
+print("image points"+str(L_img_pts))
 
 int_mat=[]
 dist_coef=[]
@@ -285,32 +252,10 @@ dist_coef=[]
 # print('IMGPTS'+str(len(left_img[3])))
 # print('PTCOUNT'+str(len(point_count)))
 # print('IMGSIZE'+str(len(image_size)))
-print(cv.calibrateCamera(obj_pts, L_img_pts, image_size, None, None))
+print(cv.calibrateCamera(new_obj_pts, L_img_pts, image_size, None, None))
 
-#has a problem with image points, which is expected: saying item at [0] has wrong type,
-# so probably the problem is that I have images which are not finding the pattern
-
-
-#getting the following error:
-#cv2.error: OpenCV(4.7.0) :-1: error: (-5:Bad argument) in function 'calibrateCamera'
-#> Overload resolution failed:
-#>  - Can't parse 'imageSize'. Expected sequence length 2, got 51
-
-#so, going to try reconfiguring img pts into a 2xN matrix instead, 
-# as the results im printing are that only imgpts and ptcount are of 
-# length 51, so unclear what is being referred to with 'imageSize'
-
-#x=[]
-#y=[]
-# print(left_img[3][2])
-
-# print(np.shape(left_img[3][2]))
-# for coord in left_img[3][2]:
-#     print(coord)
-#     x.append(coord[0])
-#     y.append(coord(1))
-# new_pts=[x,y]
-
+#current error: objectPoints should contain 
+# vector of vectors of points of type Point3f in function 'collectCalibrationData'
 
 #  #params: objpts, imgpts, ptcounts,image_size
 # #intrinsic matrix, dist.coef, rotvec=null, transvec=null, flags=0
