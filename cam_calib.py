@@ -4,32 +4,18 @@ import os
 
 ## updates/todo:
 
-# current function return/error, unsure what's wrong bc i do have a 
-# float 32 vector of vectors for both img and obj points?
+# -> obj pts error resolved:
+# "objectPoints should contain vector of vectors of points of type Point3f"
+# the np arrays, obj_pts and img_pts wanted to be lists inside np arrays
+# so I changed that and now cv.calibrateCamera runs!
 
-# [len obj pts] 2660
-# object points[[0. 0. 0.]
-#  [1. 0. 0.]
-#  [2. 0. 0.]
-#  ...
-#  [4. 9. 0.]
-#  [5. 9. 0.]
-#  [6. 9. 0.]]
-# [len L_img pts] 2660
-# image points[[372.4533   89.39769]
-#  [385.2277   67.90735]
-#  [385.2277   67.90735]
-#  ...
-#  [532.5826  193.42139]
-#  [556.0339  190.97856]
-#  [578.6726  213.57054]]
-# Traceback (most recent call last):
-#   File "cam_calib.py", line 241, in <module>
-#     print(cv.calibrateCamera(new_obj_pts, L_img_pts, image_size, None, None))
-# cv2.error: OpenCV(4.7.0) /Users/runner/miniforge3/conda-bld/libopencv_1674428343625/work/modules/calib3d/src/calibration.cpp:3405: 
-# error: (-210:Unsupported format or combination of formats) 
-# objectPoints should contain vector of vectors of points of type Point3f in function 'collectCalibrationData'
-
+# -> testing cv.calibrateCamera results by running
+# cv.initUndistortRectifyMap and cv.remap to apply the 
+# camera matrix and distortion coeff found from cv.calibrateCamera
+# current result has worse distrotion than the original :(
+# but this is a known issue (well hopefully its the same issue)
+# and I should try cropping the images to 960x720
+# may have to retake sample images if the chessboard is affected
 
 #calibration pattern, chessboard is 7x10 (internal corners)
 row_corners=7
@@ -205,8 +191,8 @@ else:
 #N is the number of total points being processed (aka # points per image * num images)
 single_n=count*LR_num
 
-L_img_pts=np.float32(np.reshape(L_sub_corn,(single_n,2)))
-R_img_pts=np.float32(np.reshape(R_sub_corn,(single_n,2)))
+L_img_pts=np.float32([np.reshape(L_sub_corn,(single_n,2))])
+R_img_pts=np.float32([np.reshape(R_sub_corn,(single_n,2))])
 
 #find corners debugging using draw corners
 
@@ -220,22 +206,24 @@ R_img_pts=np.float32(np.reshape(R_sub_corn,(single_n,2)))
 #create object points array 
 # should be N by 3
 
+#doesn't currently account for real world dimensions
 
 obj_pts=np.zeros((count,3),  np.float32)
 obj_pts[:, :2]=np.mgrid[0:row_corners,0:col_corners].T.reshape(-1,2)
+obj_pts*=square_dim_cm
 new_obj_pts=[]
 for i in range(LR_num):
     new_obj_pts.append(obj_pts)
 
-new_obj_pts=np.float32((np.reshape(new_obj_pts,(single_n,3))))
+new_obj_pts=np.float32([(np.reshape(new_obj_pts,(single_n,3)))])
 
 # for i in range(single_n):
 #         for x in range(row_corners):
 #             for y in range(col_corners):
                 
 #                 obj_pts[i]=[x*square_dim_cm,y*square_dim_cm,0]
-print(len(new_obj_pts))
-print("object points"+str(new_obj_pts))
+# print(len(new_obj_pts))
+# print("object points"+str(new_obj_pts))
 
 #for i in range(single_n):
 #obj_pts[i]=(x*square_dim_cm,y*square_dim_cm,0)
@@ -243,8 +231,8 @@ print("object points"+str(new_obj_pts))
 #should contain vector of vectors of points of type Point3f 
 
 # print(obj_pts, np.ndim(obj_pts),np.shape(obj_pts),np.size(obj_pts))
-print(len(L_img_pts))
-print("image points"+str(L_img_pts))
+# print(len(L_img_pts))
+# print("image points"+str(L_img_pts))
 
 int_mat=[]
 dist_coef=[]
@@ -252,7 +240,42 @@ dist_coef=[]
 # print('IMGPTS'+str(len(left_img[3])))
 # print('PTCOUNT'+str(len(point_count)))
 # print('IMGSIZE'+str(len(image_size)))
+print("calibrate left:")
 print(cv.calibrateCamera(new_obj_pts, L_img_pts, image_size, None, None))
+print("calibrate right:")
+print(cv.calibrateCamera(new_obj_pts, R_img_pts, image_size, None, None))
+
+calib_left=(19.506522211398817, np.array([[4.73138213e+03, 0.00000000e+00, 5.18223988e+02],
+       [0.00000000e+00, 3.57730927e+03, 1.50282704e+02],
+       [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]]), np.array([[ 2.22437643e+02, -3.08950012e+05, -1.03720358e+00,
+        -1.67260986e+00, -7.33926298e+02]]), (np.array([[-0.13170359],
+       [ 0.72622837],
+       [-0.51533282]]),), (np.array([[-12.56764548],
+       [ -6.10354988],
+       [369.48507841]]),))
+calib_right=(20.886516351459832, np.array([[532.10490591,   0.        , 505.56578522],
+       [  0.        , 515.16229963, 182.48782071],
+       [  0.        ,   0.        ,   1.        ]]), np.array([[ 1.53890218e+01, -3.07141685e+02,  2.20949195e-02,
+        -5.44633314e-01,  1.41157321e+03]]), (np.array([[ 0.10879618],
+       [ 0.51182915],
+       [-0.11120764]]),), (np.array([[-15.0980348 ],
+       [-12.35261895],
+       [ 56.67723485]]),))
+
+left_cam_matrix=calib_left[1]
+left_dist_coeff=calib_left[2]
+right_cam_matrix=calib_right[1]
+right_dist_coeff=calib_right[2]
+
+img=L_new[0][1]
+
+undist_map=cv.initUndistortRectifyMap(left_cam_matrix,left_dist_coeff,np.identity(3),left_cam_matrix,image_size,cv.CV_32FC1)
+undist_img=cv.remap(img,undist_map[0],undist_map[1],cv.INTER_NEAREST)
+
+cv.imshow('og_img', img)
+cv.imshow('undist_img', undist_img)
+k = cv.waitKey(0)
+
 
 #current error: objectPoints should contain 
 # vector of vectors of points of type Point3f in function 'collectCalibrationData'
