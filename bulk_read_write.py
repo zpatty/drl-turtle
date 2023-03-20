@@ -156,7 +156,7 @@ else:
     quit()
 
 
-dynamixel_IDs = [DXL1_ID, DXL2_ID, DXL3_ID] #, DXL4_ID, DXL5_ID, DXL6_ID]
+dynamixel_IDs = [DXL1_ID, DXL2_ID, DXL3_ID, DXL4_ID, DXL5_ID, DXL6_ID]
 # Enable Dynamixel Torques
 for id in dynamixel_IDs:
     dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, id, ADDR_TORQUE_ENABLE, TORQUE_ENABLE)
@@ -176,24 +176,26 @@ for id in dynamixel_IDs:
 
 t_old = get_time()
 t_0 = get_time()
+
 while 1:
-    print("Press any key to continue! (or press ESC to quit!)")
-    if getch() == chr(0x1b):
-        break
+    # print("Press any key to continue! (or press ESC to quit!)")
+    # if getch() == chr(0x1b):
+    #     break
     t = get_time()
     mod_clock = (t - t_0).total_seconds()  
     q_mat = mat2np('q.mat', 'qd')
     tvec = mat2np('tvec.mat', 'tSamples')
     t_old = t  
     n = get_qindex(mod_clock, tvec)
-    qd = np.array(q_mat[:, n]).reshape(-1,1)*(4095)/360
-    print(qd)
-    
+    qdf = np.array(q_mat[:, n]).reshape(-1,1)*(4095)/360
+    qd = np.squeeze(qdf.astype(int))
+
     # Allocate goal position value into byte array
-    i = 0
+    
+    index = 0
     for id in dynamixel_IDs:
         param_goal_position = [DXL_LOBYTE(DXL_LOWORD(qd[index])), DXL_HIBYTE(DXL_LOWORD(qd[index])), DXL_LOBYTE(DXL_HIWORD(qd[index])), DXL_HIBYTE(DXL_HIWORD(qd[index]))]
-
+        index = index+1
         # Add Dynamixel#1 goal position value to the Bulkwrite parameter storage
         dxl_addparam_result = groupBulkWrite.addParam(id, ADDR_GOAL_POSITION, LEN_GOAL_POSITION, param_goal_position)
         if dxl_addparam_result != True:
