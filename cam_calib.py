@@ -293,7 +293,20 @@ left_dist_coeff=calib_left[2]
 right_cam_matrix=calib_right[1]
 right_dist_coeff=calib_right[2]
 
+#From MATLAB, got the following matrices:
+L_cam_mat= np.array([[422.313321161968,0,345.824901119105],[
+0,422.692523040881,260.071545477633],[
+0,0,1]])
+R_cam_mat= np.array([[422.104286896807,0,337.316046510253],[
+0,422.354660812964,272.064383556624
+],[0,0,1]])
+
+
+
 img=R_new[0][30]
+
+opt_L_matrix=cv.getOptimalNewCameraMatrix(left_cam_matrix,left_dist_coeff,image_size,)
+
 
 undist_map=cv.initUndistortRectifyMap(right_cam_matrix,right_dist_coeff,np.identity(3),right_cam_matrix,image_size,cv.CV_32FC1)
 undist_img=cv.remap(img,undist_map[0],undist_map[1],cv.INTER_NEAREST)
@@ -301,6 +314,9 @@ undist_img=cv.remap(img,undist_map[0],undist_map[1],cv.INTER_NEAREST)
 cv.imshow('og_img', img)
 cv.imshow('undist_img', undist_img)
 k = cv.waitKey(0)
+
+
+
 
 # stereo_output=cv.stereoCalibrate(obj_pts,L_img_pts,R_img_pts,left_cam_matrix,left_dist_coeff,right_cam_matrix,right_dist_coeff,image_size)
 # print(stereo_output)
