@@ -227,7 +227,6 @@ R_img_pts=np.float32([np.reshape(R_sub_corn,(single_n,2))])
 
 obj_pts=np.zeros((count,3),  np.float32)
 obj_pts[:, :2]=np.mgrid[0:col_corners,0:row_corners].T.reshape(-1,2)
-#replacign this dimension doesn't change the image visually, nice
 obj_pts*=square_dim_cm
 new_obj_pts=[]
 for i in range(LR_num):
@@ -252,8 +251,6 @@ new_obj_pts=np.float32([(np.reshape(new_obj_pts,(single_n,3)))])
 # print(len(L_img_pts))
 # print("image points"+str(L_img_pts))
 
-print((L_img_pts).size)
-print((R_img_pts).size)
 
 int_mat=[]
 dist_coef=[]
@@ -301,25 +298,80 @@ R_cam_mat= np.array([[422.104286896807,0,337.316046510253],[
 0,422.354660812964,272.064383556624
 ],[0,0,1]])
 
+L_dist_coeff=np.array([-0.388717236012473,0.142441811337318,0,0,0])
+R_dist_coeff=np.array([-0.389481758183715,0.142311269649709,0,0,0])
+
+# img=R_new[0][1]
+
+# opt_L_matrix=cv.getOptimalNewCameraMatrix(left_cam_matrix,left_dist_coeff,image_size)
 
 
-img=R_new[0][30]
+# undist_map=cv.initUndistortRectifyMap(R_cam_mat,R_dist_coeff,np.identity(3),R_cam_mat,image_size,cv.CV_32FC1)
+# undist_img=cv.remap(img,undist_map[0],undist_map[1],cv.INTER_NEAREST)
 
-opt_L_matrix=cv.getOptimalNewCameraMatrix(left_cam_matrix,left_dist_coeff,image_size,)
-
-
-undist_map=cv.initUndistortRectifyMap(right_cam_matrix,right_dist_coeff,np.identity(3),right_cam_matrix,image_size,cv.CV_32FC1)
-undist_img=cv.remap(img,undist_map[0],undist_map[1],cv.INTER_NEAREST)
-
-cv.imshow('og_img', img)
-cv.imshow('undist_img', undist_img)
-k = cv.waitKey(0)
+# cv.imshow('og_img', img)
+# cv.imshow('undist_img', undist_img)
+# k = cv.waitKey(0)
 
 
 
+# L_img_pts=np.float32(np.reshape(L_img_pts,(count,LR_num,2)))
+# R_img_pts=np.float32(np.reshape(R_img_pts,(count,LR_num,2)))
+# obj_pts=np.float32(np.reshape(obj_pts,(70,3)))
 
-# stereo_output=cv.stereoCalibrate(obj_pts,L_img_pts,R_img_pts,left_cam_matrix,left_dist_coeff,right_cam_matrix,right_dist_coeff,image_size)
-# print(stereo_output)
+                     
+# print((new_obj_pts).shape)
+# print((L_img_pts).shape)
+# print((R_img_pts).shape)
+
+
+#stereoCal wants img pts to 
+stereo_output=cv.stereoCalibrate(new_obj_pts,L_img_pts,R_img_pts,L_cam_mat,L_dist_coeff,R_cam_mat,R_dist_coeff,image_size)
+# for i in range(len(stereo_output)):
+#     print("STEREO RESULT NUM "+str(i)+" : "+str(stereo_output[i]))
+
+#stereoCalibrate returns an array of 9 values: 
+# 0: retval (aka error)
+# 1: camera matrix 1 
+# 2: dist. coeff 1 
+# 3: camera matrix 2 
+# 4: dist coeff 2 
+# 5: R the rotation matrix 
+# 6: T the translation matrix
+# 7: E the essential matrix 
+# 8: F the fundamental matrix
+
+rot_mat=stereo_output[5]
+trans_mat=stereo_output[6]
+ess_mat=stereo_output[7]
+fund_mat=stereo_output[8]
+
+stereo_rect=cv.stereoRectify(L_cam_mat,L_dist_coeff,R_cam_mat,R_dist_coeff,image_size, rot_mat,trans_mat, None,None,None,None,None, cv.CALIB_ZERO_DISPARITY,.25)
+for i in range(len(stereo_rect)):
+     print("STEREO RECTIFY RESULT NUM "+str(i)+": "+str(stereo_rect[i]))
+
+# STEREO RECTIFY RESULT NUM 0: [[ 0.88385679  0.2626599   0.38704903]
+#  [-0.29164507  0.95637594  0.01697682]
+#  [-0.36570525 -0.12788602  0.92190283]]
+# STEREO RECTIFY RESULT NUM 1: [[ 0.93813861  0.33087347  0.10207202]
+#  [-0.32218272  0.94211986 -0.09278178]
+#  [-0.12686311  0.05415633  0.99044073]]
+# STEREO RECTIFY RESULT NUM 2: [[818.92051326   0.         155.52271843   0.        ]
+#  [  0.         818.92051326 335.5461998    0.        ]
+#  [  0.           0.           1.           0.        ]]
+# STEREO RECTIFY RESULT NUM 3: [[ 8.18920513e+02  0.00000000e+00  1.55522718e+02 -8.78728006e+03]
+#  [ 0.00000000e+00  8.18920513e+02  3.35546200e+02  0.00000000e+00]
+#  [ 0.00000000e+00  0.00000000e+00  1.00000000e+00  0.00000000e+00]]
+# STEREO RECTIFY RESULT NUM 4: [[ 1.00000000e+00  0.00000000e+00  0.00000000e+00 -1.55522718e+02]
+#  [ 0.00000000e+00  1.00000000e+00  0.00000000e+00 -3.35546200e+02]
+#  [ 0.00000000e+00  0.00000000e+00  0.00000000e+00  8.18920513e+02]
+#  [ 0.00000000e+00  0.00000000e+00  9.31938561e-02 -0.00000000e+00]]
+# STEREO RECTIFY RESULT NUM 5: (0, 81, 640, 279)
+# STEREO RECTIFY RESULT NUM 6: (0, 0, 640, 207)
+
+stereoMatcher=cv.StereoBM_create()
+#use stereoMatcher to get a disparity map which we can then run through compute to get a depth map
+
 
 #current error: objectPoints should contain 
 # vector of vectors of points of type Point3f in function 'collectCalibrationData'
