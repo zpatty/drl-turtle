@@ -4,6 +4,9 @@ import os
 
 ## updates/todo:
 
+#3/23/23: need to clean up code, delete unnecessary code / separate out our camera calib from our
+#stereo calib and depth map stuff, as we're currently not computing our own camera matrices :(
+
 #seems like col and row were mixed up :/
 #also the pixel count was simply wrong before
 #switch them everywhere i think, still getting a distorted image, 
@@ -347,8 +350,8 @@ ess_mat=stereo_output[7]
 fund_mat=stereo_output[8]
 
 stereo_rect=cv.stereoRectify(L_cam_mat,L_dist_coeff,R_cam_mat,R_dist_coeff,image_size, rot_mat,trans_mat, None,None,None,None,None, cv.CALIB_ZERO_DISPARITY,.25)
-for i in range(len(stereo_rect)):
-     print("STEREO RECTIFY RESULT NUM "+str(i)+": "+str(stereo_rect[i]))
+# for i in range(len(stereo_rect)):
+#      print("STEREO RECTIFY RESULT NUM "+str(i)+": "+str(stereo_rect[i]))
 
 # STEREO RECTIFY RESULT NUM 0: [[ 0.88385679  0.2626599   0.38704903]
 #  [-0.29164507  0.95637594  0.01697682]
@@ -369,12 +372,95 @@ for i in range(len(stereo_rect)):
 # STEREO RECTIFY RESULT NUM 5: (0, 81, 640, 279)
 # STEREO RECTIFY RESULT NUM 6: (0, 0, 640, 207)
 
-stereoMatcher=cv.StereoBM_create()
-#use stereoMatcher to get a disparity map which we can then run through compute to get a depth map
+# 0: 3x3 rectification transform (rot mat) for camera 1
+# 1: 3x3 rectification transform (rot mat) for camera 2
+# 2: 3x4 projection matrix in the new (rectified) coordinate systems for cam 1
+# 3: 3x4 projection matrix in the new (rectified) coordinate systems for cam 2
+# 4: 4x4 disparity-to-depth mapping matrix 
+# 5 & 6: roi1, roi2 rectangles inside the rectified images where all the pixels are valid [x,y,w,h]
+
+L_rect_trans=stereo_rect[0]
+R_rect_trans=stereo_rect[1]
+L_proj_mat=stereo_rect[2]
+R_proj_mat=stereo_rect[3]
+disp_to_depth=stereo_rect[4]
+roi1=stereo_rect[5]
+roi2=stereo_rect[6]
+
+# Q: what is stereo rectify giving us?
+
+#now that we have stereo calibration values, we want to apply them to the images
+L_undist_map=cv.initUndistortRectifyMap(L_cam_mat,L_dist_coeff,np.identity(3),L_cam_mat,image_size,cv.CV_32FC1)
+R_undist_map=cv.initUndistortRectifyMap(R_cam_mat,R_dist_coeff,np.identity(3),R_cam_mat,image_size,cv.CV_32FC1)
+# undist_img=cv.remap(img,undist_map[0],undist_map[1],cv.INTER_NEAREST)
+
+#cv.reprojectImageTo3D()
+left_maps=cv.initUndistortRectifyMap(L_cam_mat,L_dist_coeff,L_rect_trans,L_proj_mat,image_size,cv.CV_32FC1)
+right_maps=cv.initUndistortRectifyMap(R_cam_mat,R_dist_coeff,R_rect_trans,R_proj_mat,image_size,cv.CV_32FC1)
+
+L_map_x=left_maps[0]
+L_map_y=left_maps[1]
+R_map_x=right_maps[0]
+R_map_y=right_maps[1]
+
+#the 16 & 15 picked because opencv's sample code used it :/
+stereo=cv.StereoBM_create(16,15)
+#someone else's code I looked at has all this junk, but i think it makes things worse?
+# stereo.setMinDisparity(4)
+# stereo.setNumDisparities(128)
+# stereo.setBlockSize(21)
+# stereo.setROI1(roi1)
+# stereo.setROI2(roi2)
+# stereo.setSpeckleRange(16)
+# stereo.setSpeckleWindowSize(45)
+
+cam = cv.VideoCapture(0)
+cam.set(cv.CAP_PROP_FPS, 120)
+
+cam.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
+cam.set(cv.CAP_PROP_FRAME_HEIGHT, 360)
+s,orignal = cam.read()
+height, width, channels = orignal.shape
+print(width)
+print(height)
 
 
-#current error: objectPoints should contain 
-# vector of vectors of points of type Point3f in function 'collectCalibrationData'
+while(True):
+    s,orignal = cam.read()
+    left=orignal[0:height,0:int(width/2)]
+    right=orignal[0:height,int(width/2):(width)]
+    
+    if not s:
+        print("failed to grab frame")
+        break
+
+
+    fixedLeft = cv.remap(left, L_undist_map[0], L_undist_map[1], cv.INTER_LINEAR)
+    fixedRight = cv.remap(right, R_undist_map[0], R_undist_map[1], cv.INTER_LINEAR)
+
+    # fixedLeft = cv.remap(left, L_map_x, L_map_y, cv.INTER_LINEAR)
+    # fixedRight = cv.remap(right, R_map_x, R_map_y, cv.INTER_LINEAR)
+
+    grayLeft = cv.cvtColor(fixedLeft, cv.COLOR_BGR2GRAY)
+    grayRight = cv.cvtColor(fixedRight, cv.COLOR_BGR2GRAY)
+    depth = stereo.compute(grayLeft, grayRight)
+
+    cv.imshow('left', fixedLeft)
+    cv.imshow('right', fixedRight)
+    cv.imshow('depth', depth/2048)
+    k = cv.waitKey(1)
+    if k%256 == 27:
+        # ESC pressed
+        print("Escape hit, closing...")
+        break
+
+cam.release()
+cv.destroyAllWindows()
+
+#left cam has worse distortion than right, also the unrectified version 
+# is better abt the cropping issue but worse about the distortion
+#also does a weird left shift thing
+#also the depth map is pretty borked
 
 #  #params: objpts, imgpts, ptcounts,image_size
 # #intrinsic matrix, dist.coef, rotvec=null, transvec=null, flags=0
