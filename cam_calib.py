@@ -2,35 +2,14 @@ import numpy as np
 import cv2 as cv
 import os
 
+# first half of this file is attempting to find the camera matrix and distortion coefficients of the two cameras
+# the second half is calibrating them together to try to build a depth map
+
 ## updates/todo:
 
-#3/23/23: need to clean up code, delete unnecessary code / separate out our camera calib from our
-#stereo calib and depth map stuff, as we're currently not computing our own camera matrices :(
-
-#seems like col and row were mixed up :/
-#also the pixel count was simply wrong before
-#switch them everywhere i think, still getting a distorted image, 
-# but its different now 
-
-#what im going to do next:
-#try cropping off the sides of my images
-#rerun them thru corner detection/sorting which have detected corners
-#seeing how many images we get that still work
-#if >12 or so, try running calib 
-#if not, retake images with cropped screen display while capturing
-
-# -> obj pts error resolved:
-# "objectPoints should contain vector of vectors of points of type Point3f"
-# the np arrays, obj_pts and img_pts wanted to be lists inside np arrays
-# so I changed that and now cv.calibrateCamera runs!
-
-# -> testing cv.calibrateCamera results by running
-# cv.initUndistortRectifyMap and cv.remap to apply the 
-# camera matrix and distortion coeff found from cv.calibrateCamera
-# current result has worse distrotion than the original :(
-# but this is a known issue (well hopefully its the same issue)
-# and I should try cropping the images to 960x720
-# may have to retake sample images if the chessboard is affected
+# try out code with new [ZED Mini] camera (current code is for ELP camera)
+# will need to find the camera intrinsics matrix, possibly using MATLAB
+# correct depth map until seeing a reasonable result (possibly fiddling with params/algos/flags)
 
 #calibration pattern, chessboard is 7x10 (internal corners)
 row_corners=7
@@ -42,7 +21,7 @@ square_dim_cm= 2.3
 square_dim_in= 29/32
 pattern_size=(col_corners, row_corners)
 count=row_corners*col_corners
-image_size=(640,360) #is this correct???
+image_size=(640,360) # important to make sure this is correct
 
 #goes through the folder of sample images, and adds paths to the images
 #to a list, and also counts the number of images in the folder
@@ -53,44 +32,33 @@ image_size=(640,360) #is this correct???
 #ith image, and then num_images is the len of this list
 
 def find_corners(folder):
-    #param: folder is the string of the name of 
-    #the folder of images you are searching
+    #param: folder is the string of the name of the folder of images you are searching
     #runs find chessboard corners function on the images in the folder
-    #returns: tuple containing list of all images read, num of images
-    #and findchessboardcorners results; pattern found and corners found
-
+    #returns: list containing a tuple (img, find_chess[0], find_chess[1]) for each image 
+    #where img is the read in image 
+    #find_chess[0] is the bool of whether the pattern was found or not
+    #and find_chess[1] is either None if no pattern found, or the array of corners
     result=[]
     image_names=generate_filenames(folder)
     images=read_images(image_names, folder)
-
     flags=cv.CALIB_CB_ADAPTIVE_THRESH
-
-    #given images of the chessboard at different 
-    #positions/angles in space, find the corners
-
     corners=np.empty((col_corners, row_corners))
     for img in images:
         find_chess=cv.findChessboardCorners(img, pattern_size, corners, flags)
         result.append((img, find_chess[0], find_chess[1]))
-
-    # return(images, num_images, pattern_found, corners_found)
     return result
 
 def find_corners_old(folder):
-    #param: folder is the string of the name of 
-    #the folder of images you are searching
+    #param: folder is the string of the name of the folder of images you are searching
     #runs find chessboard corners function on the images in the folder
     #returns: tuple containing list of all images read, num of images
     #and findchessboardcorners results; pattern found and corners found
-
+    #pattern found is a list of bools on whether the pattern was found or not
+    #corners found is a list of either None if no pattern was found, or an array of corners found
     image_names=generate_filenames(folder)
     images=read_images(image_names, folder)
     num_images=len(image_names)
-    
     flags=cv.CALIB_CB_ADAPTIVE_THRESH
-
-    #given images of the chessboard at different 
-    #positions/angles in space, find the corners
     pattern_found=[]
     corners_found=[]
     corners=np.empty((col_corners, row_corners))
@@ -103,7 +71,6 @@ def find_corners_old(folder):
         else:
             corners_found.append(find_chess[1])
         #find_chess[1] is either None if no pattern was found, or an array
-
     return (images, num_images, pattern_found, corners_found)
 
 def generate_filenames(folder):
@@ -146,12 +113,6 @@ def no_pattern(pattern_found):
         if not pattern_found[i]:
             indices.add(i)
     return indices
-
-# def crop(image):
-#     #takes in an image and returns an image with the edges cropped off
-#     return image[:,]
-
-
 
 # getting image points is worse in the new return version 
 left_img=find_corners_old('new_imgs/left')
@@ -216,7 +177,8 @@ single_n=count*LR_num
 L_img_pts=np.float32([np.reshape(L_sub_corn,(single_n,2))])
 R_img_pts=np.float32([np.reshape(R_sub_corn,(single_n,2))])
 
-#find corners debugging using draw corners
+
+#find corners debugging using draw corners below
 
 # img=images[1]
 # color_img=convert_color(img)
@@ -227,42 +189,44 @@ R_img_pts=np.float32([np.reshape(R_sub_corn,(single_n,2))])
 
 #create object points array 
 # should be N by 3
+#use obj_pts_build to create the values
+#reshape and store as obj_pts
 
-obj_pts=np.zeros((count,3),  np.float32)
-obj_pts[:, :2]=np.mgrid[0:col_corners,0:row_corners].T.reshape(-1,2)
-obj_pts*=square_dim_cm
-new_obj_pts=[]
+obj_pts_build=np.zeros((count,3),  np.float32)
+obj_pts_build[:, :2]=np.mgrid[0:col_corners,0:row_corners].T.reshape(-1,2)
+obj_pts_build*=square_dim_cm
+obj_pts=[]
 for i in range(LR_num):
-    new_obj_pts.append(obj_pts)
+    obj_pts.append(obj_pts_build)
 
-new_obj_pts=np.float32([(np.reshape(new_obj_pts,(single_n,3)))])
+obj_pts=np.float32([(np.reshape(obj_pts,(single_n,3)))])
 
 # for i in range(single_n):
 #         for x in range(row_corners):
 #             for y in range(col_corners):
                 
-#                 obj_pts[i]=[x*square_dim_cm,y*square_dim_cm,0]
-# print(len(new_obj_pts))
-# print("object points"+str(new_obj_pts))
+#                 obj_pts_build[i]=[x*square_dim_cm,y*square_dim_cm,0]
+# print(len(obj_pts))
+# print("object points"+str(obj_pts))
 
 #for i in range(single_n):
-#obj_pts[i]=(x*square_dim_cm,y*square_dim_cm,0)
+#obj_pts_build[i]=(x*square_dim_cm,y*square_dim_cm,0)
 
 #should contain vector of vectors of points of type Point3f 
 
-# print(obj_pts, np.ndim(obj_pts),np.shape(obj_pts),np.size(obj_pts))
+# print(obj_pts_build, np.ndim(obj_pts_build),np.shape(obj_pts_build),np.size(obj_pts_build))
 # print(len(L_img_pts))
 # print("image points"+str(L_img_pts))
 
 
 int_mat=[]
 dist_coef=[]
-# print('OBJPTS'+str(len(obj_pts)))
+# print('OBJPTS'+str(len(obj_pts_build)))
 # print('IMGPTS'+str(len(left_img[3])))
 # print('PTCOUNT'+str(len(point_count)))
 # print('IMGSIZE'+str(len(image_size)))
-calib_left=cv.calibrateCamera(new_obj_pts, L_img_pts, image_size, None, None)
-calib_right=cv.calibrateCamera(new_obj_pts, R_img_pts, image_size, None, None)
+calib_left=cv.calibrateCamera(obj_pts, L_img_pts, image_size, None, None)
+calib_right=cv.calibrateCamera(obj_pts, R_img_pts, image_size, None, None)
 
 # print("calibrate left:")
 # print(calib_left)
@@ -293,6 +257,17 @@ left_dist_coeff=calib_left[2]
 right_cam_matrix=calib_right[1]
 right_dist_coeff=calib_right[2]
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# CAMERA CALIBRATION ATTEMPTS ABOVE, STEREO CALIBRATION BELOW USING MATLAB RESULTS
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Camera intrinsics matrices take the form [[f_x,0,c_x],[0,f_y,c_y],[0,0,1]]
+# where f_x and f_y are the actual physical focal lengths of the lens
+# and c_x and c_y model the displacement of the center of coordinates away from the optic axis to the projection screen
+#Displacement coefficients are listed as a vector [k_1, k_2, p_1, p_2, k_3] 
+# where k_1, k_2 & k_3 are radial distortion, with k_3 usually only used for fish-eye lenses 
+# and p_1 and p_2 are tangential distortion
+
 #From MATLAB, got the following matrices:
 L_cam_mat= np.array([[422.313321161968,0,345.824901119105],[
 0,422.692523040881,260.071545477633],[
@@ -303,11 +278,11 @@ R_cam_mat= np.array([[422.104286896807,0,337.316046510253],[
 
 L_dist_coeff=np.array([-0.388717236012473,0.142441811337318,0,0,0])
 R_dist_coeff=np.array([-0.389481758183715,0.142311269649709,0,0,0])
+#^ note that only k_1 and k_2 are being used 
 
 # img=R_new[0][1]
 
 # opt_L_matrix=cv.getOptimalNewCameraMatrix(left_cam_matrix,left_dist_coeff,image_size)
-
 
 # undist_map=cv.initUndistortRectifyMap(R_cam_mat,R_dist_coeff,np.identity(3),R_cam_mat,image_size,cv.CV_32FC1)
 # undist_img=cv.remap(img,undist_map[0],undist_map[1],cv.INTER_NEAREST)
@@ -316,20 +291,19 @@ R_dist_coeff=np.array([-0.389481758183715,0.142311269649709,0,0,0])
 # cv.imshow('undist_img', undist_img)
 # k = cv.waitKey(0)
 
-
-
+# ---unused code for when we get errors about shape of obj/img pts---
 # L_img_pts=np.float32(np.reshape(L_img_pts,(count,LR_num,2)))
 # R_img_pts=np.float32(np.reshape(R_img_pts,(count,LR_num,2)))
-# obj_pts=np.float32(np.reshape(obj_pts,(70,3)))
-
-                     
-# print((new_obj_pts).shape)
+# obj_pts_build=np.float32(np.reshape(obj_pts_build,(70,3)))
+          
+# print((obj_pts).shape)
 # print((L_img_pts).shape)
 # print((R_img_pts).shape)
+# error resolved by using obj_pts instead of obj_pts_build
+# -------------------------------------------------------------------
 
+stereo_output=cv.stereoCalibrate(obj_pts,L_img_pts,R_img_pts,L_cam_mat,L_dist_coeff,R_cam_mat,R_dist_coeff,image_size)
 
-#stereoCal wants img pts to 
-stereo_output=cv.stereoCalibrate(new_obj_pts,L_img_pts,R_img_pts,L_cam_mat,L_dist_coeff,R_cam_mat,R_dist_coeff,image_size)
 # for i in range(len(stereo_output)):
 #     print("STEREO RESULT NUM "+str(i)+" : "+str(stereo_output[i]))
 
@@ -350,6 +324,7 @@ ess_mat=stereo_output[7]
 fund_mat=stereo_output[8]
 
 stereo_rect=cv.stereoRectify(L_cam_mat,L_dist_coeff,R_cam_mat,R_dist_coeff,image_size, rot_mat,trans_mat, None,None,None,None,None, cv.CALIB_ZERO_DISPARITY,.25)
+
 # for i in range(len(stereo_rect)):
 #      print("STEREO RECTIFY RESULT NUM "+str(i)+": "+str(stereo_rect[i]))
 
@@ -386,8 +361,6 @@ R_proj_mat=stereo_rect[3]
 disp_to_depth=stereo_rect[4]
 roi1=stereo_rect[5]
 roi2=stereo_rect[6]
-
-# Q: what is stereo rectify giving us?
 
 #now that we have stereo calibration values, we want to apply them to the images
 L_undist_map=cv.initUndistortRectifyMap(L_cam_mat,L_dist_coeff,np.identity(3),L_cam_mat,image_size,cv.CV_32FC1)
