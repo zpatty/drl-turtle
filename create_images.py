@@ -1,19 +1,19 @@
 #taken from https://stackoverflow.com/questions/34588464/python-how-to-capture-image-from-webcam-on-click-using-opencv
-#will edit to accomodate stereo camera - taking captures for both video streams at once
+#edited to accomodate ELP stereo camera which captures for both video streams at once
 
-#camera splice
 import numpy as np
 import cv2
 
-
-#want to do: splice, get left and right channels separately, and each time we take a screenshot
-#it saves two images, left and right separately in diff folders, but with same numebr
+# The ELP camera displays both cameras in one videocapture stream, so I am splicing the capture stream in half to separate the left and right videos
+# Each time we take a screenshot it saves who images, left and right in different folders, but with the same image number
 
 cam = cv2.  VideoCapture(0)
-cam.set(cv2.CAP_PROP_FPS, 120)
 
+#The below settings are meant to improve resolution
+cam.set(cv2.CAP_PROP_FPS, 120)
 cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
 s,orignal = cam.read()
 height, width, channels = orignal.shape
 print(width)
