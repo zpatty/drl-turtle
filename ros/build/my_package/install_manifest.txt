@@ -1,0 +1,16 @@
+/root/test/install/my_package/lib/my_package/my_node
+/root/test/install/my_package/share/ament_index/resource_index/package_run_dependencies/my_package
+/root/test/install/my_package/share/ament_index/resource_index/parent_prefix_path/my_package
+/root/test/install/my_package/share/my_package/environment/ament_prefix_path.sh
+/root/test/install/my_package/share/my_package/environment/ament_prefix_path.dsv
+/root/test/install/my_package/share/my_package/environment/path.sh
+/root/test/install/my_package/share/my_package/environment/path.dsv
+/root/test/install/my_package/share/my_package/local_setup.bash
+/root/test/install/my_package/share/my_package/local_setup.sh
+/root/test/install/my_package/share/my_package/local_setup.zsh
+/root/test/install/my_package/share/my_package/local_setup.dsv
+/root/test/install/my_package/share/my_package/package.dsv
+/root/test/install/my_package/share/ament_index/resource_index/packages/my_package
+/root/test/install/my_package/share/my_package/cmake/my_packageConfig.cmake
+/root/test/install/my_package/share/my_package/cmake/my_packageConfig-version.cmake
+/root/test/install/my_package/share/my_package/package.xml

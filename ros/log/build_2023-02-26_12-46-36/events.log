@@ -1,0 +1,80 @@
+[0.000000] (-) TimerEvent: {}
+[0.002350] (-) JobUnselected: {'identifier': 'my_package'}
+[0.003231] (py_pubsub) JobQueued: {'identifier': 'py_pubsub', 'dependencies': OrderedDict()}
+[0.005570] (py_pubsub) JobStarted: {'identifier': 'py_pubsub'}
+[0.099159] (-) TimerEvent: {}
+[0.199918] (-) TimerEvent: {}
+[0.301132] (-) TimerEvent: {}
+[0.402554] (-) TimerEvent: {}
+[0.503906] (-) TimerEvent: {}
+[0.605670] (-) TimerEvent: {}
+[0.707025] (-) TimerEvent: {}
+[0.808372] (-) TimerEvent: {}
+[0.909806] (-) TimerEvent: {}
+[1.012175] (-) TimerEvent: {}
+[1.113626] (-) TimerEvent: {}
+[1.214535] (-) TimerEvent: {}
+[1.315564] (-) TimerEvent: {}
+[1.416500] (-) TimerEvent: {}
+[1.517470] (-) TimerEvent: {}
+[1.618792] (-) TimerEvent: {}
+[1.720144] (-) TimerEvent: {}
+[1.821452] (-) TimerEvent: {}
+[1.923009] (-) TimerEvent: {}
+[2.024035] (-) TimerEvent: {}
+[2.103658] (py_pubsub) Command: {'cmd': ['/usr/bin/python3', 'setup.py', 'egg_info', '--egg-base', '../build/py_pubsub', 'build', '--build-base', '/root/test/build/py_pubsub/build', 'install', '--record', '/root/test/build/py_pubsub/install.log', '--single-version-externally-managed'], 'cwd': '/root/test/py_pubsub', 'env': {'HOSTNAME': 'ba20bb7fbca9', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/root/test/install/turtlesim/lib:/root/ros2_ws/install/examples_rclcpp_wait_set/lib:/root/ros2_ws/install/examples_rclcpp_minimal_subscriber/lib:/root/ros2_ws/install/examples_rclcpp_minimal_composition/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/aarch64-linux-gnu:/opt/ros/humble/lib', 'HOME': '/root', 'OLDPWD': '/root/test/py_pubsub/py_pubsub', 'ROS_PYTHON_VERSION': '3', 'COLCON_PREFIX_PATH': '/root/test/install:/root/ros2_ws/install', 'ROS_DISTRO': 'humble', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'TERM': 'xterm', 'ROS_LOCALHOST_ONLY': '0', 'PATH': '/opt/ros/humble/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', 'LANG': 'C.UTF-8', 'LS_COLORS': 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:', 'ROS_DOMAIN_ID': '3', 'AMENT_PREFIX_PATH': '/root/test/install/my_package:/root/test/install/turtlesim:/root/ros2_ws/install/launch_testing_examples:/root/ros2_ws/install/examples_rclpy_pointcloud_publisher:/root/ros2_ws/install/examples_rclpy_minimal_subscriber:/root/ros2_ws/install/examples_rclpy_minimal_service:/root/ros2_ws/install/examples_rclpy_minimal_publisher:/root/ros2_ws/install/examples_rclpy_minimal_client:/root/ros2_ws/install/examples_rclpy_minimal_action_server:/root/ros2_ws/install/examples_rclpy_minimal_action_client:/root/ros2_ws/install/examples_rclpy_guard_conditions:/root/ros2_ws/install/examples_rclpy_executors:/root/ros2_ws/install/examples_rclcpp_wait_set:/root/ros2_ws/install/examples_rclcpp_multithreaded_executor:/root/ros2_ws/install/examples_rclcpp_minimal_timer:/root/ros2_ws/install/examples_rclcpp_minimal_subscriber:/root/ros2_ws/install/examples_rclcpp_minimal_service:/root/ros2_ws/install/examples_rclcpp_minimal_publisher:/root/ros2_ws/install/examples_rclcpp_minimal_composition:/root/ros2_ws/install/examples_rclcpp_minimal_client:/root/ros2_ws/install/examples_rclcpp_minimal_action_server:/root/ros2_ws/install/examples_rclcpp_minimal_action_client:/root/ros2_ws/install/examples_rclcpp_cbg_executor:/root/ros2_ws/install/examples_rclcpp_async_client:/opt/ros/humble', 'PWD': '/root/test/build/py_pubsub', 'LC_ALL': 'C.UTF-8', 'PYTHONPATH': '/root/test/build/py_pubsub/prefix_override:/root/test/install/py_pubsub/lib/python3.10/site-packages:/root/test/install/turtlesim/local/lib/python3.10/dist-packages:/root/ros2_ws/build/launch_testing_examples:/root/ros2_ws/install/launch_testing_examples/lib/python3.10/site-packages:/root/ros2_ws/build/examples_rclpy_pointcloud_publisher:/root/ros2_ws/install/examples_rclpy_pointcloud_publisher/lib/python3.10/site-packages:/root/ros2_ws/build/examples_rclpy_minimal_subscriber:/root/ros2_ws/install/examples_rclpy_minimal_subscriber/lib/python3.10/site-packages:/root/ros2_ws/build/examples_rclpy_minimal_service:/root/ros2_ws/install/examples_rclpy_minimal_service/lib/python3.10/site-packages:/root/ros2_ws/build/examples_rclpy_minimal_publisher:/root/ros2_ws/install/examples_rclpy_minimal_publisher/lib/python3.10/site-packages:/root/ros2_ws/build/examples_rclpy_minimal_client:/root/ros2_ws/install/examples_rclpy_minimal_client/lib/python3.10/site-packages:/root/ros2_ws/build/examples_rclpy_minimal_action_server:/root/ros2_ws/install/examples_rclpy_minimal_action_server/lib/python3.10/site-packages:/root/ros2_ws/build/examples_rclpy_minimal_action_client:/root/ros2_ws/install/examples_rclpy_minimal_action_client/lib/python3.10/site-packages:/root/ros2_ws/build/examples_rclpy_guard_conditions:/root/ros2_ws/install/examples_rclpy_guard_conditions/lib/python3.10/site-packages:/root/ros2_ws/build/examples_rclpy_executors:/root/ros2_ws/install/examples_rclpy_executors/lib/python3.10/site-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages', 'COLCON': '1', 'CMAKE_PREFIX_PATH': '/root/test/install/my_package:/root/test/install/turtlesim:/root/ros2_ws/install/examples_rclcpp_wait_set:/root/ros2_ws/install/examples_rclcpp_multithreaded_executor:/root/ros2_ws/install/examples_rclcpp_minimal_timer:/root/ros2_ws/install/examples_rclcpp_minimal_subscriber:/root/ros2_ws/install/examples_rclcpp_minimal_service:/root/ros2_ws/install/examples_rclcpp_minimal_publisher:/root/ros2_ws/install/examples_rclcpp_minimal_composition:/root/ros2_ws/install/examples_rclcpp_minimal_client:/root/ros2_ws/install/examples_rclcpp_minimal_action_server:/root/ros2_ws/install/examples_rclcpp_minimal_action_client:/root/ros2_ws/install/examples_rclcpp_cbg_executor:/root/ros2_ws/install/examples_rclcpp_async_client'}, 'shell': False}
+[2.124163] (-) TimerEvent: {}
+[2.225371] (-) TimerEvent: {}
+[2.326888] (-) TimerEvent: {}
+[2.428552] (-) TimerEvent: {}
+[2.529858] (-) TimerEvent: {}
+[2.631121] (-) TimerEvent: {}
+[2.732411] (-) TimerEvent: {}
+[2.833762] (-) TimerEvent: {}
+[2.897785] (py_pubsub) StdoutLine: {'line': b'running egg_info\n'}
+[2.900019] (py_pubsub) StdoutLine: {'line': b'creating ../build/py_pubsub/py_pubsub.egg-info\n'}
+[2.900762] (py_pubsub) StdoutLine: {'line': b'writing ../build/py_pubsub/py_pubsub.egg-info/PKG-INFO\n'}
+[2.901905] (py_pubsub) StdoutLine: {'line': b'writing dependency_links to ../build/py_pubsub/py_pubsub.egg-info/dependency_links.txt\n'}
+[2.902523] (py_pubsub) StdoutLine: {'line': b'writing entry points to ../build/py_pubsub/py_pubsub.egg-info/entry_points.txt\n'}
+[2.903107] (py_pubsub) StdoutLine: {'line': b'writing requirements to ../build/py_pubsub/py_pubsub.egg-info/requires.txt\n'}
+[2.903681] (py_pubsub) StdoutLine: {'line': b'writing top-level names to ../build/py_pubsub/py_pubsub.egg-info/top_level.txt\n'}
+[2.904271] (py_pubsub) StdoutLine: {'line': b"writing manifest file '../build/py_pubsub/py_pubsub.egg-info/SOURCES.txt'\n"}
+[2.910266] (py_pubsub) StdoutLine: {'line': b"reading manifest file '../build/py_pubsub/py_pubsub.egg-info/SOURCES.txt'\n"}
+[2.912805] (py_pubsub) StdoutLine: {'line': b"writing manifest file '../build/py_pubsub/py_pubsub.egg-info/SOURCES.txt'\n"}
+[2.913404] (py_pubsub) StdoutLine: {'line': b'running build\n'}
+[2.913838] (py_pubsub) StdoutLine: {'line': b'running build_py\n'}
+[2.914691] (py_pubsub) StdoutLine: {'line': b'creating /root/test/build/py_pubsub/build\n'}
+[2.915252] (py_pubsub) StdoutLine: {'line': b'creating /root/test/build/py_pubsub/build/lib\n'}
+[2.915791] (py_pubsub) StdoutLine: {'line': b'creating /root/test/build/py_pubsub/build/lib/py_pubsub\n'}
+[2.916321] (py_pubsub) StdoutLine: {'line': b'copying py_pubsub/__init__.py -> /root/test/build/py_pubsub/build/lib/py_pubsub\n'}
+[2.916654] (py_pubsub) StdoutLine: {'line': b'copying py_pubsub/subscriber_member_function.py -> /root/test/build/py_pubsub/build/lib/py_pubsub\n'}
+[2.917037] (py_pubsub) StdoutLine: {'line': b'copying py_pubsub/publisher_member_function.py -> /root/test/build/py_pubsub/build/lib/py_pubsub\n'}
+[2.917689] (py_pubsub) StdoutLine: {'line': b'running install\n'}
+[2.918228] (py_pubsub) StderrLine: {'line': b'/usr/lib/python3/dist-packages/setuptools/command/install.py:34: SetuptoolsDeprecationWarning: setup.py install is deprecated. Use build and pip and other standards-based tools.\n'}
+[2.918622] (py_pubsub) StderrLine: {'line': b'  warnings.warn(\n'}
+[2.919169] (py_pubsub) StdoutLine: {'line': b'running install_lib\n'}
+[2.921504] (py_pubsub) StdoutLine: {'line': b'creating /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub\n'}
+[2.922157] (py_pubsub) StdoutLine: {'line': b'copying /root/test/build/py_pubsub/build/lib/py_pubsub/__init__.py -> /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub\n'}
+[2.922714] (py_pubsub) StdoutLine: {'line': b'copying /root/test/build/py_pubsub/build/lib/py_pubsub/subscriber_member_function.py -> /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub\n'}
+[2.923196] (py_pubsub) StdoutLine: {'line': b'copying /root/test/build/py_pubsub/build/lib/py_pubsub/publisher_member_function.py -> /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub\n'}
+[2.925157] (py_pubsub) StdoutLine: {'line': b'byte-compiling /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub/__init__.py to __init__.cpython-310.pyc\n'}
+[2.926371] (py_pubsub) StdoutLine: {'line': b'byte-compiling /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub/subscriber_member_function.py to subscriber_member_function.cpython-310.pyc\n'}
+[2.928564] (py_pubsub) StdoutLine: {'line': b'byte-compiling /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub/publisher_member_function.py to publisher_member_function.cpython-310.pyc\n'}
+[2.930201] (py_pubsub) StdoutLine: {'line': b'running install_data\n'}
+[2.932073] (py_pubsub) StdoutLine: {'line': b'creating /root/test/install/py_pubsub/share/ament_index\n'}
+[2.932920] (py_pubsub) StdoutLine: {'line': b'creating /root/test/install/py_pubsub/share/ament_index/resource_index\n'}
+[2.933357] (py_pubsub) StdoutLine: {'line': b'creating /root/test/install/py_pubsub/share/ament_index/resource_index/packages\n'}
+[2.934062] (-) TimerEvent: {}
+[2.935104] (py_pubsub) StdoutLine: {'line': b'copying resource/py_pubsub -> /root/test/install/py_pubsub/share/ament_index/resource_index/packages\n'}
+[2.935610] (py_pubsub) StdoutLine: {'line': b'copying package.xml -> /root/test/install/py_pubsub/share/py_pubsub\n'}
+[2.935977] (py_pubsub) StdoutLine: {'line': b'running install_egg_info\n'}
+[2.939854] (py_pubsub) StdoutLine: {'line': b'Copying ../build/py_pubsub/py_pubsub.egg-info to /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub-0.0.0-py3.10.egg-info\n'}
+[2.943556] (py_pubsub) StdoutLine: {'line': b'running install_scripts\n'}
+[3.017743] (py_pubsub) StdoutLine: {'line': b'Installing listener script to /root/test/install/py_pubsub/lib/py_pubsub\n'}
+[3.018463] (py_pubsub) StdoutLine: {'line': b'Installing talker script to /root/test/install/py_pubsub/lib/py_pubsub\n'}
+[3.019766] (py_pubsub) StdoutLine: {'line': b"writing list of installed files to '/root/test/build/py_pubsub/install.log'\n"}
+[3.034335] (-) TimerEvent: {}
+[3.137792] (py_pubsub) CommandEnded: {'returncode': 0}
+[3.141985] (-) TimerEvent: {}
+[3.193993] (py_pubsub) JobEnded: {'identifier': 'py_pubsub', 'rc': 0}
+[3.196766] (-) EventReactorShutdown: {}

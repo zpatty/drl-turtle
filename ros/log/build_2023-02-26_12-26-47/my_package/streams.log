@@ -1,0 +1,51 @@
+[0.091s] Invoking command in '/root/test/build/my_package': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/root/ros2_ws/install/launch_testing_examples:/root/ros2_ws/install/examples_rclpy_pointcloud_publisher:/root/ros2_ws/install/examples_rclpy_minimal_subscriber:/root/ros2_ws/install/examples_rclpy_minimal_service:/root/ros2_ws/install/examples_rclpy_minimal_publisher:/root/ros2_ws/install/examples_rclpy_minimal_client:/root/ros2_ws/install/examples_rclpy_minimal_action_server:/root/ros2_ws/install/examples_rclpy_minimal_action_client:/root/ros2_ws/install/examples_rclpy_guard_conditions:/root/ros2_ws/install/examples_rclpy_executors:/opt/ros/humble /usr/bin/cmake /root/test/src/my_package -DCMAKE_INSTALL_PREFIX=/root/test/install/my_package
+[0.291s] -- The C compiler identification is GNU 11.3.0
+[0.490s] -- The CXX compiler identification is GNU 11.3.0
+[0.510s] -- Detecting C compiler ABI info
+[0.746s] -- Detecting C compiler ABI info - done
+[0.770s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.770s] -- Detecting C compile features
+[0.772s] -- Detecting C compile features - done
+[0.781s] -- Detecting CXX compiler ABI info
+[1.046s] -- Detecting CXX compiler ABI info - done
+[1.071s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[1.071s] -- Detecting CXX compile features
+[1.073s] -- Detecting CXX compile features - done
+[1.082s] -- Found ament_cmake: 1.3.3 (/opt/ros/humble/share/ament_cmake/cmake)
+[1.757s] -- Found Python3: /usr/bin/python3.10 (found version "3.10.6") found components: Interpreter 
+[2.108s] -- Found ament_lint_auto: 0.12.5 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[2.421s] -- Added test 'cppcheck' to perform static code analysis on C / C++ code
+[2.421s] -- Configured cppcheck include dirs: $<BUILD_INTERFACE:/root/test/src/my_package/include>
+[2.421s] -- Configured cppcheck exclude dirs and/or files: 
+[2.424s] -- Added test 'lint_cmake' to check CMake code style
+[2.429s] -- Added test 'uncrustify' to check C / C++ code style
+[2.429s] -- Configured uncrustify additional arguments: 
+[2.432s] -- Added test 'xmllint' to check XML markup files
+[2.439s] -- Configuring done
+[2.456s] -- Generating done
+[2.460s] -- Build files have been written to: /root/test/build/my_package
+[2.475s] Invoked command in '/root/test/build/my_package' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/root/ros2_ws/install/launch_testing_examples:/root/ros2_ws/install/examples_rclpy_pointcloud_publisher:/root/ros2_ws/install/examples_rclpy_minimal_subscriber:/root/ros2_ws/install/examples_rclpy_minimal_service:/root/ros2_ws/install/examples_rclpy_minimal_publisher:/root/ros2_ws/install/examples_rclpy_minimal_client:/root/ros2_ws/install/examples_rclpy_minimal_action_server:/root/ros2_ws/install/examples_rclpy_minimal_action_client:/root/ros2_ws/install/examples_rclpy_guard_conditions:/root/ros2_ws/install/examples_rclpy_executors:/opt/ros/humble /usr/bin/cmake /root/test/src/my_package -DCMAKE_INSTALL_PREFIX=/root/test/install/my_package
+[2.481s] Invoking command in '/root/test/build/my_package': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/root/ros2_ws/install/launch_testing_examples:/root/ros2_ws/install/examples_rclpy_pointcloud_publisher:/root/ros2_ws/install/examples_rclpy_minimal_subscriber:/root/ros2_ws/install/examples_rclpy_minimal_service:/root/ros2_ws/install/examples_rclpy_minimal_publisher:/root/ros2_ws/install/examples_rclpy_minimal_client:/root/ros2_ws/install/examples_rclpy_minimal_action_server:/root/ros2_ws/install/examples_rclpy_minimal_action_client:/root/ros2_ws/install/examples_rclpy_guard_conditions:/root/ros2_ws/install/examples_rclpy_executors:/opt/ros/humble /usr/bin/cmake --build /root/test/build/my_package -- -j4 -l4
+[2.619s] [ 50%] [32mBuilding CXX object CMakeFiles/my_node.dir/src/my_node.cpp.o[0m
+[2.712s] [100%] [32m[1mLinking CXX executable my_node[0m
+[2.873s] [100%] Built target my_node
+[2.904s] Invoked command in '/root/test/build/my_package' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/root/ros2_ws/install/launch_testing_examples:/root/ros2_ws/install/examples_rclpy_pointcloud_publisher:/root/ros2_ws/install/examples_rclpy_minimal_subscriber:/root/ros2_ws/install/examples_rclpy_minimal_service:/root/ros2_ws/install/examples_rclpy_minimal_publisher:/root/ros2_ws/install/examples_rclpy_minimal_client:/root/ros2_ws/install/examples_rclpy_minimal_action_server:/root/ros2_ws/install/examples_rclpy_minimal_action_client:/root/ros2_ws/install/examples_rclpy_guard_conditions:/root/ros2_ws/install/examples_rclpy_executors:/opt/ros/humble /usr/bin/cmake --build /root/test/build/my_package -- -j4 -l4
+[3.004s] Invoking command in '/root/test/build/my_package': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/root/ros2_ws/install/launch_testing_examples:/root/ros2_ws/install/examples_rclpy_pointcloud_publisher:/root/ros2_ws/install/examples_rclpy_minimal_subscriber:/root/ros2_ws/install/examples_rclpy_minimal_service:/root/ros2_ws/install/examples_rclpy_minimal_publisher:/root/ros2_ws/install/examples_rclpy_minimal_client:/root/ros2_ws/install/examples_rclpy_minimal_action_server:/root/ros2_ws/install/examples_rclpy_minimal_action_client:/root/ros2_ws/install/examples_rclpy_guard_conditions:/root/ros2_ws/install/examples_rclpy_executors:/opt/ros/humble /usr/bin/cmake --install /root/test/build/my_package
+[3.026s] -- Install configuration: ""
+[3.026s] -- Installing: /root/test/install/my_package/lib/my_package/my_node
+[3.028s] -- Installing: /root/test/install/my_package/share/ament_index/resource_index/package_run_dependencies/my_package
+[3.029s] -- Installing: /root/test/install/my_package/share/ament_index/resource_index/parent_prefix_path/my_package
+[3.030s] -- Installing: /root/test/install/my_package/share/my_package/environment/ament_prefix_path.sh
+[3.030s] -- Installing: /root/test/install/my_package/share/my_package/environment/ament_prefix_path.dsv
+[3.031s] -- Installing: /root/test/install/my_package/share/my_package/environment/path.sh
+[3.032s] -- Installing: /root/test/install/my_package/share/my_package/environment/path.dsv
+[3.032s] -- Installing: /root/test/install/my_package/share/my_package/local_setup.bash
+[3.033s] -- Installing: /root/test/install/my_package/share/my_package/local_setup.sh
+[3.034s] -- Installing: /root/test/install/my_package/share/my_package/local_setup.zsh
+[3.034s] -- Installing: /root/test/install/my_package/share/my_package/local_setup.dsv
+[3.035s] -- Installing: /root/test/install/my_package/share/my_package/package.dsv
+[3.036s] -- Installing: /root/test/install/my_package/share/ament_index/resource_index/packages/my_package
+[3.037s] -- Installing: /root/test/install/my_package/share/my_package/cmake/my_packageConfig.cmake
+[3.039s] -- Installing: /root/test/install/my_package/share/my_package/cmake/my_packageConfig-version.cmake
+[3.041s] -- Installing: /root/test/install/my_package/share/my_package/package.xml
+[3.047s] Invoked command in '/root/test/build/my_package' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/root/ros2_ws/install/launch_testing_examples:/root/ros2_ws/install/examples_rclpy_pointcloud_publisher:/root/ros2_ws/install/examples_rclpy_minimal_subscriber:/root/ros2_ws/install/examples_rclpy_minimal_service:/root/ros2_ws/install/examples_rclpy_minimal_publisher:/root/ros2_ws/install/examples_rclpy_minimal_client:/root/ros2_ws/install/examples_rclpy_minimal_action_server:/root/ros2_ws/install/examples_rclpy_minimal_action_client:/root/ros2_ws/install/examples_rclpy_guard_conditions:/root/ros2_ws/install/examples_rclpy_executors:/opt/ros/humble /usr/bin/cmake --install /root/test/build/my_package

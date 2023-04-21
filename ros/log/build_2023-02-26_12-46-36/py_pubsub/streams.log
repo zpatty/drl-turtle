@@ -1,0 +1,43 @@
+[2.106s] Invoking command in '/root/test/py_pubsub': PYTHONPATH=/root/test/build/py_pubsub/prefix_override:/root/test/install/py_pubsub/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../build/py_pubsub build --build-base /root/test/build/py_pubsub/build install --record /root/test/build/py_pubsub/install.log --single-version-externally-managed
+[2.893s] running egg_info
+[2.895s] creating ../build/py_pubsub/py_pubsub.egg-info
+[2.895s] writing ../build/py_pubsub/py_pubsub.egg-info/PKG-INFO
+[2.896s] writing dependency_links to ../build/py_pubsub/py_pubsub.egg-info/dependency_links.txt
+[2.897s] writing entry points to ../build/py_pubsub/py_pubsub.egg-info/entry_points.txt
+[2.898s] writing requirements to ../build/py_pubsub/py_pubsub.egg-info/requires.txt
+[2.898s] writing top-level names to ../build/py_pubsub/py_pubsub.egg-info/top_level.txt
+[2.899s] writing manifest file '../build/py_pubsub/py_pubsub.egg-info/SOURCES.txt'
+[2.905s] reading manifest file '../build/py_pubsub/py_pubsub.egg-info/SOURCES.txt'
+[2.907s] writing manifest file '../build/py_pubsub/py_pubsub.egg-info/SOURCES.txt'
+[2.908s] running build
+[2.909s] running build_py
+[2.909s] creating /root/test/build/py_pubsub/build
+[2.910s] creating /root/test/build/py_pubsub/build/lib
+[2.910s] creating /root/test/build/py_pubsub/build/lib/py_pubsub
+[2.911s] copying py_pubsub/__init__.py -> /root/test/build/py_pubsub/build/lib/py_pubsub
+[2.911s] copying py_pubsub/subscriber_member_function.py -> /root/test/build/py_pubsub/build/lib/py_pubsub
+[2.912s] copying py_pubsub/publisher_member_function.py -> /root/test/build/py_pubsub/build/lib/py_pubsub
+[2.912s] running install
+[2.913s] /usr/lib/python3/dist-packages/setuptools/command/install.py:34: SetuptoolsDeprecationWarning: setup.py install is deprecated. Use build and pip and other standards-based tools.
+[2.913s]   warnings.warn(
+[2.914s] running install_lib
+[2.916s] creating /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub
+[2.917s] copying /root/test/build/py_pubsub/build/lib/py_pubsub/__init__.py -> /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub
+[2.917s] copying /root/test/build/py_pubsub/build/lib/py_pubsub/subscriber_member_function.py -> /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub
+[2.918s] copying /root/test/build/py_pubsub/build/lib/py_pubsub/publisher_member_function.py -> /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub
+[2.920s] byte-compiling /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub/__init__.py to __init__.cpython-310.pyc
+[2.921s] byte-compiling /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub/subscriber_member_function.py to subscriber_member_function.cpython-310.pyc
+[2.923s] byte-compiling /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub/publisher_member_function.py to publisher_member_function.cpython-310.pyc
+[2.925s] running install_data
+[2.927s] creating /root/test/install/py_pubsub/share/ament_index
+[2.927s] creating /root/test/install/py_pubsub/share/ament_index/resource_index
+[2.928s] creating /root/test/install/py_pubsub/share/ament_index/resource_index/packages
+[2.930s] copying resource/py_pubsub -> /root/test/install/py_pubsub/share/ament_index/resource_index/packages
+[2.930s] copying package.xml -> /root/test/install/py_pubsub/share/py_pubsub
+[2.930s] running install_egg_info
+[2.934s] Copying ../build/py_pubsub/py_pubsub.egg-info to /root/test/install/py_pubsub/lib/python3.10/site-packages/py_pubsub-0.0.0-py3.10.egg-info
+[2.938s] running install_scripts
+[3.012s] Installing listener script to /root/test/install/py_pubsub/lib/py_pubsub
+[3.013s] Installing talker script to /root/test/install/py_pubsub/lib/py_pubsub
+[3.014s] writing list of installed files to '/root/test/build/py_pubsub/install.log'
+[3.136s] Invoked command in '/root/test/py_pubsub' returned '0': PYTHONPATH=/root/test/build/py_pubsub/prefix_override:/root/test/install/py_pubsub/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../build/py_pubsub build --build-base /root/test/build/py_pubsub/build install --record /root/test/build/py_pubsub/install.log --single-version-externally-managed

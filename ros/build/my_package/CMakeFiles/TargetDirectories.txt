@@ -1,0 +1,10 @@
+/root/test/build/my_package/CMakeFiles/uninstall.dir
+/root/test/build/my_package/CMakeFiles/my_package_uninstall.dir
+/root/test/build/my_package/CMakeFiles/my_node.dir
+/root/test/build/my_package/CMakeFiles/test.dir
+/root/test/build/my_package/CMakeFiles/edit_cache.dir
+/root/test/build/my_package/CMakeFiles/rebuild_cache.dir
+/root/test/build/my_package/CMakeFiles/list_install_components.dir
+/root/test/build/my_package/CMakeFiles/install.dir
+/root/test/build/my_package/CMakeFiles/install/local.dir
+/root/test/build/my_package/CMakeFiles/install/strip.dir
