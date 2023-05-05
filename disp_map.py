@@ -12,10 +12,12 @@ imgR = cv.imread('0R_1.png', cv.IMREAD_GRAYSCALE)
 
 stereo = cv.StereoBM_create(numDisparities=128, blockSize=95)
 #prefiltering parameters: indended to normalize brightness & enhance texture
+
+#must be odd & btwn 5 & 255
 stereo.setPreFilterSize(5)
-#^must be odd & btwn 5 & 255
+#must be btwn 1 and 63
 stereo.setPreFilterCap(20)
-#^must be btwn 1 and 63
+#can be sobel filter or normalized response CV_STEREO_BM_XSOBEL, CV_STEREO_BM_NORMALIZED_RESPONSE
 stereo.setPreFilterType(0)
 
 #stereo correspondence parameters: find matches between camera views
