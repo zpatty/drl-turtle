@@ -31,27 +31,21 @@ def parse_config():
     with open('config.json') as config:
         param = json.load(config)
     print(f"[MESSAGE] Config: {param}\n")
-    m = param['m']
-    l = ['l']
+    Kp = ['Kp']
+    KD = ['KD']
     
     # Serializing json
     config_params = json.dumps(param, indent=14)
     
-    return m, l, config_params
+    return Kp, KD, config_params
 
-def parse_setpoint():
+def parse_setpoint(nq):
     with open('q.json') as q_json:
         param = json.load(q_json)
-    q1 = param['q1']
-    q2 = param['q2']
-    q3 = param['q3']
-    q4 = param['q4']
-    q5 = param['q5']
-    q6 = param['q6']
-    q7 = param['q7']
-    q8 = param['q8']
-    q9 = param['q9']
-    q10 = param['q10']
+    qd = np.zeros((nq,1))
+    for i in range(nq):
+        qd[i] = ['q' + str(i)]
+        
     qd_params = json.dumps(param, indent=14)
-    qd = np.array([q1, q2, q3, q4, q5, q6, q7, q8, q9, q10])
+    
     return qd

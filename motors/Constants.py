@@ -66,6 +66,6 @@ upper_limit = l1_0
 lower_limit  = l1_min
 # min and max are in mA because Dynamixel takes in mA inputs for current control
 max_torque = 75
-xm_max_torque = 4500
+xw_max_torque = 4500
 min_torque = 5
-xm_min_torque = 2
+xw_min_torque = 2

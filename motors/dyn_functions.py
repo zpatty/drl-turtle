@@ -171,7 +171,7 @@ def grab_arm_current(tau, min_torque, max_torque):
     -----------------------------
     Ensures we only pass safe currents that the module can physically handle
     """
-    input = 10*[0]
+    input = len(tau)*[0]
     for i in range(len(tau)):
         if tau[i][0].item() < 0:
             # negative current case
