@@ -174,77 +174,81 @@ for id in dynamixel_IDs:
         print("[ID:%03d] groupBulkRead addparam failed" % id)
         quit()
 
-t_old = get_time()
-t_0 = get_time()
-
 while 1:
-    # print("Press any key to continue! (or press ESC to quit!)")
-    # if getch() == chr(0x1b):
-    #     break
-    t = get_time()
-    mod_clock = (t - t_0).total_seconds()  
-    q_mat = mat2np('q.mat', 'qd')
-    tvec = mat2np('tvec.mat', 'tSamples')
-    t_old = t  
-    n = get_qindex(mod_clock, tvec)
-    qdf = np.array(q_mat[:, n]).reshape(-1,1)*(4095)/360
-    qd = np.squeeze(qdf.astype(int))
+    print("Press any key to continue! (or press ESC to quit!)")
+    if getch() == chr(0x1b):
+        break
 
-    # Allocate goal position value into byte array
-    
-    index = 0
-    for id in dynamixel_IDs:
-        param_goal_position = [DXL_LOBYTE(DXL_LOWORD(qd[index])), DXL_HIBYTE(DXL_LOWORD(qd[index])), DXL_LOBYTE(DXL_HIWORD(qd[index])), DXL_HIBYTE(DXL_HIWORD(qd[index]))]
-        index = index+1
-        # Add Dynamixel#1 goal position value to the Bulkwrite parameter storage
-        dxl_addparam_result = groupBulkWrite.addParam(id, ADDR_GOAL_POSITION, LEN_GOAL_POSITION, param_goal_position)
-        if dxl_addparam_result != True:
-            print("[ID:%03d] groupBulkWrite addparam failed" % id)
-            quit()
+    t_old = get_time()
+    t_0 = get_time()
+
+    while 1:
+        
+        t = get_time()
+        mod_clock = (t - t_0).total_seconds()  
+        q_mat = mat2np('q.mat', 'qd')
+        tvec = mat2np('tvec.mat', 'tSamples')
+        t_old = t  
+        n = get_qindex(mod_clock, tvec)
+        qdf = np.array(q_mat[:, n]).reshape(-1,1)*(4095)/360
+        qd = np.squeeze(qdf.astype(int))
+        if mod_clock > tvec[0,-1]:
+            break
+        # Allocate goal position value into byte array
+        
+        index = 0
+        for id in dynamixel_IDs:
+            param_goal_position = [DXL_LOBYTE(DXL_LOWORD(qd[index])), DXL_HIBYTE(DXL_LOWORD(qd[index])), DXL_LOBYTE(DXL_HIWORD(qd[index])), DXL_HIBYTE(DXL_HIWORD(qd[index]))]
+            index = index+1
+            # Add Dynamixel#1 goal position value to the Bulkwrite parameter storage
+            dxl_addparam_result = groupBulkWrite.addParam(id, ADDR_GOAL_POSITION, LEN_GOAL_POSITION, param_goal_position)
+            if dxl_addparam_result != True:
+                print("[ID:%03d] groupBulkWrite addparam failed" % id)
+                quit()
 
 
-    # Bulkwrite goal position and LED value
-    dxl_comm_result = groupBulkWrite.txPacket()
-    if dxl_comm_result != COMM_SUCCESS:
-        print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+        # Bulkwrite goal position and LED value
+        dxl_comm_result = groupBulkWrite.txPacket()
+        if dxl_comm_result != COMM_SUCCESS:
+            print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
 
-    # Clear bulkwrite parameter storage
-    groupBulkWrite.clearParam()
+        # Clear bulkwrite parameter storage
+        groupBulkWrite.clearParam()
 
-    # while 1:
-    #     # Bulkread present position and LED status
-    #     dxl_comm_result = groupBulkRead.txRxPacket()
-    #     if dxl_comm_result != COMM_SUCCESS:
-    #         print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+        # while 1:
+        #     # Bulkread present position and LED status
+        #     dxl_comm_result = groupBulkRead.txRxPacket()
+        #     if dxl_comm_result != COMM_SUCCESS:
+        #         print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
 
-    #     # Check if groupbulkread data of Dynamixel#1 is available
-    #     dxl_getdata_result = groupBulkRead.isAvailable(DXL1_ID, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
-    #     if dxl_getdata_result != True:
-    #         print("[ID:%03d] groupBulkRead getdata failed" % DXL1_ID)
-    #         quit()
+        #     # Check if groupbulkread data of Dynamixel#1 is available
+        #     dxl_getdata_result = groupBulkRead.isAvailable(DXL1_ID, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
+        #     if dxl_getdata_result != True:
+        #         print("[ID:%03d] groupBulkRead getdata failed" % DXL1_ID)
+        #         quit()
 
-    #     # Check if groupbulkread data of Dynamixel#2 is available
-    #     dxl_getdata_result = groupBulkRead.isAvailable(DXL2_ID, ADDR_LED_RED, LEN_LED_RED)
-    #     if dxl_getdata_result != True:
-    #         print("[ID:%03d] groupBulkRead getdata failed" % DXL2_ID)
-    #         quit()
+        #     # Check if groupbulkread data of Dynamixel#2 is available
+        #     dxl_getdata_result = groupBulkRead.isAvailable(DXL2_ID, ADDR_LED_RED, LEN_LED_RED)
+        #     if dxl_getdata_result != True:
+        #         print("[ID:%03d] groupBulkRead getdata failed" % DXL2_ID)
+        #         quit()
 
-    #     # Get present position value
-    #     dxl1_present_position = groupBulkRead.getData(DXL1_ID, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
+        #     # Get present position value
+        #     dxl1_present_position = groupBulkRead.getData(DXL1_ID, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
 
-    #     # Get LED value
-    #     dxl2_led_value_read = groupBulkRead.getData(DXL2_ID, ADDR_LED_RED, LEN_LED_RED)
+        #     # Get LED value
+        #     dxl2_led_value_read = groupBulkRead.getData(DXL2_ID, ADDR_LED_RED, LEN_LED_RED)
 
-    #     print("[ID:%03d] Present Position : %d \t [ID:%03d] LED Value: %d" % (DXL1_ID, dxl1_present_position, DXL2_ID, dxl2_led_value_read))
+        #     print("[ID:%03d] Present Position : %d \t [ID:%03d] LED Value: %d" % (DXL1_ID, dxl1_present_position, DXL2_ID, dxl2_led_value_read))
 
-    #     if not (abs(dxl_goal_position[index] - dxl1_present_position) > DXL_MOVING_STATUS_THRESHOLD):
-    #         break
+        #     if not (abs(dxl_goal_position[index] - dxl1_present_position) > DXL_MOVING_STATUS_THRESHOLD):
+        #         break
 
-    # # Change goal position
-    # if index == 0:
-    #     index = 1
-    # else:
-    #     index = 0
+        # # Change goal position
+        # if index == 0:
+        #     index = 1
+        # else:
+        #     index = 0
 
 # Clear bulkread parameter storage
 groupBulkRead.clearParam()
