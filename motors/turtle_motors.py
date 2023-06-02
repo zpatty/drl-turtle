@@ -12,12 +12,13 @@ from dynamixel_sdk import *                    # Uses Dynamixel SDK library
 from Dynamixel import *                        # Dynamixel motor class                                  
 from dyn_functions import *                    # Dynamixel support functions
 from turtle_controller import *                # Controller 
-from logger import *                           # Data Logger
+# from logger import *                           # Data Logger
 from Constants import *                        # File of constant variables
 from Mod import *
 from utilities import *
 import json
 import traceback
+from queue import Queue
 if os.name == 'nt':
     import msvcrt
     def getch():
@@ -54,22 +55,22 @@ else:
         return 0
 
 # Open module port
-if portHandlerMod.openPort():
-    print("Succeeded to open the port")
-else:
-    print("Failed to open the port")
-    print("Press any key to terminate...")
-    getch()
-    quit()
+# if portHandlerMod.openPort():
+#     print("Succeeded to open the port")
+# else:
+#     print("Failed to open the port")
+#     print("Press any key to terminate...")
+#     getch()
+#     quit()
 
 # Set port baudrate
-if portHandlerMod.setBaudRate(BAUDRATE):
-    print("Succeeded to change the baudrate")
-else:
-    print("Failed to change the baudrate")
-    print("Press any key to terminate...")
-    getch()
-    quit()
+# if portHandlerMod.setBaudRate(BAUDRATE):
+#     print("Succeeded to change the baudrate")
+# else:
+#     print("Failed to change the baudrate")
+#     print("Press any key to terminate...")
+#     getch()
+#     quit()
 
 # open big motors port
 # Open joint port
@@ -90,10 +91,10 @@ else:
     getch()
     quit()
 
-packetHandlerMod = PacketHandler(PROTOCOL_VERSION)
+# packetHandlerMod = PacketHandler(PROTOCOL_VERSION)
 packetHandlerJoint = PacketHandler(PROTOCOL_VERSION)
 
-IDs = [0, 1, 2, 3, 4, 5]
+IDs = [4,5,6]
 Joints = Mod(packetHandlerJoint, portHandlerJoint, IDs)
 Joints.set_current_cntrl_mode()
 Joints.enable_torque()
@@ -102,14 +103,14 @@ t_old = time.time()
 print("[DEBUG] dt:", (time.time() - t_old))  
 
 nq = len(IDs)
-th0 = np.pi/180 * [180, 180, 270, 180, 180, 0]
+th0 = 3.14/180 * np.array([180.0, 180.0, 360.0])#[180, 180, 270, 180, 180, 0]
 # offset1 = joint_th0[1]
 # offset1 = 3.745981084016736
 # offset2 = joint_th0[2]
 # offset2 = 4.414796707534875
 # print(f"Offset for Motor Positions 1 and 2: {offset1, offset2}")
 q = th0
-
+q_old = q
 # print(f"Motor Positions: {q}")
 # our max arc length (in m)
 
@@ -122,6 +123,7 @@ dt_loop = np.zeros((1,1))       # hold dt data
 # Report our initial configuration
 print(f"Our current q: {q}\n")
 first_time = True
+input_history = np.zeros((nq,10))
 
 try: 
     while 1:
@@ -224,7 +226,9 @@ try:
             timestamps = np.zeros((1,1))
             dt_loop = np.zeros((1,1))       # hold dt data 
             # Open up controller parameters
-            Kp, KD, config_params = parse_config()
+            # Kp, KD, config_params = parse_config()
+            Kp = np.diag([150, 100, 5])
+            KD = 10.0
             
             # Load desired trajectories from MATLAB
             qd_mat = mat2np('qd.mat', 'qd')
@@ -247,7 +251,8 @@ try:
                     break
                 else:
                     # grab current time   
-                    q = Joints.get_position()
+                    q = np.array(Joints.get_position()).reshape(-1,1)
+                    
                     # mj0 = joint_th[0] - base_offset
                     # mj1 = joint_th[1] - offset1
                     # mj2 = joint_th[2] - offset2
@@ -257,6 +262,8 @@ try:
                     qd = np.array(qd_mat[:, n]).reshape(-1,1)
                     dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
                     ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
+                    # print(f"[DEBUG] qdata: {q_data}\n")
+                    # print(f"[DEBUG] q: {q}\n")
                     q_data=np.append(q_data, q, axis = 1) 
                     # At the first iteration velocity is 0  
                     if first_time:
@@ -266,15 +273,25 @@ try:
                         t = time.time()
                         timestamps = np.append(timestamps, (t-t_0)) 
                         dt = t - t_old
-                        print(f"[DEBUG] dt: {dt}\n")  
+                        # print(f"[DEBUG] dt: {dt}\n")  
                         t_old = t
                         dq = diff(q, q_old, dt)
+                        q_old = q
                     # calculate errors
                     err = q - qd
+                    print(f"[DEBUG] e: {err}\n")
                     err_dot = dq
                     tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
-                    input = grab_arm_current(tau, min_torque, max_torque)
                     
+                    input_history = np.append(input_history[:,1:], tau,axis=1)
+
+                    input_mean = np.mean(input_history, axis = 1)
+
+                    input = grab_arm_current(input_mean, min_torque, max_torque)
+
+                    
+                    
+                    print(f"[DEBUG] input: {input}\n")
                     Joints.send_torque_cmd(input)
         elif key_input == chr(NKEY_ASCII_VALUE):
             # Update to new config

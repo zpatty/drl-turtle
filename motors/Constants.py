@@ -15,21 +15,21 @@ BKEY_ASCII_VALUE            = 0x62      # key to bend the top module
 UKEY_ASCII_VALUE            = 0x75      # key to unbend the modules
 NKEY_ASCII_VALUE            = 0x6E
 IKEY_ASCII_VALUE            = 0x69     
+PKEY_ASCII_VALUE            = 0x70   
 QKEY_ASCII_VALUE            = 0x71 
 TKEY_ASCII_VALUE            = 0x74     
-MOD1_VALUE                  = 0x31      # pressing 1 on keyboard
-MOD2_VALUE                  = 0x32
-MOD3_VALUE                  = 0x33
+_1KEY_ASCII_VALUE            = 0x31 
+_2KEY_ASCII_VALUE            = 0x72 
 
 # ID that commands all dynamixels
 DXL_IDALL                   = 254
 # Protocol version
 PROTOCOL_VERSION            = 2.0            # See which protocol version is used in the Dynamixel
-MOD_DEVICE                  = '/dev/ttyUSB0'
-JOINTS                      = '/dev/ttyUSB1'
-BAUDRATE                    = 2000000
-portHandlerMod              = PortHandler(MOD_DEVICE)
-packetHandlerMod            = PacketHandler(PROTOCOL_VERSION)
+# MOD_DEVICE                  = '/dev/ttyUSB0'
+JOINTS                      = '/dev/ttyUSB0'
+BAUDRATE                    = 57600
+# portHandlerMod              = PortHandler(MOD_DEVICE)
+# packetHandlerMod            = PacketHandler(PROTOCOL_VERSION)
 portHandlerJoint            = PortHandler(JOINTS)
 packetHandlerJoint          = PacketHandler(PROTOCOL_VERSION)
 MAX_VELOCITY = 20
@@ -62,10 +62,8 @@ th4_0 = [0.7086991240031663, -14.473108733701025, 4.451612246444131]
 min_joint_theta = 1.99
 max_joint_theta = 4.27
 
-upper_limit = l1_0
-lower_limit  = l1_min
 # min and max are in mA because Dynamixel takes in mA inputs for current control
 max_torque = 75
-xw_max_torque = 4500
+xw_max_torque = 1000 #4500
 min_torque = 5
 xw_min_torque = 2

@@ -10,7 +10,7 @@ import pandas as pd
 from dynamixel_sdk import *                    # Uses Dynamixel SDK library
 from Dynamixel import *                        # Dynamixel motor class
 from Constants import *
-from logger import *
+# from logger import *
 def grab_motor_lengths(x):
     """
     input: x (state variables) and current cable lengths
@@ -173,22 +173,22 @@ def grab_arm_current(tau, min_torque, max_torque):
     """
     input = len(tau)*[0]
     for i in range(len(tau)):
-        if tau[i][0].item() < 0:
+        if tau[i].item() < 0:
             # negative current case
-            if tau[i][0].item() < -xw_max_torque:
+            if tau[i].item() < -xw_max_torque:
                 input[i] = -xw_max_torque
-            elif tau[i][0].item() > -xw_min_torque:
+            elif tau[i].item() > -xw_min_torque:
                 input[i] = 0
             else:
-                input[i] = int(tau[i][0].item())
+                input[i] = int(tau[i].item())
         else:    
             # positive current case
-            if tau[i][0].item() > xw_max_torque:
+            if tau[i].item() > xw_max_torque:
                 input[i] = xw_max_torque
-            elif tau[i][0].item() < xw_min_torque:
+            elif tau[i].item() < xw_min_torque:
                 input[i] = 0
             else:
-                input[i] = int(tau[i][0].item())   
+                input[i] = int(tau[i].item())   
     # print(f"Our new mod input: {mod_input}\n")
     return input
 
