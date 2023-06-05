@@ -10,7 +10,14 @@ shoulder4 = 180 + (180 - shoulder1);
 shoulder5 = 180 + (180 - shoulder2);
 shoulder6 = repmat(360,1,length(shoulder2));
 
-timePoints = [0 0.5 1 2.5 3 3.5];
+shoulder1 = [180 240 110 180];
+shoulder2 = [180 270 150 180];
+shoulder3 = repmat(270,1,length(shoulder2));
+shoulder4 = 180 + (180 - shoulder1);
+shoulder5 = 180 + (180 - shoulder2);
+shoulder6 = [180 120 220 180];
+
+timePoints = [0 1 3 3.5];
 
 
 wayPoints = [shoulder4; shoulder5; shoulder6]*pi/180;

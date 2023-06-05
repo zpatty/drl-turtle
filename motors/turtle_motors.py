@@ -123,7 +123,7 @@ dt_loop = np.zeros((1,1))       # hold dt data
 # Report our initial configuration
 print(f"Our current q: {q}\n")
 first_time = True
-input_history = np.zeros((nq,10))
+input_history = np.zeros((nq,5))
 
 try: 
     while 1:
@@ -164,9 +164,12 @@ try:
             tau_data = np.zeros((nq,1))
             timestamps = np.zeros((1,1))
             # Open up controller parameters
-            Kp, KD, config_params = parse_config()
+            # Kp, KD, config_params = parse_config()
+            Kp = np.diag([1, 1, 1])*0.5
+            KD = 0.07
             # Open up desired q from json file
-            qd = parse_setpoint()
+            # qd = parse_setpoint(nq)
+            qd = 3.14/180 * np.array([180.0, 180.0, 180.0]).reshape(-1,1)
             # qd = np.zeros((12,1)).reshape(-1,1)
             # print(f"[DEBUG] Our desired config: {qd}\n")
             # print(f"[DEBUG] Our error qd - q: {qd - q}")
@@ -184,7 +187,7 @@ try:
                     break
                 else:
 
-                    q = Joints.get_position()
+                    q = np.array(Joints.get_position()).reshape(-1,1)
                     # mj0 = joint_th[0] - base_offset
                     # mj1 = joint_th[1] - offset1
                     # mj2 = joint_th[2] - offset2
@@ -199,7 +202,7 @@ try:
                         time_elapsed = t-t_0
                         timestamps = np.append(timestamps, time_elapsed) 
                         dt = t - t_old
-                        print(f"[DEBUG] dt: {dt}\n")  
+                        # print(f"[DEBUG] dt: {dt}\n")  
                         t_old = t
                         dq = diff(q, q_old, dt)
     
@@ -208,13 +211,23 @@ try:
                     err_dot = dq
                     # print(f"[DEBUG] q: {q}\n")
                     # TODO: set position limits
-                    tau = turtle_controller(q,dq,qd,zero,zero,Kp,KD)
-                    tau_data=np.append(tau_data, tau, axis=1) 
-
+                    # tau = turtle_controller(q,dq,qd,zero,zero,Kp,KD)
+                    # tau_data=np.append(tau_data, tau, axis=1) 
+                    # print(f"[DEBUG] q: {q * 180/3.14}\n")
+                    # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
+                    print(f"[DEBUG] e: {err * 180/3.14}\n")
                     q_old = q
-                    input = grab_arm_current(tau, min_torque, max_torque)
+                    # input = grab_arm_current(tau, min_torque, max_torque)
                     
-                    print(f"[DEBUG] joint cmds: {input}\n")
+                    tau = turtle_controller(q,dq,qd,zero,zero,Kp,KD)
+                    
+                    input_history = np.append(input_history[:,1:], tau,axis=1)
+
+                    input_mean = np.mean(input_history, axis = 1)
+
+                    input = grab_arm_current(input_mean, min_torque, max_torque)
+                    
+                    # print(f"[DEBUG] joint cmds: {tau}\n")
                     Joints.send_torque_cmd(input)
         elif key_input == chr(CKEY_ASCII_VALUE):    # Trajectory Code
             print(f"[MODE] TRAJECTORY\n")
@@ -227,8 +240,8 @@ try:
             dt_loop = np.zeros((1,1))       # hold dt data 
             # Open up controller parameters
             # Kp, KD, config_params = parse_config()
-            Kp = np.diag([150, 100, 5])
-            KD = 10.0
+            Kp = np.diag([0.5, 0.5, 0.5])*2
+            KD = 0.5
             
             # Load desired trajectories from MATLAB
             qd_mat = mat2np('qd.mat', 'qd')
@@ -251,14 +264,18 @@ try:
                     break
                 else:
                     # grab current time   
+                    # t1 = time.time()
                     q = np.array(Joints.get_position()).reshape(-1,1)
-                    
+                    # t2 = time.time()
+                    # print(f"[DEBUG] dt: {t2 - t1}\n")  
                     # mj0 = joint_th[0] - base_offset
                     # mj1 = joint_th[1] - offset1
                     # mj2 = joint_th[2] - offset2
                     # q = grab_arm_q(l[0], l[1], l[2], mj0, mj1, mj2, s, d)
                     # grab desired pos, vel and accel based off of time vector position 
+                    
                     n = get_qindex((time.time() - t_0), tvec)
+                    
                     qd = np.array(qd_mat[:, n]).reshape(-1,1)
                     dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
                     ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
@@ -266,6 +283,7 @@ try:
                     # print(f"[DEBUG] q: {q}\n")
                     q_data=np.append(q_data, q, axis = 1) 
                     # At the first iteration velocity is 0  
+                    
                     if first_time:
                         dq = np.zeros((nq,1))
                         first_time = False
@@ -273,15 +291,19 @@ try:
                         t = time.time()
                         timestamps = np.append(timestamps, (t-t_0)) 
                         dt = t - t_old
-                        # print(f"[DEBUG] dt: {dt}\n")  
+                        print(f"[DEBUG] dt: {dt}\n")  
                         t_old = t
                         dq = diff(q, q_old, dt)
                         q_old = q
                     # calculate errors
                     err = q - qd
-                    print(f"[DEBUG] e: {err}\n")
+                    # print(f"[DEBUG] e: {err}\n")
+                    # print(f"[DEBUG] q: {q * 180/3.14}\n")
+                    # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
                     err_dot = dq
+                    
                     tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
+                    
                     
                     input_history = np.append(input_history[:,1:], tau,axis=1)
 
@@ -291,8 +313,10 @@ try:
 
                     
                     
-                    print(f"[DEBUG] input: {input}\n")
+                    # print(f"[DEBUG] input: {input}\n")
                     Joints.send_torque_cmd(input)
+
+                    
         elif key_input == chr(NKEY_ASCII_VALUE):
             # Update to new config
             m, l, config_params = parse_config()

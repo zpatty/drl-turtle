@@ -27,7 +27,7 @@ DXL_IDALL                   = 254
 PROTOCOL_VERSION            = 2.0            # See which protocol version is used in the Dynamixel
 # MOD_DEVICE                  = '/dev/ttyUSB0'
 JOINTS                      = '/dev/ttyUSB0'
-BAUDRATE                    = 57600
+BAUDRATE                    = 4000000
 # portHandlerMod              = PortHandler(MOD_DEVICE)
 # packetHandlerMod            = PacketHandler(PROTOCOL_VERSION)
 portHandlerJoint            = PortHandler(JOINTS)
@@ -64,6 +64,6 @@ max_joint_theta = 4.27
 
 # min and max are in mA because Dynamixel takes in mA inputs for current control
 max_torque = 75
-xw_max_torque = 1000 #4500
+xw_max_torque = 2500 #4500
 min_torque = 5
 xw_min_torque = 2
