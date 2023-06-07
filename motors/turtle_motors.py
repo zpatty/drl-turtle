@@ -54,6 +54,7 @@ else:
 
         return 0
 
+os.system('sudo /home/zach/git-repos/drl-turtle/motors/latency_write.sh')
 # Open module port
 # if portHandlerMod.openPort():
 #     print("Succeeded to open the port")
@@ -94,7 +95,7 @@ else:
 # packetHandlerMod = PacketHandler(PROTOCOL_VERSION)
 packetHandlerJoint = PacketHandler(PROTOCOL_VERSION)
 
-IDs = [4,5,6]
+IDs = [1,2,3,4,5,6]
 Joints = Mod(packetHandlerJoint, portHandlerJoint, IDs)
 Joints.set_current_cntrl_mode()
 Joints.enable_torque()
@@ -103,7 +104,7 @@ t_old = time.time()
 print("[DEBUG] dt:", (time.time() - t_old))  
 
 nq = len(IDs)
-th0 = 3.14/180 * np.array([180.0, 180.0, 360.0])#[180, 180, 270, 180, 180, 0]
+th0 = 3.14/180 * np.array([180.0, 180.0, 180.0, 180.0, 180.0, 180.0])#[180, 180, 270, 180, 180, 0]
 # offset1 = joint_th0[1]
 # offset1 = 3.745981084016736
 # offset2 = joint_th0[2]
@@ -123,7 +124,7 @@ dt_loop = np.zeros((1,1))       # hold dt data
 # Report our initial configuration
 print(f"Our current q: {q}\n")
 first_time = True
-input_history = np.zeros((nq,5))
+input_history = np.zeros((nq,10))
 
 try: 
     while 1:
@@ -136,11 +137,29 @@ try:
             Joints.disable_torque()
             Joints.set_extended_pos_mode()
             Joints.enable_torque()
-            print("\n1: Walk, 2: Swim (or press SPACE to quit!)")
-            key_input = getch()
-            if key_input == chr(SPACE_ASCII_VALUE):
-                print("we're quitting\n")
-                break
+            # print("\n1: Walk, 2: Swim (or press SPACE to quit!)")
+            # key_input = getch()
+            # if key_input == chr(SPACE_ASCII_VALUE):
+            #     print("we're quitting\n")
+            #     break
+            qd_mat = mat2np('qd_p.mat', 'qd')
+            tvec = mat2np('tvec_p.mat', 'tvec')
+            t_0 = time.time()
+            while 1:
+                if kbhit():
+                    c = getch()
+                    first_time = True
+                    Joints.send_torque_cmd(nq * [0])
+                    print("[Q KEY PRESSED] : All motors stopped\n")
+                    # save_data(q_data, qd, tau_data, timestamps, config_params, dt_loop)
+
+                    break
+                else:
+                    n = get_qindex((time.time() - t_0), tvec)
+                    
+                    qd = np.array(qd_mat[:, n]).reshape(-1,1)
+                    Joints.send_pos_cmd(np.squeeze(to_motor_steps(qd)))
+                    
             
         elif key_input == chr(BKEY_ASCII_VALUE):
             # Back to home position 
@@ -165,11 +184,11 @@ try:
             timestamps = np.zeros((1,1))
             # Open up controller parameters
             # Kp, KD, config_params = parse_config()
-            Kp = np.diag([1, 1, 1])*0.5
+            Kp = np.diag([1, 1, 1, 1, 1, 1])
             KD = 0.07
             # Open up desired q from json file
             # qd = parse_setpoint(nq)
-            qd = 3.14/180 * np.array([180.0, 180.0, 180.0]).reshape(-1,1)
+            qd = 3.14/180 * np.array([180.0, 180.0, 180.0, 180.0, 180.0, 180.0]).reshape(-1,1)
             # qd = np.zeros((12,1)).reshape(-1,1)
             # print(f"[DEBUG] Our desired config: {qd}\n")
             # print(f"[DEBUG] Our error qd - q: {qd - q}")
@@ -240,7 +259,7 @@ try:
             dt_loop = np.zeros((1,1))       # hold dt data 
             # Open up controller parameters
             # Kp, KD, config_params = parse_config()
-            Kp = np.diag([0.5, 0.5, 0.5])*2
+            Kp = np.diag([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])*2
             KD = 0.5
             
             # Load desired trajectories from MATLAB
@@ -286,12 +305,13 @@ try:
                     
                     if first_time:
                         dq = np.zeros((nq,1))
+                        q_old = q
                         first_time = False
                     else:
                         t = time.time()
                         timestamps = np.append(timestamps, (t-t_0)) 
                         dt = t - t_old
-                        print(f"[DEBUG] dt: {dt}\n")  
+                        # print(f"[DEBUG] dt: {dt}\n")  
                         t_old = t
                         dq = diff(q, q_old, dt)
                         q_old = q
@@ -311,9 +331,8 @@ try:
 
                     input = grab_arm_current(input_mean, min_torque, max_torque)
 
-                    
-                    
-                    # print(f"[DEBUG] input: {input}\n")
+
+                    # print(f"[DEBUG] tau: {tau}\n")
                     Joints.send_torque_cmd(input)
 
                     

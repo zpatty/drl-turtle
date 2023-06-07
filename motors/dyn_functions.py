@@ -56,7 +56,7 @@ def to_motor_steps(th0):
     Returns: new motor step command to be inputted into set_goal_position method
     """
     steps = th0 * (4096/(2 *math.pi))
-    return int(steps)
+    return steps.astype(int)
 def to_radians(steps):
     """
     Input: takes in dynamixel motor steps pos
