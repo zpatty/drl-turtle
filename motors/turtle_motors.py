@@ -19,6 +19,7 @@ from utilities import *
 import json
 import traceback
 from queue import Queue
+import serial
 if os.name == 'nt':
     import msvcrt
     def getch():
@@ -72,6 +73,22 @@ os.system('sudo /home/zach/git-repos/drl-turtle/motors/latency_write.sh')
 #     print("Press any key to terminate...")
 #     getch()
 #     quit()
+
+volts = 15
+try:
+    xiao = serial.Serial('/dev/ttyACM0', 115200, timeout=3)
+    volt_string = xiao.readline()
+    volts = float(volt_string[-7:-3])
+    print(f"Battery Voltage: {volts}\n")
+except:
+    print(f"uC not detected\n")
+
+
+if volts < 11.5:
+    print("Time to charge, power off immediately\n")
+    quit()
+
+    
 
 # open big motors port
 # Open joint port
@@ -296,6 +313,9 @@ try:
                     n = get_qindex((time.time() - t_0), tvec)
                     if n == len(tvec[0])-1:
                         t_0 = time.time() - tvec[0][200]
+                    
+                    if n == len(tvec[0]) - 1:
+                        t_0 = time.time()
                     
                     qd = np.array(qd_mat[:, n]).reshape(-1,1)
                     dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
