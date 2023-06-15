@@ -278,7 +278,7 @@ try:
                     first_time = True
                     Joints.send_torque_cmd(nq * [0])
                     print("[Q KEY PRESSED] : All motors stopped\n")
-                    save_data(q_data, qd, tau_data, timestamps, config_params, dt_loop)
+                    # save_data(q_data, qd, tau_data, timestamps, config_params, dt_loop)
 
                     break
                 else:
@@ -294,6 +294,8 @@ try:
                     # grab desired pos, vel and accel based off of time vector position 
                     
                     n = get_qindex((time.time() - t_0), tvec)
+                    if n == len(tvec[0])-1:
+                        t_0 = time.time() - tvec[0][200]
                     
                     qd = np.array(qd_mat[:, n]).reshape(-1,1)
                     dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
