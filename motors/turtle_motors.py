@@ -20,6 +20,7 @@ import json
 import traceback
 from queue import Queue
 import serial
+import socket
 if os.name == 'nt':
     import msvcrt
     def getch():
@@ -73,6 +74,15 @@ os.system('sudo /home/zach/git-repos/drl-turtle/motors/latency_write.sh')
 #     print("Press any key to terminate...")
 #     getch()
 #     quit()
+
+host = '' #Server ip
+port = 4000
+
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.bind((host, port))
+s.setblocking(False)
+print("Server Started")
+    
 
 volts = 15
 try:
@@ -145,222 +155,258 @@ input_history = np.zeros((nq,10))
 
 try: 
     while 1:
-        print("\nP: Position Controlled Trajectory, C: Current Controlled Trajectory, W: Set point(or press SPACE to quit!)")
-        key_input = getch()
-        if key_input == chr(SPACE_ASCII_VALUE):
-            print("we're quitting\n")
-            break
-        elif key_input == chr(PKEY_ASCII_VALUE):
-            Joints.disable_torque()
-            Joints.set_extended_pos_mode()
-            Joints.enable_torque()
-            # print("\n1: Walk, 2: Swim (or press SPACE to quit!)")
+        try:
+            data, addr = s.recvfrom(1024)
+            data = data.decode('utf-8')
+            print("Message from: " + str(addr))
+            print("From connected user: " + data)
+            key_input = data
+            data = data.upper()
+            print("Sending: " + data)
+            s.sendto(data.encode('utf-8'), addr)
+            print("\nP: Position Controlled Trajectory, C: Current Controlled Trajectory, W: Set point(or press SPACE to quit!)")
             # key_input = getch()
-            # if key_input == chr(SPACE_ASCII_VALUE):
-            #     print("we're quitting\n")
-            #     break
-            qd_mat = mat2np('qd_p.mat', 'qd')
-            tvec = mat2np('tvec_p.mat', 'tvec')
-            t_0 = time.time()
-            while 1:
-                if kbhit():
-                    c = getch()
-                    first_time = True
-                    Joints.send_torque_cmd(nq * [0])
-                    print("[Q KEY PRESSED] : All motors stopped\n")
-                    # save_data(q_data, qd, tau_data, timestamps, config_params, dt_loop)
+            if key_input == ' ':
+                print("we're quitting\n")
+                break
+            elif key_input == 'p':
+                Joints.disable_torque()
+                Joints.set_extended_pos_mode()
+                Joints.enable_torque()
+                # print("\n1: Walk, 2: Swim (or press SPACE to quit!)")
+                # key_input = getch()
+                # if key_input == chr(SPACE_ASCII_VALUE):
+                #     print("we're quitting\n")
+                #     break
+                qd_mat = mat2np('qd_p.mat', 'qd')
+                tvec = mat2np('tvec_p.mat', 'tvec')
+                t_0 = time.time()
+                while 1:
+                    data, addr = s.recvfrom(1024)
+                    data = data.decode('utf-8')
+                    print("Message from: " + str(addr))
+                    print("From connected user: " + data)
+                    key_input = data
+                    data = data.upper()
+                    print("Sending: " + data)
+                    s.sendto(data.encode('utf-8'), addr)
+                    if key_input == 'q':
+                        # c = getch()
+                        first_time = True
+                        Joints.send_torque_cmd(nq * [0])
+                        print("[Q KEY PRESSED] : All motors stopped\n")
+                        # save_data(q_data, qd, tau_data, timestamps, config_params, dt_loop)
 
-                    break
-                else:
-                    n = get_qindex((time.time() - t_0), tvec)
-                    
-                    qd = np.array(qd_mat[:, n]).reshape(-1,1)
-                    Joints.send_pos_cmd(np.squeeze(to_motor_steps(qd)))
-                    
-            
-        elif key_input == chr(BKEY_ASCII_VALUE):
-            # Back to home position 
-            # put all motors in extended position mode
-            # put them back into their reference motor step position
-            Joints.disable_torque()
-            Joints.set_extended_pos_mode()
-            Joints.enable_torque()
-            Joints.set_max_velocity(20)
-            home = []
-            for i in range(len(th0)):
-                for j in range(len(th0[0])):
-                    home.append(to_motor_steps(th0[i][j]))
-            Joints.send_pos_cmd(home)
-            break
-        elif key_input == chr(WKEY_ASCII_VALUE):    # print out the length changes
-            Joints.disable_torque()
-            Joints.set_current_cntrl_mode()
-            Joints.enable_torque()
-            q_data = np.zeros((nq,1))
-            tau_data = np.zeros((nq,1))
-            timestamps = np.zeros((1,1))
-            # Open up controller parameters
-            # Kp, KD, config_params = parse_config()
-            Kp = np.diag([1, 1, 1, 1, 1, 1])
-            KD = 0.07
-            # Open up desired q from json file
-            # qd = parse_setpoint(nq)
-            qd = 3.14/180 * np.array([180.0, 180.0, 180.0, 180.0, 180.0, 180.0]).reshape(-1,1)
-            # qd = np.zeros((12,1)).reshape(-1,1)
-            # print(f"[DEBUG] Our desired config: {qd}\n")
-            # print(f"[DEBUG] Our error qd - q: {qd - q}")
-            zero =  np.zeros((nq,1))
-            t_old = time.time()
-            # our loop's "starting" time
-            t_0 = time.time()
-            while 1:
-                if kbhit():
-                    c = getch()
-                    first_time = True
-                    Joints.send_torque_cmd(nq * [0])
-                    print("[Q KEY PRESSED] : All motors stopped\n")
-                    save_data(q_data, qd, tau_data, timestamps, config_params, dt_loop)
-                    break
-                else:
-
-                    q = np.array(Joints.get_position()).reshape(-1,1)
-                    # mj0 = joint_th[0] - base_offset
-                    # mj1 = joint_th[1] - offset1
-                    # mj2 = joint_th[2] - offset2
-
-                    q_data=np.append(q_data, q, axis = 1) 
-                    # At the first iteration velocity is 0  
-                    if first_time:
-                        dq = np.zeros((nq,1))
-                        first_time = False
+                        break
                     else:
-                        t = time.time()
-                        time_elapsed = t-t_0
-                        timestamps = np.append(timestamps, time_elapsed) 
-                        dt = t - t_old
-                        # print(f"[DEBUG] dt: {dt}\n")  
-                        t_old = t
-                        dq = diff(q, q_old, dt)
-    
-                    # calculate errors
-                    err = q - qd
-                    err_dot = dq
-                    # print(f"[DEBUG] q: {q}\n")
-                    # TODO: set position limits
-                    # tau = turtle_controller(q,dq,qd,zero,zero,Kp,KD)
-                    # tau_data=np.append(tau_data, tau, axis=1) 
-                    # print(f"[DEBUG] q: {q * 180/3.14}\n")
-                    # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
-                    print(f"[DEBUG] e: {err * 180/3.14}\n")
-                    q_old = q
-                    # input = grab_arm_current(tau, min_torque, max_torque)
-                    
-                    tau = turtle_controller(q,dq,qd,zero,zero,Kp,KD)
-                    
-                    input_history = np.append(input_history[:,1:], tau,axis=1)
+                        n = get_qindex((time.time() - t_0), tvec)
+                        
+                        qd = np.array(qd_mat[:, n]).reshape(-1,1)
+                        Joints.send_pos_cmd(np.squeeze(to_motor_steps(qd)))
+                        
+                
+            elif key_input == 'b':
+                # Back to home position 
+                # put all motors in extended position mode
+                # put them back into their reference motor step position
+                Joints.disable_torque()
+                Joints.set_extended_pos_mode()
+                Joints.enable_torque()
+                Joints.set_max_velocity(20)
+                home = []
+                for i in range(len(th0)):
+                    for j in range(len(th0[0])):
+                        home.append(to_motor_steps(th0[i][j]))
+                Joints.send_pos_cmd(home)
+                break
+            elif key_input == 'w':    # print out the length changes
+                Joints.disable_torque()
+                Joints.set_current_cntrl_mode()
+                Joints.enable_torque()
+                q_data = np.zeros((nq,1))
+                tau_data = np.zeros((nq,1))
+                timestamps = np.zeros((1,1))
+                # Open up controller parameters
+                # Kp, KD, config_params = parse_config()
+                Kp = np.diag([1, 1, 1, 1, 1, 1])
+                KD = 0.07
+                # Open up desired q from json file
+                # qd = parse_setpoint(nq)
+                qd = 3.14/180 * np.array([180.0, 180.0, 180.0, 180.0, 180.0, 180.0]).reshape(-1,1)
+                # qd = np.zeros((12,1)).reshape(-1,1)
+                # print(f"[DEBUG] Our desired config: {qd}\n")
+                # print(f"[DEBUG] Our error qd - q: {qd - q}")
+                zero =  np.zeros((nq,1))
+                t_old = time.time()
+                # our loop's "starting" time
+                t_0 = time.time()
+                while 1:
+                    try:
+                        data, addr = s.recvfrom(1024)
+                        data = data.decode('utf-8')
+                        print("Message from: " + str(addr))
+                        print("From connected user: " + data)
+                        key_input = data
+                        data = data.upper()
+                        print("Sending: " + data)
+                        s.sendto(data.encode('utf-8'), addr)
+                        if key_input == 'q':
+                            # c = getch()
+                            first_time = True
+                            Joints.send_torque_cmd(nq * [0])
+                            print("[Q KEY PRESSED] : All motors stopped\n")
+                            save_data(q_data, qd, tau_data, timestamps, config_params, dt_loop)
+                            break
+                    except:
+                        q = np.array(Joints.get_position()).reshape(-1,1)
+                        # mj0 = joint_th[0] - base_offset
+                        # mj1 = joint_th[1] - offset1
+                        # mj2 = joint_th[2] - offset2
 
-                    input_mean = np.mean(input_history, axis = 1)
-
-                    input = grab_arm_current(input_mean, min_torque, max_torque)
-                    
-                    # print(f"[DEBUG] joint cmds: {tau}\n")
-                    Joints.send_torque_cmd(input)
-        elif key_input == chr(CKEY_ASCII_VALUE):    # Trajectory Code
-            print(f"[MODE] TRAJECTORY\n")
-            Joints.disable_torque()
-            Joints.set_current_cntrl_mode()
-            Joints.enable_torque()
-            q_data = np.zeros((nq,1))
-            tau_data = np.zeros((nq,1))
-            timestamps = np.zeros((1,1))
-            dt_loop = np.zeros((1,1))       # hold dt data 
-            # Open up controller parameters
-            # Kp, KD, config_params = parse_config()
-            Kp = np.diag([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])*2
-            KD = 0.5
-            
-            # Load desired trajectories from MATLAB
-            qd_mat = mat2np('qd.mat', 'qd')
-            dqd_mat = mat2np('dqd.mat', 'dqd')
-            ddqd_mat = mat2np('ddqd.mat', 'ddqd')
-            tvec = mat2np('tvec.mat', 'tvec')
-
-            zero =  np.zeros((nq,1))
-            t_old = time.time()
-            # our loop's "starting" time
-            t_0 = time.time()
-            while 1:
-                if kbhit():
-                    c = getch()
-                    first_time = True
-                    Joints.send_torque_cmd(nq * [0])
-                    print("[Q KEY PRESSED] : All motors stopped\n")
-                    # save_data(q_data, qd, tau_data, timestamps, config_params, dt_loop)
-
-                    break
-                else:
-                    # grab current time   
-                    # t1 = time.time()
-                    q = np.array(Joints.get_position()).reshape(-1,1)
-                    # t2 = time.time()
-                    # print(f"[DEBUG] dt: {t2 - t1}\n")  
-                    # mj0 = joint_th[0] - base_offset
-                    # mj1 = joint_th[1] - offset1
-                    # mj2 = joint_th[2] - offset2
-                    # q = grab_arm_q(l[0], l[1], l[2], mj0, mj1, mj2, s, d)
-                    # grab desired pos, vel and accel based off of time vector position 
-                    
-                    n = get_qindex((time.time() - t_0), tvec)
-                    if n == len(tvec[0])-1:
-                        t_0 = time.time() - tvec[0][200]
-                    
-                    if n == len(tvec[0]) - 1:
-                        t_0 = time.time()
-                    
-                    qd = np.array(qd_mat[:, n]).reshape(-1,1)
-                    dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
-                    ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
-                    # print(f"[DEBUG] qdata: {q_data}\n")
-                    # print(f"[DEBUG] q: {q}\n")
-                    q_data=np.append(q_data, q, axis = 1) 
-                    # At the first iteration velocity is 0  
-                    
-                    if first_time:
-                        dq = np.zeros((nq,1))
+                        q_data=np.append(q_data, q, axis = 1) 
+                        # At the first iteration velocity is 0  
+                        if first_time:
+                            dq = np.zeros((nq,1))
+                            first_time = False
+                        else:
+                            t = time.time()
+                            time_elapsed = t-t_0
+                            timestamps = np.append(timestamps, time_elapsed) 
+                            dt = t - t_old
+                            # print(f"[DEBUG] dt: {dt}\n")  
+                            t_old = t
+                            dq = diff(q, q_old, dt)
+        
+                        # calculate errors
+                        err = q - qd
+                        err_dot = dq
+                        # print(f"[DEBUG] q: {q}\n")
+                        # TODO: set position limits
+                        # tau = turtle_controller(q,dq,qd,zero,zero,Kp,KD)
+                        # tau_data=np.append(tau_data, tau, axis=1) 
+                        # print(f"[DEBUG] q: {q * 180/3.14}\n")
+                        # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
+                        print(f"[DEBUG] e: {err * 180/3.14}\n")
                         q_old = q
-                        first_time = False
-                    else:
-                        t = time.time()
-                        timestamps = np.append(timestamps, (t-t_0)) 
-                        dt = t - t_old
-                        # print(f"[DEBUG] dt: {dt}\n")  
-                        t_old = t
-                        dq = diff(q, q_old, dt)
-                        q_old = q
-                    # calculate errors
-                    err = q - qd
-                    # print(f"[DEBUG] e: {err}\n")
-                    # print(f"[DEBUG] q: {q * 180/3.14}\n")
-                    # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
-                    err_dot = dq
-                    
-                    tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
-                    
-                    
-                    input_history = np.append(input_history[:,1:], tau,axis=1)
+                        # input = grab_arm_current(tau, min_torque, max_torque)
+                        
+                        tau = turtle_controller(q,dq,qd,zero,zero,Kp,KD)
+                        
+                        input_history = np.append(input_history[:,1:], tau,axis=1)
 
-                    input_mean = np.mean(input_history, axis = 1)
+                        input_mean = np.mean(input_history, axis = 1)
 
-                    input = grab_arm_current(input_mean, min_torque, max_torque)
+                        input = grab_arm_current(input_mean, min_torque, max_torque)
+                        
+                        # print(f"[DEBUG] joint cmds: {tau}\n")
+                        Joints.send_torque_cmd(input)
+            elif key_input == chr('c'):    # Trajectory Code
+                print(f"[MODE] TRAJECTORY\n")
+                Joints.disable_torque()
+                Joints.set_current_cntrl_mode()
+                Joints.enable_torque()
+                q_data = np.zeros((nq,1))
+                tau_data = np.zeros((nq,1))
+                timestamps = np.zeros((1,1))
+                dt_loop = np.zeros((1,1))       # hold dt data 
+                # Open up controller parameters
+                # Kp, KD, config_params = parse_config()
+                Kp = np.diag([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])*2
+                KD = 0.5
+                
+                # Load desired trajectories from MATLAB
+                qd_mat = mat2np('qd.mat', 'qd')
+                dqd_mat = mat2np('dqd.mat', 'dqd')
+                ddqd_mat = mat2np('ddqd.mat', 'ddqd')
+                tvec = mat2np('tvec.mat', 'tvec')
+
+                zero =  np.zeros((nq,1))
+                t_old = time.time()
+                # our loop's "starting" time
+                t_0 = time.time()
+                while 1:
+                    try:
+                        data, addr = s.recvfrom(1024)
+                        data = data.decode('utf-8')
+                        print("Message from: " + str(addr))
+                        print("From connected user: " + data)
+                        key_input = data
+                        data = data.upper()
+                        print("Sending: " + data)
+                        s.sendto(data.encode('utf-8'), addr)
+                        if key_input == 'q':
+                            # c = getch()
+                            first_time = True
+                            Joints.send_torque_cmd(nq * [0])
+                            print("[Q KEY PRESSED] : All motors stopped\n")
+                            # save_data(q_data, qd, tau_data, timestamps, config_params, dt_loop)
+
+                            break
+                    except:
+                        # grab current time   
+                        # t1 = time.time()
+                        q = np.array(Joints.get_position()).reshape(-1,1)
+                        # t2 = time.time()
+                        # print(f"[DEBUG] dt: {t2 - t1}\n")  
+                        # mj0 = joint_th[0] - base_offset
+                        # mj1 = joint_th[1] - offset1
+                        # mj2 = joint_th[2] - offset2
+                        # q = grab_arm_q(l[0], l[1], l[2], mj0, mj1, mj2, s, d)
+                        # grab desired pos, vel and accel based off of time vector position 
+                        
+                        n = get_qindex((time.time() - t_0), tvec)
+                        if n == len(tvec[0])-1:
+                            t_0 = time.time() - tvec[0][200]
+                        
+                        if n == len(tvec[0]) - 1:
+                            t_0 = time.time()
+                        
+                        qd = np.array(qd_mat[:, n]).reshape(-1,1)
+                        dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
+                        ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
+                        # print(f"[DEBUG] qdata: {q_data}\n")
+                        # print(f"[DEBUG] q: {q}\n")
+                        q_data=np.append(q_data, q, axis = 1) 
+                        # At the first iteration velocity is 0  
+                        
+                        if first_time:
+                            dq = np.zeros((nq,1))
+                            q_old = q
+                            first_time = False
+                        else:
+                            t = time.time()
+                            timestamps = np.append(timestamps, (t-t_0)) 
+                            dt = t - t_old
+                            # print(f"[DEBUG] dt: {dt}\n")  
+                            t_old = t
+                            dq = diff(q, q_old, dt)
+                            q_old = q
+                        # calculate errors
+                        err = q - qd
+                        # print(f"[DEBUG] e: {err}\n")
+                        # print(f"[DEBUG] q: {q * 180/3.14}\n")
+                        # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
+                        err_dot = dq
+                        
+                        tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
+                        
+                        
+                        input_history = np.append(input_history[:,1:], tau,axis=1)
+
+                        input_mean = np.mean(input_history, axis = 1)
+
+                        input = grab_arm_current(input_mean, min_torque, max_torque)
 
 
-                    # print(f"[DEBUG] tau: {tau}\n")
-                    Joints.send_torque_cmd(input)
+                        # print(f"[DEBUG] tau: {tau}\n")
+                        Joints.send_torque_cmd(input)
 
-                    
-        elif key_input == chr(NKEY_ASCII_VALUE):
-            # Update to new config
-            m, l, config_params = parse_config()
+                        
+            elif key_input == 'n':
+                # Update to new config
+                m, l, config_params = parse_config()
+        except:
+            print("\nP: Position Controlled Trajectory, C: Current Controlled Trajectory, W: Set point(or press SPACE to quit!)")
 
     print("[END OF PROGRAM] Disabling torque\n")
     # Disable Dynamixel Torque

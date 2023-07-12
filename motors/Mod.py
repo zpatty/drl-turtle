@@ -95,7 +95,7 @@ class Mod:
         # otherwise dynamixel won't read out its position 
         t = time.time()
         dxl_comm_result = self.groupSyncRead.txRxPacket()
-        print(f"[DEBUG] dt: {time.time() - t}\n") 
+        # print(f"[DEBUG] dt: {time.time() - t}\n") 
         address = ADDR_PRESENT_POSITION
         pos = []
         for ID in self.IDS:
