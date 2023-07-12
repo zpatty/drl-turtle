@@ -1,0 +1,6 @@
+source;share/turtle_urdf/hook/pythonpath.ps1
+source;share/turtle_urdf/hook/pythonpath.dsv
+source;share/turtle_urdf/hook/pythonpath.sh
+source;share/turtle_urdf/hook/ament_prefix_path.ps1
+source;share/turtle_urdf/hook/ament_prefix_path.dsv
+source;share/turtle_urdf/hook/ament_prefix_path.sh

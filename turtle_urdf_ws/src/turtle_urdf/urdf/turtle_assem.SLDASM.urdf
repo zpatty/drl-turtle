@@ -1,0 +1,1221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="turtle_assem.SLDASM">
+<link name="base_footprint">
+    <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+            <box size="0.001 0.001 0.001" />
+        </geometry>
+    </visual>
+</link>
+
+<joint name="base_footprint_joint" type="fixed">
+    <origin xyz="0 0 0.001" rpy="0 0 0" />
+    <parent link="base_footprint"/>
+    <child link="base_link" />
+</joint>
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="-0.139793726521197 3.02888783168269E-05 -0.000965795045126814"
+        rpy="0 0 0" />
+      <mass
+        value="2.00197672334847" />
+      <inertia
+        ixx="0.00227645142398132"
+        ixy="-7.24063312675915E-08"
+        ixz="4.6321836014872E-05"
+        iyy="0.00582165925853669"
+        iyz="-1.13497000154781E-08"
+        izz="0.00642229159778174" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="motor2">
+    <inertial>
+      <origin
+        xyz="-0.0424262655289384 -6.85812987433441E-05 -0.0101596852891025"
+        rpy="0 0 0" />
+      <mass
+        value="0.19959000592975" />
+      <inertia
+        ixx="0.000102253284910249"
+        ixy="-1.32510984805803E-16"
+        ixz="-1.734362895959E-07"
+        iyy="8.76386977156673E-05"
+        iyz="7.8494101788163E-07"
+        izz="4.30364248461497E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/motor2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/motor2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="shoulder z"
+    type="revolute">
+    <origin
+      xyz="-0.15476 -0.11857 -0.021134"
+      rpy="1.5708 0 1.5708" />
+    <parent
+      link="base_link" />
+    <child
+      link="motor2" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="motor3">
+    <inertial>
+      <origin
+        xyz="0.015918980505266 -9.74602204775188E-05 -0.0443741056383084"
+        rpy="0 0 0" />
+      <mass
+        value="0.140448500483326" />
+      <inertia
+        ixx="2.95730512668569E-05"
+        ixy="7.94688346301715E-07"
+        ixz="-6.45820265187646E-16"
+        iyy="5.57645957313895E-05"
+        iyz="1.32512139507554E-16"
+        izz="6.70729874856918E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/motor3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/motor3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="shoulder y"
+    type="revolute">
+    <origin
+      xyz="-0.058 -0.000260560176065711 0.000160560176065749"
+      rpy="-1.5707963267949 -1.5707963267949 0" />
+    <parent
+      link="motor2" />
+    <child
+      link="motor3" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="humerus">
+    <inertial>
+      <origin
+        xyz="-2.09604651635331E-07 -4.14201045291496E-06 -0.0577417238356416"
+        rpy="0 0 0" />
+      <mass
+        value="0.0297093647993242" />
+      <inertia
+        ixx="2.19135183187944E-05"
+        ixy="1.58992758201897E-10"
+        ixz="-4.83789905888679E-10"
+        iyy="2.29080017285897E-05"
+        iyz="-6.32678182519546E-09"
+        izz="3.01863714360775E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/humerus.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/humerus.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="shoulder x"
+    type="revolute">
+    <origin
+      xyz="0.031 -0.000260560176065627 -0.0522394398239343"
+      rpy="1.5707963267949 0 -3.14159265358979" />
+    <parent
+      link="motor3" />
+    <child
+      link="humerus" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="forearm">
+    <inertial>
+      <origin
+        xyz="-0.0104556538387043 -0.00732106376965685 -0.00103994965613724"
+        rpy="0 0 0" />
+      <mass
+        value="0.00321747849832593" />
+      <inertia
+        ixx="1.18261404745199E-07"
+        ixy="-6.23743859697054E-08"
+        ixz="5.16619482245768E-09"
+        iyy="1.63668329624826E-07"
+        iyz="3.61598163135351E-09"
+        izz="1.95759827683889E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/forearm.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/forearm.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="elbow"
+    type="revolute">
+    <origin
+      xyz="0 -0.000900000000000414 -0.111663439823934"
+      rpy="1.57079632679489 0 0" />
+    <parent
+      link="humerus" />
+    <child
+      link="forearm" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="hand">
+    <inertial>
+      <origin
+        xyz="0.0080306069427552 2.33292050463019E-05 0.029798536307319"
+        rpy="0 0 0" />
+      <mass
+        value="0.007458869784901" />
+      <inertia
+        ixx="1.52002275996681E-06"
+        ixy="-6.59703378789213E-10"
+        ixz="-1.16207829775553E-07"
+        iyy="2.04366986037998E-06"
+        iyz="-1.01722400777519E-09"
+        izz="5.96155881516618E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/hand.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/hand.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="forearm twist"
+    type="revolute">
+    <origin
+      xyz="-0.0225271689707654 -0.0157726554164387 -0.000875052936502335"
+      rpy="-1.5707963267949 0 2.18166156499291" />
+    <parent
+      link="forearm" />
+    <child
+      link="hand" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="finger_1">
+    <inertial>
+      <origin
+        xyz="-0.0321164818789987 1.08442855335789E-06 -5.17289318728853E-05"
+        rpy="0 0 0" />
+      <mass
+        value="0.00815897503529205" />
+      <inertia
+        ixx="1.87780898922872E-07"
+        ixy="2.71364849759439E-10"
+        ixz="1.82790332131999E-08"
+        iyy="3.11059490382985E-06"
+        iyz="1.18025458925446E-11"
+        izz="3.08309120489149E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="finger_pinky"
+    type="revolute">
+    <origin
+      xyz="0.00321549122081088 2.49470634976906E-05 0.0577433280816197"
+      rpy="-3.14159265358976 1.13186331409036 -3.14159265358976" />
+    <parent
+      link="hand" />
+    <child
+      link="finger_1" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="finger_2">
+    <inertial>
+      <origin
+        xyz="-0.0321166531944218 1.08256056374767E-06 -5.16411525376403E-05"
+        rpy="0 0 0" />
+      <mass
+        value="0.0081590932001358" />
+      <inertia
+        ixx="1.87785546000215E-07"
+        ixy="2.69838531716313E-10"
+        ixz="1.82937643823131E-08"
+        iyy="3.11063635201715E-06"
+        iyz="1.1856166063233E-11"
+        izz="3.08312138570173E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="finger_middle"
+    type="revolute">
+    <origin
+      xyz="0.0164868587195784 2.49470634976073E-05 0.0455536453363703"
+      rpy="-3.14159265358977 0.93746386773365 -3.14159265358977" />
+    <parent
+      link="hand" />
+    <child
+      link="finger_2" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="finger_2_distal">
+    <inertial>
+      <origin
+        xyz="-0.0322166553312513 5.16422163291397E-05 1.0825842174933E-06"
+        rpy="0 0 0" />
+      <mass
+        value="0.00815890339458729" />
+      <inertia
+        ixx="1.87777667518928E-07"
+        ixy="-1.82749844267169E-08"
+        ixz="2.70942096550549E-10"
+        iyy="3.08306155456235E-06"
+        iyz="-1.12923456759871E-11"
+        izz="3.11057086738207E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_2_distal.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_2_distal.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="finger_2_knuckle"
+    type="revolute">
+    <origin
+      xyz="-0.0641619999999999 0 0"
+      rpy="-1.5707963267949 0 0" />
+    <parent
+      link="finger_2" />
+    <child
+      link="finger_2_distal" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="thumb">
+    <inertial>
+      <origin
+        xyz="0.0170956470251904 1.95594878975303E-06 9.33741808846755E-05"
+        rpy="0 0 0" />
+      <mass
+        value="0.00453338029872171" />
+      <inertia
+        ixx="1.17247307878083E-07"
+        ixy="-1.51177320829881E-10"
+        ixz="9.9145615557784E-09"
+        iyy="4.53844340522962E-07"
+        iyz="-1.47050543812107E-11"
+        izz="4.29002691091127E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/thumb.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/thumb.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="finger_3"
+    type="revolute">
+    <origin
+      xyz="0.0298430737694715 2.49470634975518E-05 0.0331455878511042"
+      rpy="0 -0.74795067637548 0" />
+    <parent
+      link="hand" />
+    <child
+      link="thumb" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="thumb_2">
+    <inertial>
+      <origin
+        xyz="0.0170956470251904 1.95594878975303E-06 9.33741808848421E-05"
+        rpy="0 0 0" />
+      <mass
+        value="0.00453338029872172" />
+      <inertia
+        ixx="1.17247307878084E-07"
+        ixy="-1.51177320829554E-10"
+        ixz="9.91456155577994E-09"
+        iyy="4.53844340522963E-07"
+        iyz="-1.47050543813262E-11"
+        izz="4.29002691091128E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/thumb_2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/thumb_2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="thumb"
+    type="revolute">
+    <origin
+      xyz="0.034036 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="thumb" />
+    <child
+      link="thumb_2" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="shoulder_r1">
+    <inertial>
+      <origin
+        xyz="0.0424262654171467 -6.85811121932701E-05 -0.0101596853630267"
+        rpy="0 0 0" />
+      <mass
+        value="0.19959000449621" />
+      <inertia
+        ixx="0.000102253284900643"
+        ixy="-9.56787865680847E-17"
+        ixz="1.73436290753627E-07"
+        iyy="8.76386977010701E-05"
+        iyz="7.84941017503155E-07"
+        izz="4.30364248359425E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/shoulder_r1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/shoulder_r1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="shoulder_ry"
+    type="revolute">
+    <origin
+      xyz="-0.154760560176066 0.118569823203537 -0.0211344494681455"
+      rpy="1.5707963267949 0 1.5707963267949" />
+    <parent
+      link="base_link" />
+    <child
+      link="shoulder_r1" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="shoulder_r2">
+    <inertial>
+      <origin
+        xyz="0.0159189803516203 9.74599556677058E-05 -0.0443741055579348"
+        rpy="0 0 0" />
+      <mass
+        value="0.140448499049786" />
+      <inertia
+        ixx="2.95730512566497E-05"
+        ixy="-7.94688345923253E-07"
+        ixz="5.11899451731221E-16"
+        iyy="5.57645957167924E-05"
+        iyz="9.56784445514042E-17"
+        izz="6.7072987476086E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/shoulder_r2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/shoulder_r2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="shoulder_rz"
+    type="revolute">
+    <origin
+      xyz="0.058 -0.000260560176065724 0.000160560176065749"
+      rpy="-1.5707963267949 -1.5707963267949 0" />
+    <parent
+      link="shoulder_r1" />
+    <child
+      link="shoulder_r2" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="shoulder_r3">
+    <inertial>
+      <origin
+        xyz="3.27456432372419E-07 -4.14696846921803E-06 -0.0577417355114785"
+        rpy="0 0 0" />
+      <mass
+        value="0.0297091645234955" />
+      <inertia
+        ixx="2.19135130479917E-05"
+        ixy="1.25157927054316E-10"
+        ixz="4.8317726684715E-10"
+        iyy="2.29079692879455E-05"
+        iyz="-6.31772969915111E-09"
+        izz="3.01861472370875E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/shoulder_r3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/shoulder_r3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="shoulder_rx"
+    type="revolute">
+    <origin
+      xyz="0.031 0.000260560176067987 -0.052239439823933"
+      rpy="1.5707963267949 0 0" />
+    <parent
+      link="shoulder_r2" />
+    <child
+      link="shoulder_r3" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="ulna_r">
+    <inertial>
+      <origin
+        xyz="-0.0104556491841718 0.00732106854972991 -0.00103994296000072"
+        rpy="0 0 0" />
+      <mass
+        value="0.00321749884978111" />
+      <inertia
+        ixx="1.18261842657792E-07"
+        ixy="6.23743689609513E-08"
+        ixz="5.16630526874817E-09"
+        iyy="1.63668185637303E-07"
+        iyz="-3.61549592545712E-09"
+        izz="1.95760395640948E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/ulna_r.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/ulna_r.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="elbow_r"
+    type="revolute">
+    <origin
+      xyz="0 -0.000900000000001677 -0.111663439823932"
+      rpy="-1.5707963267949 0 3.14159265358978" />
+    <parent
+      link="shoulder_r3" />
+    <child
+      link="ulna_r" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="hand_r">
+    <inertial>
+      <origin
+        xyz="-0.00803055857311785 2.35846749753188E-05 0.0297983745213872"
+        rpy="0 0 0" />
+      <mass
+        value="0.00745892050422844" />
+      <inertia
+        ixx="1.52005445910032E-06"
+        ixy="6.58512346300275E-10"
+        ixz="1.16213218022766E-07"
+        iyy="2.04371159015803E-06"
+        iyz="-1.01026459924081E-09"
+        izz="5.96166133107483E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/hand_r.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/hand_r.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="forearm_twist_r"
+    type="revolute">
+    <origin
+      xyz="-0.0225271720364629 0.0157726510381686 -0.000874854468572259"
+      rpy="-1.5707963267949 0 0.959931088596884" />
+    <parent
+      link="ulna_r" />
+    <child
+      link="hand_r" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="finger_r1">
+    <inertial>
+      <origin
+        xyz="0.0321167981533025 1.07840943186499E-06 -0.000951720191340433"
+        rpy="0 0 0" />
+      <mass
+        value="0.00815898286185356" />
+      <inertia
+        ixx="1.87781732284952E-07"
+        ixy="-3.0045767465358E-10"
+        ixz="-1.82853031731432E-08"
+        iyy="3.11059784372465E-06"
+        iyz="9.88073689189033E-12"
+        izz="3.08309221107737E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_r1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_r1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="finger_r1_joint"
+    type="revolute">
+    <origin
+      xyz="-0.00403017093403751 2.51455314277116E-05 0.0573608516037848"
+      rpy="-3.14159265358976 -1.13186331409036 3.14159265358976" />
+    <parent
+      link="hand_r" />
+    <child
+      link="finger_r1" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="finger_r2_forefinger">
+    <inertial>
+      <origin
+        xyz="0.0321163881676197 1.0756204928547E-06 -0.000951556455045799"
+        rpy="0 0 0" />
+      <mass
+        value="0.00815899952744804" />
+      <inertia
+        ixx="1.87781770220231E-07"
+        ixy="-3.00514189068178E-10"
+        ixz="-1.82943350074824E-08"
+        iyy="3.11060255601416E-06"
+        iyz="1.21920609514125E-11"
+        izz="3.08309035611226E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_r2_forefinger.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_r2_forefinger.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="finger2_knuckle"
+    type="revolute">
+    <origin
+      xyz="-0.0172123071267262 2.51455314276422E-05 0.0450209945561512"
+      rpy="-3.14159265358977 -0.937463867733647 3.14159265358977" />
+    <parent
+      link="hand_r" />
+    <child
+      link="finger_r2_forefinger" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="finger_r2_tip">
+    <inertial>
+      <origin
+        xyz="0.0322165834116033 1.07688204885326E-06 -0.000951644601507207"
+        rpy="0 0 0" />
+      <mass
+        value="0.00815909425188955" />
+      <inertia
+        ixx="1.87785595746044E-07"
+        ixy="-3.00914386749484E-10"
+        ixz="-1.82845267812728E-08"
+        iyy="3.1106354092634E-06"
+        iyz="1.21456918046076E-11"
+        izz="3.08311916688134E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_r2_tip.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_r2_tip.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="finger_r2_mid_knuckle"
+    type="revolute">
+    <origin
+      xyz="0.064162 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="finger_r2_forefinger" />
+    <child
+      link="finger_r2_tip" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="finger_r3_forefinger">
+    <inertial>
+      <origin
+        xyz="0.0169956268054621 1.95251036801125E-06 -0.000993374880048525"
+        rpy="0 0 0" />
+      <mass
+        value="0.00453337868564086" />
+      <inertia
+        ixx="1.17247321694371E-07"
+        ixy="-1.49861042339236E-10"
+        ixz="-9.91406514531449E-09"
+        iyy="4.53844202255298E-07"
+        iyz="1.47530775181334E-11"
+        izz="4.29002571368356E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_r3_forefinger.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_r3_forefinger.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="finger_r3_knuckle"
+    type="revolute">
+    <origin
+      xyz="-0.0305285009237736 2.51455314275867E-05 0.0325538258304707"
+      rpy="-3.14159265358978 -0.747950676375482 3.14159265358978" />
+    <parent
+      link="hand_r" />
+    <child
+      link="finger_r3_forefinger" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="finger_r3_tip">
+    <inertial>
+      <origin
+        xyz="0.0170956268054623 1.95251036802513E-06 -0.00099337488004847"
+        rpy="0 0 0" />
+      <mass
+        value="0.00453337868564088" />
+      <inertia
+        ixx="1.17247321694371E-07"
+        ixy="-1.49861042338231E-10"
+        ixz="-9.91406514531456E-09"
+        iyy="4.53844202255299E-07"
+        iyz="1.47530775176972E-11"
+        izz="4.29002571368358E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_r3_tip.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.796078431372549 0.823529411764706 0.937254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://turtle_urdf/meshes/visual/finger_r3_tip.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="finger_r3_distal_knuckle"
+    type="revolute">
+    <origin
+      xyz="0.0339359999999999 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="finger_r3_forefinger" />
+    <child
+      link="finger_r3_tip" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+</robot>

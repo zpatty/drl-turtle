@@ -1,0 +1,100 @@
+[0.000000] (-) TimerEvent: {}
+[0.000757] (turtle_urdf) JobQueued: {'identifier': 'turtle_urdf', 'dependencies': OrderedDict()}
+[0.000799] (turtle_urdf) JobStarted: {'identifier': 'turtle_urdf'}
+[0.100016] (-) TimerEvent: {}
+[0.200288] (-) TimerEvent: {}
+[0.300573] (-) TimerEvent: {}
+[0.400833] (-) TimerEvent: {}
+[0.501128] (-) TimerEvent: {}
+[0.601476] (-) TimerEvent: {}
+[0.701860] (-) TimerEvent: {}
+[0.774457] (turtle_urdf) Command: {'cmd': ['/usr/bin/python3', 'setup.py', 'egg_info', '--egg-base', '../../build/turtle_urdf', 'build', '--build-base', '/home/zach/Documents/git-repos/turtle_urdf_ws/build/turtle_urdf/build', 'install', '--record', '/home/zach/Documents/git-repos/turtle_urdf_ws/build/turtle_urdf/install.log', '--single-version-externally-managed'], 'cwd': '/home/zach/Documents/git-repos/turtle_urdf_ws/src/turtle_urdf', 'env': {'GJS_DEBUG_TOPICS': 'JS ERROR;JS LOG', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'CONDA_PROMPT_MODIFIER': '(base)', 'USER': 'zach', 'MATHEMATICA_HOME': '/usr/local/Wolfram/Mathematica/13.2', 'XDG_SESSION_TYPE': 'wayland', 'KIGITHUB': 'https://github.com/KiCad', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib', 'HOME': '/home/zach', 'CONDA_SHLVL': '1', 'OLDPWD': '/home/zach/Documents/git-repos/turtle_urdf_ws/src', 'DESKTOP_SESSION': 'ubuntu', 'GIO_LAUNCHED_DESKTOP_FILE': '/usr/share/applications/terminator.desktop', 'ROS_PYTHON_VERSION': '3', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'MANAGERPID': '4609', 'SYSTEMD_EXEC_PID': '4816', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'COLORTERM': 'truecolor', '_CE_M': '', 'TERMINATOR_DBUS_NAME': 'net.tenshu.Terminator25ef4b219e3b005583550f2b0f9f990c3', 'GIO_LAUNCHED_DESKTOP_FILE_PID': '9902', 'IM_CONFIG_PHASE': '1', 'WAYLAND_DISPLAY': 'wayland-0', 'ROS_DISTRO': 'humble', 'LOGNAME': 'zach', 'JOURNAL_STREAM': '8:41973', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'XDG_SESSION_CLASS': 'user', 'USERNAME': 'zach', 'TERM': 'xterm-256color', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', '_CE_CONDA': '', 'ROS_LOCALHOST_ONLY': '0', 'PATH': '/opt/ros/humble/bin:/home/zach/anaconda3/bin:/home/zach/anaconda3/condabin:/home/zach/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/home/zach/gsutil:/home/zach/julia-1.6.5/bin', 'SESSION_MANAGER': 'local/zach-ThinkPad-T480s:@/tmp/.ICE-unix/4779,unix/zach-ThinkPad-T480s:/tmp/.ICE-unix/4779', 'INVOCATION_ID': '8cfd74d38452416aa9cd89949b59a92b', 'XDG_MENU_PREFIX': 'gnome-', 'GNOME_SETUP_DISPLAY': ':1', 'XDG_RUNTIME_DIR': '/run/user/1000', 'DISPLAY': ':0', 'TERMINATOR_DBUS_PATH': '/net/tenshu/Terminator2', 'LANG': 'en_US.UTF-8', 'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'IBUS_DISABLE_SNOOPER': '1', 'XMODIFIERS': '@im=ibus', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/.mutter-Xwaylandauth.KTKY71', 'LS_COLORS': 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:', 'SSH_AGENT_LAUNCHER': 'gnome-keyring', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'AMENT_PREFIX_PATH': '/opt/ros/humble', 'CONDA_PYTHON_EXE': '/home/zach/anaconda3/bin/python', 'SHELL': '/bin/bash', 'TERMINATOR_UUID': 'urn:uuid:71b9fba2-2150-4d27-80a3-e0538e14ee72', 'QT_ACCESSIBILITY': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'CONDA_DEFAULT_ENV': 'base', 'GJS_DEBUG_OUTPUT': 'stderr', 'QT_IM_MODULE': 'ibus', 'PWD': '/home/zach/Documents/git-repos/turtle_urdf_ws/build/turtle_urdf', 'KICAD_PATH': '/usr/share/kicad', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'CONDA_EXE': '/home/zach/anaconda3/bin/conda', 'XDG_DATA_DIRS': '/usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'PYTHONPATH': '/home/zach/Documents/git-repos/turtle_urdf_ws/build/turtle_urdf/prefix_override:/home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/lib/python3.10/site-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages', 'CONDA_PREFIX': '/home/zach/anaconda3', 'COLCON': '1', 'VTE_VERSION': '6800'}, 'shell': False}
+[0.802000] (-) TimerEvent: {}
+[0.902283] (-) TimerEvent: {}
+[1.002562] (-) TimerEvent: {}
+[1.041704] (turtle_urdf) StdoutLine: {'line': b'running egg_info\n'}
+[1.042304] (turtle_urdf) StdoutLine: {'line': b'creating ../../build/turtle_urdf/turtle_urdf.egg-info\n'}
+[1.042532] (turtle_urdf) StdoutLine: {'line': b'writing ../../build/turtle_urdf/turtle_urdf.egg-info/PKG-INFO\n'}
+[1.042759] (turtle_urdf) StdoutLine: {'line': b'writing dependency_links to ../../build/turtle_urdf/turtle_urdf.egg-info/dependency_links.txt\n'}
+[1.042840] (turtle_urdf) StdoutLine: {'line': b'writing entry points to ../../build/turtle_urdf/turtle_urdf.egg-info/entry_points.txt\n'}
+[1.043052] (turtle_urdf) StdoutLine: {'line': b'writing requirements to ../../build/turtle_urdf/turtle_urdf.egg-info/requires.txt\n'}
+[1.043129] (turtle_urdf) StdoutLine: {'line': b'writing top-level names to ../../build/turtle_urdf/turtle_urdf.egg-info/top_level.txt\n'}
+[1.043196] (turtle_urdf) StdoutLine: {'line': b"writing manifest file '../../build/turtle_urdf/turtle_urdf.egg-info/SOURCES.txt'\n"}
+[1.044976] (turtle_urdf) StdoutLine: {'line': b"reading manifest file '../../build/turtle_urdf/turtle_urdf.egg-info/SOURCES.txt'\n"}
+[1.045988] (turtle_urdf) StdoutLine: {'line': b"writing manifest file '../../build/turtle_urdf/turtle_urdf.egg-info/SOURCES.txt'\n"}
+[1.046195] (turtle_urdf) StdoutLine: {'line': b'running build\n'}
+[1.046328] (turtle_urdf) StdoutLine: {'line': b'running build_py\n'}
+[1.046493] (turtle_urdf) StdoutLine: {'line': b'creating /home/zach/Documents/git-repos/turtle_urdf_ws/build/turtle_urdf/build\n'}
+[1.046625] (turtle_urdf) StdoutLine: {'line': b'creating /home/zach/Documents/git-repos/turtle_urdf_ws/build/turtle_urdf/build/lib\n'}
+[1.046743] (turtle_urdf) StdoutLine: {'line': b'creating /home/zach/Documents/git-repos/turtle_urdf_ws/build/turtle_urdf/build/lib/turtle_urdf\n'}
+[1.046880] (turtle_urdf) StdoutLine: {'line': b'copying turtle_urdf/__init__.py -> /home/zach/Documents/git-repos/turtle_urdf_ws/build/turtle_urdf/build/lib/turtle_urdf\n'}
+[1.046999] (turtle_urdf) StdoutLine: {'line': b'running install\n'}
+[1.047129] (turtle_urdf) StderrLine: {'line': b'/usr/lib/python3/dist-packages/setuptools/command/install.py:34: SetuptoolsDeprecationWarning: setup.py install is deprecated. Use build and pip and other standards-based tools.\n'}
+[1.047267] (turtle_urdf) StderrLine: {'line': b'  warnings.warn(\n'}
+[1.047383] (turtle_urdf) StdoutLine: {'line': b'running install_lib\n'}
+[1.047933] (turtle_urdf) StdoutLine: {'line': b'creating /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/lib/python3.10/site-packages/turtle_urdf\n'}
+[1.048059] (turtle_urdf) StdoutLine: {'line': b'copying /home/zach/Documents/git-repos/turtle_urdf_ws/build/turtle_urdf/build/lib/turtle_urdf/__init__.py -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/lib/python3.10/site-packages/turtle_urdf\n'}
+[1.048423] (turtle_urdf) StdoutLine: {'line': b'byte-compiling /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/lib/python3.10/site-packages/turtle_urdf/__init__.py to __init__.cpython-310.pyc\n'}
+[1.048632] (turtle_urdf) StdoutLine: {'line': b'running install_data\n'}
+[1.049117] (turtle_urdf) StdoutLine: {'line': b'creating /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/ament_index\n'}
+[1.049315] (turtle_urdf) StdoutLine: {'line': b'creating /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/ament_index/resource_index\n'}
+[1.049494] (turtle_urdf) StdoutLine: {'line': b'creating /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/ament_index/resource_index/packages\n'}
+[1.049643] (turtle_urdf) StdoutLine: {'line': b'copying resource/turtle_urdf -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/ament_index/resource_index/packages\n'}
+[1.049823] (turtle_urdf) StdoutLine: {'line': b'copying package.xml -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf\n'}
+[1.049954] (turtle_urdf) StdoutLine: {'line': b'copying launch/launch.py -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf\n'}
+[1.050078] (turtle_urdf) StdoutLine: {'line': b'creating /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/urdf\n'}
+[1.050195] (turtle_urdf) StdoutLine: {'line': b'copying urdf/turtle_assem.SLDASM.urdf -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/urdf/\n'}
+[1.050329] (turtle_urdf) StdoutLine: {'line': b'creating /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/rviz\n'}
+[1.050457] (turtle_urdf) StdoutLine: {'line': b'creating /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes\n'}
+[1.050574] (turtle_urdf) StdoutLine: {'line': b'creating /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision\n'}
+[1.050691] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/finger_r2_tip.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.050827] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/finger_2_distal.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.050953] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/shoulder_r3.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.051071] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/finger_2.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.051188] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/finger_r3_tip.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.051321] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/finger_r1.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.051460] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/shoulder_r1.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.052611] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/forearm.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.052808] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/hand.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.053025] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/finger_1.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.053260] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/hand_r.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.053475] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/humerus.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.053739] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/base_link.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.056120] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/finger_r2_forefinger.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.056368] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/ulna_r.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.056584] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/motor3.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.057607] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/finger_r3_forefinger.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.057905] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/thumb_2.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.058186] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/shoulder_r2.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.059014] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/thumb.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.059319] (turtle_urdf) StdoutLine: {'line': b'copying meshes/collision/motor2.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/collision/\n'}
+[1.060588] (turtle_urdf) StdoutLine: {'line': b'creating /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual\n'}
+[1.060727] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/finger_r2_tip.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.060957] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/finger_2_distal.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.061211] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/shoulder_r3.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.061475] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/finger_2.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.061713] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/finger_r3_tip.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.062017] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/finger_r1.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.062394] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/shoulder_r1.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.063494] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/forearm.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.063666] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/hand.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.063968] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/finger_1.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.064214] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/hand_r.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.064434] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/humerus.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.064702] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/base_link.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.067056] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/finger_r2_forefinger.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.067318] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/ulna_r.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.067551] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/motor3.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.068558] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/finger_r3_forefinger.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.068863] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/thumb_2.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.069163] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/shoulder_r2.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.069997] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/thumb.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.070279] (turtle_urdf) StdoutLine: {'line': b'copying meshes/visual/motor2.STL -> /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/share/turtle_urdf/meshes/visual/\n'}
+[1.071566] (turtle_urdf) StdoutLine: {'line': b'running install_egg_info\n'}
+[1.073220] (turtle_urdf) StdoutLine: {'line': b'Copying ../../build/turtle_urdf/turtle_urdf.egg-info to /home/zach/Documents/git-repos/turtle_urdf_ws/install/turtle_urdf/lib/python3.10/site-packages/turtle_urdf-0.0.0-py3.10.egg-info\n'}
+[1.074075] (turtle_urdf) StdoutLine: {'line': b'running install_scripts\n'}
+[1.095209] (turtle_urdf) StdoutLine: {'line': b"writing list of installed files to '/home/zach/Documents/git-repos/turtle_urdf_ws/build/turtle_urdf/install.log'\n"}
+[1.102705] (-) TimerEvent: {}
+[1.120921] (turtle_urdf) CommandEnded: {'returncode': 0}
+[1.139593] (turtle_urdf) JobEnded: {'identifier': 'turtle_urdf', 'rc': 0}
+[1.140216] (-) EventReactorShutdown: {}
