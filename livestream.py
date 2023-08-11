@@ -77,7 +77,7 @@ def play_video_with_detection(video_path = "camera"):
 
         # Perform object detection on the frame
         start_time = time.time()
-        frame = detect_objects(frame, True)
+        frame = detect_objects(frame)
         end_time = time.time()
 
         # Calculate the time taken for detection in the current frame
