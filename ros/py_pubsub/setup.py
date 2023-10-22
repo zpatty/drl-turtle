@@ -22,8 +22,7 @@ setup(
     license='Apache License 2.0',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': ['motors=py_pubsub.motors:main', 'camera=py_pubsub.camera:main',
-'control=py_pubsub.control:main', 'sensors=py_pubsub.sensors:main', 'comms=py_pubsub.comms:main', 'planner=py_pubsub.planner:main',
+        'console_scripts': ['master=py_pubsub.master:main', 'cv=py_pubsub.cv:main', 'motors=py_pubsub.motors:main',
         ],
     },
 )
