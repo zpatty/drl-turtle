@@ -11,14 +11,14 @@ class MinimalSubscriber(Node):
     def __init__(self, topic):
         super().__init__('minimal_subscriber')
         self.subscription = self.create_subscription(
-            str,
+            String,
             topic,
             self.listener_callback,
             10)
         self.subscription  # prevent unused variable warning
 
     def listener_callback(self, msg):
-        self.get_logger().info('I heard:' + msg)
+        self.get_logger().info('I heard:' + msg.data)
 
 
 def main(args=None):
