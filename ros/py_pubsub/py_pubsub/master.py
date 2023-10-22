@@ -10,32 +10,27 @@ class MinimalPublisher(Node):
 
     def __init__(self, topic):
         super().__init__('minimal_publisher')
-        self.publisher_ = self.create_publisher(Float64MultiArray, topic, 10)
+        self.publisher_ = self.create_publisher(str, topic, 10)
         timer_period = 1  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0.
 
     def timer_callback(self):
-        msg = Float64MultiArray()
-        msg.data = [self.i for j in range(12)]
+        msg = "test " + str(self.i)
         self.publisher_.publish(msg)
-        self.get_logger().info('Publishing:' +str(msg.data))
+        self.get_logger().info('Publishing: ' +msg)
         self.i += 1
 
 def main(args=None):
     rclpy.init(args=args)
 
-    tocontrol = MinimalPublisher('sensors_control')
-    toplanner= MinimalPublisher('sensors_planner')
-    tocamera=MinimalPublisher('sensors_camera')
-    tocomms=MinimalPublisher('sensors_comms')
+    tomotors = MinimalPublisher('master_motors')
+    tocv = MinimalPublisher('master_cv')
 
-    executor = MultiThreadedExecutor(num_threads=4)
-    executor.add_node(tocontrol)
-    executor.add_node(toplanner)
-    executor.add_node(tocamera)
-    executor.add_node(tocomms)
-
+    executor = MultiThreadedExecutor(num_threads=2)
+    executor.add_node(tomotors)
+    executor.add_node(tocv)
+    
     executor.spin()
     
     rclpy.shutdown()
