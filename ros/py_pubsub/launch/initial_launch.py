@@ -5,12 +5,17 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='py_pubsub',
-            executable='control',
-            name='control'
+            executable='master',
+            name='master'
         ),
         Node(
             package='py_pubsub',
             executable='motors',
             name='motors'
+        ),
+        Node(
+            package='py_pubsub',
+            executable='cv',
+            name='cv'
         )
     ])
