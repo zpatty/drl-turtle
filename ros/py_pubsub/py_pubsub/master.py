@@ -28,10 +28,6 @@ MOD1_VALUE                  = 0x31      # pressing 1 on keyboard
 MOD2_VALUE                  = 0x32
 MOD3_VALUE                  = 0x33
 
-demo1 = False
-demo2 = False
-stop = False 
-
 import termios, fcntl, sys, os
 from select import select
 fd = sys.stdin.fileno()
@@ -89,26 +85,27 @@ class DynamicPublisher(Node):
         self.i = 0.
 
     def timer_callback(self):
-        global demo1
-        global demo2
-        global stop
         msg = String()
-        if demo1:
-            msg.data = 'Running Swimming Trajectory'
-            demo1 = False
-        elif demo2:
-            msg.data = 'Running Walking Trajectory'
-            demo2 = False
-        elif stop:
-            msg.data = 'stop'
-            stop = False
-        else:
-            msg.data = "test " + str(self.i)
+        try: 
+            key_input = getch()
+            if key_input == chr(SPACE_ASCII_VALUE):
+                msg.data = 'stop'
+            elif key_input == chr(WKEY_ASCII_VALUE) or key_input == chr(TKEY_ASCII_VALUE):    # print out the length changes
+                if key_input == chr(TKEY_ASCII_VALUE):
+                    msg.data = 'Running Swimming Trajectory'
+                else:
+                    msg.data = 'Running Walking Trajectory'
+            else:
+                msg.data = "test " + str(self.i)
+        except Exception:
+            print("[ERROR] Disabling torque\n")
+            traceback.print_exc()
         self.publisher_.publish(msg)
         self.get_logger().info('Publishing: ' +msg.data)
         self.i += 1
 
 def main(args=None):
+    print("\nT: Swimming Trajectory, P: Walking Trajectory, (or press SPACE to quit!)")
     rclpy.init(args=args)
 
     tomotors = DynamicPublisher('master_motors')
@@ -118,31 +115,8 @@ def main(args=None):
     executor.add_node(tomotors)
     executor.add_node(tocv)
     
-    executor.spin()
+    executor.spin() 
     
-    try: 
-        while 1:
-            print("\nT: Swimming Trajectory, P: Walking Trajectory, (or press SPACE to quit!)")
-            key_input = getch()
-            if key_input == chr(SPACE_ASCII_VALUE):
-                print("we're quitting\n")
-                stop = True
-                break           
-                
-            elif key_input == chr(WKEY_ASCII_VALUE) or key_input == chr(TKEY_ASCII_VALUE):    # print out the length changes
-                if key_input == chr(TKEY_ASCII_VALUE):
-                    print("\nRunning Swimming Trajectory")
-                    demo1 = True
-                else:
-                    print("\nRunning Walking Trajectory")
-                    demo2 = True
-
-        print("[END OF PROGRAM] Disabling torque\n")
-        # Disable Dynamixel Torque
-    except Exception:
-        print("[ERROR] Disabling torque\n")
-        traceback.print_exc()
-
     rclpy.shutdown()
 
 
