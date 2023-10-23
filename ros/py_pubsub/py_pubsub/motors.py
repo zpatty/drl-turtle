@@ -32,10 +32,10 @@ class DynamicSubscriber(Node):
         self.subscription  # prevent unused variable warning
 
     def listener_callback(self, msg):
-        if msg.data == 'Running Swimming Trajectory':
-            print('performing demo 1')
-        elif msg.data == 'Running Walking Trajectory':
-            print('performing demo 2')
+        if msg.data == 'd1':
+            print('Running Swimming Trajectory')
+        elif msg.data == 'd2':
+            print('Running Walking Trajectory')
         elif msg.data == 'stop':
             print('stopping')
         self.get_logger().info('I heard:' + msg.data)

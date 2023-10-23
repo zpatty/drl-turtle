@@ -64,7 +64,7 @@ class MinimalPublisher(Node):
     def __init__(self, topic):
         super().__init__('minimal_publisher')
         self.publisher_ = self.create_publisher(String, topic, 10)
-        timer_period = 1  # seconds
+        timer_period = 5  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0.
 
@@ -108,14 +108,15 @@ def main(args=None):
     print("\nT: Swimming Trajectory, P: Walking Trajectory, (or press SPACE to quit!)")
     rclpy.init(args=args)
 
-    tomotors = DynamicPublisher('master_motors')
+    #tomotors = DynamicPublisher('master_motors')
     tocv = MinimalPublisher('master_cv')
 
-    executor = MultiThreadedExecutor(num_threads=2)
-    executor.add_node(tomotors)
-    executor.add_node(tocv)
+    # executor = MultiThreadedExecutor(num_threads=2)
+    # executor.add_node(tomotors)
+    # executor.add_node(tocv)
     
-    executor.spin() 
+    # executor.spin() 
+    rclpy.spin(tocv)
 
     rclpy.shutdown()
 
