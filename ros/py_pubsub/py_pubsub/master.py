@@ -89,6 +89,9 @@ class DynamicPublisher(Node):
         self.i = 0.
 
     def timer_callback(self):
+        global demo1
+        global demo2
+        global stop
         msg = String()
         if demo1:
             msg.data = 'Running Swimming Trajectory'
