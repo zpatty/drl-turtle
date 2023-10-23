@@ -1,3 +1,4 @@
+from __future__ import print_function
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import Executor, MultiThreadedExecutor
@@ -5,7 +6,6 @@ from rclpy.executors import Executor, MultiThreadedExecutor
 from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
 
-from __future__ import print_function
 import os
 import json
 import traceback
