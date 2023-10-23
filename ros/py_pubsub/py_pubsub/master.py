@@ -7,6 +7,7 @@ from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
 
 import os
+import pty
 import json
 import traceback
 
@@ -34,8 +35,10 @@ stop = False
 import termios, fcntl, sys, os
 from select import select
 fd = sys.stdin.fileno()
-old_term = termios.tcgetattr(fd)
-new_term = termios.tcgetattr(fd)
+pid = pty.fork()
+if not pid:
+    old_term = termios.tcgetattr(fd)
+    new_term = termios.tcgetattr(fd)
 
 def getch():
     new_term[3] = (new_term[3] & ~termios.ICANON & ~termios.ECHO)
