@@ -37,16 +37,13 @@ if not pid:
     new_term = termios.tcgetattr(fd)
 
 def getch():
+    new_term[3] = (new_term[3] & ~termios.ICANON & ~termios.ECHO)
+    termios.tcsetattr(fd, termios.TCSANOW, new_term)
     try:
-        new_term[3] = (new_term[3] & ~termios.ICANON & ~termios.ECHO)
-        termios.tcsetattr(fd, termios.TCSANOW, new_term)
-        try:
-            ch = sys.stdin.read(1)
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_term)
-        return ch
-    except:
-        return 0
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_term)
+    return ch
 
 def kbhit():
     new_term[3] = (new_term[3] & ~(termios.ICANON | termios.ECHO))
