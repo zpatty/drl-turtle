@@ -33,12 +33,14 @@ class DynamicSubscriber(Node):
 
     def listener_callback(self, msg):
         if msg.data == 'd1':
-            print('Running Swimming Trajectory')
+            log = 'Running Swimming Trajectory'
         elif msg.data == 'd2':
-            print('Running Walking Trajectory')
+            log = 'Running Walking Trajectory'
         elif msg.data == 'stop':
-            print('stopping')
-        self.get_logger().info('I heard:' + msg.data)
+            log = 'stopping'
+        else: 
+            log = 'I heard:' + msg.data
+        self.get_logger().info(log)
 
 def main(args=None):
     rclpy.init(args=args)
