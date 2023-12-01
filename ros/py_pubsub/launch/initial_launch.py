@@ -17,5 +17,10 @@ def generate_launch_description():
             package='py_pubsub',
             executable='cv',
             name='cv'
+        ),
+        Node(
+            package='py_pubsub',
+            executable='sonar',
+            name='sonar'
         )
     ])
