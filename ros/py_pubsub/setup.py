@@ -22,7 +22,7 @@ setup(
     license='Apache License 2.0',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': ['master=py_pubsub.master:main', 'cv=py_pubsub.cv:main', 'motors=py_pubsub.motors:main',
+        'console_scripts': ['master=py_pubsub.master:main', 'cv=py_pubsub.cv:main', 'motors=py_pubsub.motors:main', 'sonar=py_pubsub.sonar:main'
         ],
     },
 )
