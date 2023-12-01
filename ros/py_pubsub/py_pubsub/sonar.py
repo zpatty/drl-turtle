@@ -26,7 +26,10 @@ class MinimalPublisher(Node):
     def timer_callback(self):
         string_to_parse = xiao.readline() # reads from the port
         msg = String()
-        msg.data = string_to_parse
+        if string_to_parse:
+            msg.data = string_to_parse
+        else:
+            msg.data='no update'
         self.publisher_.publish(msg)
         self.get_logger().info('Publishing: ' +msg.data)
         self.i += 1
