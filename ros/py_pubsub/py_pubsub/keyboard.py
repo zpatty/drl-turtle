@@ -64,10 +64,11 @@ def main(args=None):
 
     msg = String()
     while rclpy.ok():
-        print("\nT: Swimming Trajectory, P: Walking Trajectory, (or press SPACE to quit!)")
+        print("\nT: Swimming Trajectory, W: Walking Trajectory, (or press SPACE to quit!)")
         key_input = getch()
         if key_input == chr(SPACE_ASCII_VALUE):
             msg.data='stop'
+            node.get_logger().info(msg.data)
             break           
             
         elif key_input == chr(WKEY_ASCII_VALUE) or key_input == chr(TKEY_ASCII_VALUE):    # print out the length changes
