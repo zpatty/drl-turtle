@@ -34,9 +34,15 @@ class MinimalPublisher(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    toplan = MinimalPublisher('sonar_plan')
+    node = rclpy.create_node('minimal_publisher')
 
-    rclpy.spin(toplan)
+    toplan = node.create_publisher(String, 'sonar_plan', 10)
+
+    msg = String()
+    while rclpy.ok():
+        data = xiao.readline()
+        msg.data = data.decode().strip()
+        toplan.publish(msg)
 
     rclpy.shutdown()
 
