@@ -3,6 +3,13 @@ import os
 import json
 import traceback
 
+import rclpy
+from rclpy.node import Node
+from rclpy.executors import Executor, MultiThreadedExecutor
+
+from std_msgs.msg import String
+from std_msgs.msg import Float64MultiArray
+
 ESC_ASCII_VALUE             = 0x1b
 SPACE_ASCII_VALUE           = 0x20
 WKEY_ASCII_VALUE            = 0x77
@@ -48,22 +55,50 @@ def kbhit():
 
     return 0
     
-try: 
-    while 1:
+def main(args=None):
+    rclpy.init(args=args)
+
+    node = rclpy.create_node('minimal_publisher')
+
+    tomotors = node.create_publisher(String, 'master_motors', 10)
+
+    msg = String()
+    while rclpy.ok():
         print("\nT: Swimming Trajectory, P: Walking Trajectory, (or press SPACE to quit!)")
         key_input = getch()
         if key_input == chr(SPACE_ASCII_VALUE):
-            print("we're quitting\n")
+            msg.data='stop'
             break           
             
         elif key_input == chr(WKEY_ASCII_VALUE) or key_input == chr(TKEY_ASCII_VALUE):    # print out the length changes
             if key_input == chr(TKEY_ASCII_VALUE):
-                print("\nRunning Swimming Trajectory")
+                msg.data='d1'
             else:
-                print("\nRunning Walking Trajectory")
+                msg.data='d2'
+        tomotors.publish(msg)
 
-    print("[END OF PROGRAM] Disabling torque\n")
-    # Disable Dynamixel Torque
-except Exception:
-    print("[ERROR] Disabling torque\n")
-    traceback.print_exc()
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+
+# try: 
+#     while 1:
+#         print("\nT: Swimming Trajectory, P: Walking Trajectory, (or press SPACE to quit!)")
+#         key_input = getch()
+#         if key_input == chr(SPACE_ASCII_VALUE):
+#             print("we're quitting\n")
+#             break           
+            
+#         elif key_input == chr(WKEY_ASCII_VALUE) or key_input == chr(TKEY_ASCII_VALUE):    # print out the length changes
+#             if key_input == chr(TKEY_ASCII_VALUE):
+#                 print("\nRunning Swimming Trajectory")
+#             else:
+#                 print("\nRunning Walking Trajectory")
+
+#     print("[END OF PROGRAM] Disabling torque\n")
+#     # Disable Dynamixel Torque
+# except Exception:
+#     print("[ERROR] Disabling torque\n")
+#     traceback.print_exc()

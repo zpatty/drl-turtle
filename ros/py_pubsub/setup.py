@@ -22,7 +22,8 @@ setup(
     license='Apache License 2.0',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': ['planner=py_pubsub.planner:main', 'cv=py_pubsub.cv:main', 'motors=py_pubsub.motors:main', 'sonar=py_pubsub.sonar:main'
+        'console_scripts': ['planner=py_pubsub.planner:main', 'cv=py_pubsub.cv:main', 'motors=py_pubsub.motors:main',
+        'sonar=py_pubsub.sonar:main', 'keyboard=py_pubsub.keyboard:main'
         ],
     },
 )
