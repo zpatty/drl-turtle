@@ -68,6 +68,7 @@ def main(args=None):
         key_input = getch()
         if key_input == chr(SPACE_ASCII_VALUE):
             msg.data='stop'
+            tomotors.publish(msg)
             node.get_logger().info(msg.data)
             break           
             
