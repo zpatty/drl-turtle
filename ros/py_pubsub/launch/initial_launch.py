@@ -5,8 +5,8 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='py_pubsub',
-            executable='master',
-            name='master'
+            executable='planner',
+            name='planner'
         ),
         Node(
             package='py_pubsub',

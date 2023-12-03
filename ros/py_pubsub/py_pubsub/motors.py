@@ -45,11 +45,11 @@ class DynamicSubscriber(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    from_cv = MinimalSubscriber('cv_motors')
+    from_planner = MinimalSubscriber('planner_motors')
     from_master = DynamicSubscriber('master_motors')
 
     executor = MultiThreadedExecutor(num_threads=2)
-    executor.add_node(from_cv)
+    executor.add_node(from_planner)
     executor.add_node(from_master)
 
     executor.spin()

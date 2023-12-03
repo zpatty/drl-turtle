@@ -36,13 +36,13 @@ def main(args=None):
 
     node = rclpy.create_node('minimal_publisher')
 
-    toplan = node.create_publisher(String, 'sonar_plan', 10)
+    toplanner = node.create_publisher(String, 'sonar_planner', 10)
 
     msg = String()
     while rclpy.ok():
         data = xiao.readline()
         msg.data = data.decode().strip()
-        toplan.publish(msg)
+        toplanner.publish(msg)
 
     rclpy.shutdown()
 

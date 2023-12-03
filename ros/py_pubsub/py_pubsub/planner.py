@@ -40,12 +40,14 @@ class MinimalSubscriber(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    frommaster = MinimalSubscriber('master_cv')
-    toplanner = MinimalPublisher('cv_planner')
+    fromcv = MinimalSubscriber('cv_planner')
+    fromsonar = MinimalSubscriber('sonar_planner')
+    tomotors = MinimalPublisher('planner_motors')
 
-    executor = MultiThreadedExecutor(num_threads=2)
-    executor.add_node(frommaster)
-    executor.add_node(toplanner)
+    executor = MultiThreadedExecutor(num_threads=3)
+    executor.add_node(fromcv)
+    executor.add_node(fromsonar)
+    executor.add_node(tomotors)
     
     executor.spin()
     
