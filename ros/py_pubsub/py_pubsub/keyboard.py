@@ -76,6 +76,7 @@ def main(args=None):
             else:
                 msg.data='d2'
         tomotors.publish(msg)
+        tomotors.get_logger().info(log)
 
     rclpy.shutdown()
 
