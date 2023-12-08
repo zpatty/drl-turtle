@@ -1,7 +1,8 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import Executor, MultiThreadedExecutor
-
+import sys
+sys.path.append("/home/crush/drl-turtle/ros/py_pubsub/py_pubsub")
 from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
 from dynamixel_sdk import *                    # Uses Dynamixel SDK library
@@ -21,7 +22,6 @@ import json
 import traceback
 from queue import Queue
 import serial
-import socket
 
 
 
