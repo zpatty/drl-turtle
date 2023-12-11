@@ -23,8 +23,6 @@ import traceback
 from queue import Queue
 import serial
 
-
-
 class MinimalSubscriber(Node):
 
     def __init__(self, topic):
@@ -63,7 +61,7 @@ class DynamicSubscriber(Node):
         self.packetHandlerJoint = PacketHandler(PROTOCOL_VERSION)
         self.get_logger().info(log)
         # Instantiate the motors
-        IDs = [1]
+        IDs = [1,2,3,4,5,6]
         self.nq = len(IDs)
         self.Joints = Mod(packetHandlerJoint, portHandlerJoint, IDs)
         self.Joints.disable_torque()
@@ -72,8 +70,24 @@ class DynamicSubscriber(Node):
         self.q = np.array(self.Joints.get_position()).reshape(-1,1)
         log = "Our initial q: " + str(self.q)
         self.get_logger().info(log)
+        self.volts = 15
+        try:
+            xiao = serial.Serial('/dev/ttyACM1', 115200, timeout=3)
+            volt_string = xiao.readline()
+            self.volts = float(volt_string[:-2])
+            # log = "Battery Voltage: {volts}\n")
+            log = "Battery Voltage: " + str(self.volts)
+            self.get_logger().info(log)
+        except:
+            log = "uC not detected\n"
+            self.get_logger().info(log)
+        if self.volts < 11.5:
+            log = "Time to charge, power off immediately\n"
+        self.get_logger().info(log)
 
     def listener_callback(self, msg):
+        # TODO: 
+        # continuously check battery and shut down motors and log error into logger 
         if msg.data == 'd1':
             self.Joints.send_torque_cmd(self.nq * [20])
             log = 'Running Swimming Trajectory'
