@@ -1,7 +1,11 @@
 from __future__ import print_function
 import os
+import sys
 import json
 import traceback
+
+submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub" 
+sys.path.append(submodule)
 
 import rclpy
 from rclpy.node import Node
@@ -14,6 +18,8 @@ from turtle_interfaces.msg import TurtleTraj
 
 from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
+
+import turtle_traj
 
 ESC_ASCII_VALUE             = 0x1b
 SPACE_ASCII_VALUE           = 0x20
@@ -61,22 +67,43 @@ def kbhit():
 
     return 0
     
+def turtle_state_callback(msg):
+    # print("MESSAGE RECEIVED")
+    global rest_received
+    global stop_received
+    if msg.data == "rest_received":
+        rest_received = True
+    elif msg.data == "stop_received":
+        stop_received = True
+
 def main(args=None):
     rclpy.init(args=args)
 
     node = rclpy.create_node('turtle_keyboard_cntrl_node')
-
+    # node.create_rate(50)
     tomotors = node.create_publisher(String, 'master_motors', 10)
     traj_pub = node.create_publisher(TurtleTraj, 'motors_traj', 10)
+    stop_sub = node.create_subscription(String, 'turtle_state', turtle_state_callback, 10)
     msg = String()
     traj = TurtleTraj()
+    stop_received = False
     while rclpy.ok():
         print("\nT: Traj1, W: Traj2, R: Rest D: Custom Traj(or press SPACE to STOP!)")
         key_input = getch()
         if key_input == chr(SPACE_ASCII_VALUE):
+            n = 0
             msg.data='stop'
             tomotors.publish(msg)
-            node.get_logger().info(msg.data)
+            # while stop_received == False:
+            #     n += 1
+            #     print(f"false {n}")
+            #     rclpy.spin_once(node)
+            #     msg.data='stop'
+            #     tomotors.publish(msg)
+            #     print(f"stop received {stop_received}")
+                # node.get_logger().info(msg.data)
+            # rclpy.spin_once(node)
+            print("received confirmation")
             break           
             
         elif key_input == chr(WKEY_ASCII_VALUE) or key_input == chr(TKEY_ASCII_VALUE):    # print out the length changes
@@ -84,27 +111,37 @@ def main(args=None):
                 msg.data='traj1'
             else:
                 msg.data='traj2'
+            tomotors.publish(msg)
+            node.get_logger().info(msg.data)
         elif key_input == chr(RKEY_ASCII_VALUE):
-                msg.data='rest'
+            msg.data='rest'
+            tomotors.publish(msg)
+            # rest_received = False
+            # while rest_received == False:
+            #     rclpy.spin_once(node)
+            #     msg.data='rest'
+            #     tomotors.publish(msg)
+            #     node.get_logger().info(msg)
         elif key_input == chr(DKEY_ASCII_VALUE):
             def np2msg(mat):
                 nq = 6
                 squeezed = np.reshape(mat, (nq * mat.shape[1]))
                 return list(squeezed)
-            qd_mat = mat2np('qd.mat', 'qd')
-            dqd_mat = mat2np('dqd.mat', 'dqd')
-            ddqd_mat = mat2np('ddqd.mat', 'ddqd')
-            tvec = mat2np('tvec.mat', 'tvec')
+            qd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_traj/qd.mat', 'qd')
+            dqd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_traj/dqd.mat', 'dqd')
+            ddqd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_traj/ddqd.mat', 'ddqd')
+            tvec = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_traj/tvec.mat', 'tvec')
 
+            print(f"tvec mat shape: {tvec.shape}\n")
             traj.qd = np2msg(qd_mat)
             traj.dqd = np2msg(dqd_mat)
             traj.ddqd = np2msg(ddqd_mat)
-            traj.tvec = list(tvec)
+            # print(f"t vec list: {tvec.tolist()}")
+
+            traj.tvec = tvec.tolist()[0]
             print("sent trajectories...")
             traj_pub.publish(traj)
         
-        tomotors.publish(msg)
-        node.get_logger().info(msg.data)
 
     rclpy.shutdown()
 
