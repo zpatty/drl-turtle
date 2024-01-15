@@ -4,7 +4,11 @@ from rclpy.executors import Executor, MultiThreadedExecutor
 from rcl_interfaces.msg import SetParametersResult
 from turtle_interfaces.msg import TurtleTraj
 import sys
-sys.path.append("/home/crush/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub")
+import os
+
+submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub"
+sys.path.append(submodule)
+
 from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
 from dynamixel_sdk import *                    # Uses Dynamixel SDK library
@@ -24,7 +28,6 @@ import json
 import traceback
 from queue import Queue
 import serial
-# [[[0.0,1.0,2.0,3.0,4.0,5.0], [6.0,7.0,8.0,9.0,10.0,11.0]], [[2.0,3.0,4.0,5.0,5.0,5.0], [3.0,4.0,5.0,9.0,10.0,11.0]], [[0.0,0.0,2.0,0.0,0.0,5.0], [6.0,0.0,0.0,9.0,0.0,0.0]], [1.0, 2.0]]
 
 # global variable was set in the callback function directly
 global mode
@@ -46,6 +49,7 @@ class MinimalSubscriber(Node):
         if msg.data == 'traj1':
             mode = 'traj1'
 
+# TODO: perhaps abstract motor control further?
 # class TurtleMotorsControl():
 #     def __init__(self, portHandlerJoint, packetHandlerJoint, IDs):
 #         if portHandlerJoint.openPort():
@@ -80,13 +84,11 @@ class TurtleMotorsSubscriber(Node):
             self.trajectory_callback,
             10
         )
-        # TODO: do an array of an array subscription
-            # msg = [qd, dqd, ddqd, tvec]??
-        # self.motor_pos_cmd = self.create_subscription(
-        #     String,
-        #     'motor_pos_cmd',
-        #     self.stop_callback,
-        #     10)
+        self.cmd_received_pub = self.create_publisher(
+            String,
+            'turtle_state',
+            10
+        )
         self.mode_cmd_sub       # prevent unused variable warning
         self.create_rate(50)
         self.mode = 'rest'      # initialize motors mode to rest state
@@ -94,44 +96,6 @@ class TurtleMotorsSubscriber(Node):
         self.dqds = np.zeros((6,1))
         self.ddqds = np.zeros((6,1))
         self.tvec = np.zeros((1,1))
-        # # set up Dynamxiel ish
-        # if portHandlerJoint.openPort():
-        #     log = "Succeeded to open the port"
-        # else:
-        #     log = "Failed to open the port"
-        # self.get_logger().info(log)
-        # # Set port baudrate
-        # if portHandlerJoint.setBaudRate(BAUDRATE):
-        #     log = "Succeeded to change the baudrate"
-        # else:
-        #     log = "Failed to change the baudrate"
-        # self.packetHandlerJoint = PacketHandler(PROTOCOL_VERSION)
-        # self.get_logger().info(log)
-        # # Instantiate the motors
-        # # IDs = [1,2,3,4,5,6]
-        # IDs = [1]
-        # self.nq = len(IDs)
-        # self.Joints = Mod(packetHandlerJoint, portHandlerJoint, IDs)
-        # self.Joints.disable_torque()
-        # self.Joints.set_current_cntrl_mode()
-        # self.Joints.enable_torque()
-        # self.q = np.array(self.Joints.get_position()).reshape(-1,1)
-        # log = "Our initial q: " + str(self.q)
-        # self.get_logger().info(log)
-        # self.volts = 15
-        # try:
-        #     self.xiao =  serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
-        #     volt_string = self.xiao.readline()
-        #     self.volts = float(volt_string[:-2])
-        #     # log = "Battery Voltage: {volts}\n")
-        #     log = "Battery Voltage: " + str(self.volts)
-        #     self.get_logger().info(log)
-        # except:
-        #     log = "uC not detected\n"
-        #     self.get_logger().info(log)
-        # if self.volts < 11.5:
-        #     log = "Time to charge, power off immediately\n"
-        # self.get_logger().info(log)
 
     def listener_callback(self, msg):
         # continuously check battery and shut down motors and log error into logger 
@@ -148,13 +112,15 @@ class TurtleMotorsSubscriber(Node):
         """
         Callback function that takes in list of squeezed arrays
         msg: [qd, dqd, ddqd, tvec]
-        """
-        self.mode = 'traj_input'
+        """    
+        # print("traj callback\n")    
         n = len(msg.tvec)
         self.qds = np.array(msg.qd).reshape(6,n)
         self.dqds = np.array(msg.dqd).reshape(6,n)
         self.ddqds = np.array(msg.ddqd).reshape(6,n)
         self.tvec = np.array(msg.tvec).reshape(1,n)
+        self.mode = 'traj_input'
+
     def stop_callback(self, msg):
         if msg.data == 'stop':
             self.emergency_stop = True
@@ -166,362 +132,283 @@ class TurtleMotorsSubscriber(Node):
 
 def main(args=None):
     rclpy.init(args=args)
+    threshold = 11.1
     motors_node = TurtleMotorsSubscriber('master_motors')
-    # try:
-    #     xiao =  serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
-    #     volt_string = xiao.readline()
-    #     volts = float(volt_string[:-2])
-    #     # log = "Battery Voltage: {volts}\n")
-    #     log = "Battery Voltage: " + str(volts)
-    #     print(log)
-    #     # self.get_logger().info(log)
-    # except:
-    #     print("uC not detected\n")
+    try:
+        xiao =  serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
+        volt_string = xiao.readline()
+        volts = float(volt_string[:-2])
+        # log = "Battery Voltage: {volts}\n")
+        log = "Battery Voltage: " + str(volts)
+        print(log)
         # self.get_logger().info(log)
+    except:
+        print("uC not detected\n")
 
     # set up dynamixel stuff
-    # if portHandlerJoint.openPort():
-    #     print("[MOTORS STATUS] Suceeded to open port")
-    # else:
-    #     print("[ERROR] Failed to open port")
-    # if portHandlerJoint.setBaudRate(BAUDRATE):
-    #     print("[MOTORS STATUS] Suceeded to open port")
-    # else:
-    #     print("[ERROR] Failed to change baudrate")
+    if portHandlerJoint.openPort():
+        print("[MOTORS STATUS] Suceeded to open port")
+    else:
+        print("[ERROR] Failed to open port")
+    if portHandlerJoint.setBaudRate(BAUDRATE):
+        print("[MOTORS STATUS] Suceeded to open port")
+    else:
+        print("[ERROR] Failed to change baudrate")
     IDs = [1,2,3,4,5,6]
     nq = len(IDs)
-    # Joints = Mod(packetHandlerJoint, portHandlerJoint, IDs)
-    # Joints.disable_torque()
-    # Joints.set_current_cntrl_mode()
-    # Joints.enable_torque()
-    # q = np.array(Joints.get_position()).reshape(-1,1)
-    # print(f"Our initial q: " + str(q))
+    Joints = Mod(packetHandlerJoint, portHandlerJoint, IDs)
+    Joints.disable_torque()
+    Joints.set_current_cntrl_mode()
+    Joints.enable_torque()
+    q = np.array(Joints.get_position()).reshape(-1,1)
+    print(f"Our initial q: " + str(q))
     print("going into while loop...")
-    while rclpy.ok():
-        # volt_string = xiao.readline()
-        # volts = float(volt_string[:-2])
-        # if volts < 11.5:
-        #     Joints.disable_torque()
-        #     break
-        rclpy.spin_once(motors_node)
-        if motors_node.mode == 'traj1':
-            n = 5
-            qd_mat = mat2np('/home/crush/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/qd.mat', 'qd')
-            dqd_mat = mat2np('/home/crush/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/dqd.mat', 'dqd')
-            ddqd_mat = mat2np('/home/crush/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/ddqd.mat', 'ddqd')
-            tvec = mat2np('/home/crush/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/tvec.mat', 'tvec')
-            print(f"full thing is: {tvec.shape}\n")
-            qd = np.array(qd_mat[:, n]).reshape(-1,1)
-            # print(f"shape qd: {qd.shape}\n")
-            # print(f"shape of tvec: {tvec.sh}")
-            # Joints.send_torque_cmd(nq * [20])
-            # first_time = True
-            # input_history = np.zeros((nq,10))
-            # q_data = np.zeros((nq,1))
-            # tau_data = np.zeros((nq,1))
-            # timestamps = np.zeros((1,1))
-            # dt_loop = np.zeros((1,1))       # hold dt data 
-            # first_time = True
-            # print(f"[MODE] TRAJECTORY\n")
-            # Joints.disable_torque()
-            # Joints.set_current_cntrl_mode()
-            # Joints.enable_torque()
-            # q_data = np.zeros((nq,1))
-            # tau_data = np.zeros((nq,1))
-            # timestamps = np.zeros((1,1))
-            # dt_loop = np.zeros((1,1))       # hold dt data 
-            # Kp = np.diag([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])*2
-            # KD = 0.5
-            # # Load desired trajectories from MATLAB
-            # qd_mat = mat2np('/home/crush/drl-turtle/ros/py_pubsub/py_pubsub/qd.mat', 'qd')
-            # dqd_mat = mat2np('/home/crush/drl-turtle/ros/py_pubsub/py_pubsub/dqd.mat', 'dqd')
-            # ddqd_mat = mat2np('/home/crush/drl-turtle/ros/py_pubsub/py_pubsub/ddqd.mat', 'ddqd')
-            # tvec = mat2np('/home/crush/drl-turtle/ros/py_pubsub/py_pubsub/tvec.mat', 'tvec')
-            # # zero =  np.zeros((self.nq,1))
-            # t_old = time.time()
-            # # our loop's "starting" time
-            # t_0 = time.time()
-            # while 1:
-            #     if volts < 11.5:
-            #         Joints.disable_torque()
-            #         break
-            #     rclpy.spin_once(motors_node)
-            #     if motors_node.mode == 'rest' or motors_node.mode == 'stop':
-            #         Joints.send_torque_cmd(nq * [0])
-            #         Joints.disable_torque()
-            #         first_time = True
-            #         break
+    try: 
+        while rclpy.ok():
+            volt_string = xiao.readline()
+            volts = float(volt_string[:-2])
+            if volts < threshold:
+                print("[WARNING] volt reading too low--closing program....")
+                Joints.disable_torque()
+                break
+            rclpy.spin_once(motors_node)
+            
+            if motors_node.mode == 'traj1':
+                # Load desired trajectories from MATLAB
+                qd_mat = mat2np('/home/crush/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/qd.mat', 'qd')
+                dqd_mat = mat2np('/home/crush/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/dqd.mat', 'dqd')
+                ddqd_mat = mat2np('/home/crush/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/ddqd.mat', 'ddqd')
+                tvec = mat2np('/home/crush/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/tvec.mat', 'tvec')
                 
-            #     # TODO: test with all motors on turtle
-            #     q = np.array(Joints.get_position()).reshape(-1,1)
-                
-            #     n = get_qindex((time.time() - t_0), tvec)
-            #     if n == len(tvec[0])-1:
-            #         t_0 = time.time() - tvec[0][200]
-                
-            #     if n == len(tvec[0]) - 1:
-            #         t_0 = time.time()
-                
-            #     qd = np.array(qd_mat[:, n]).reshape(-1,1)
-            #     print(f"shape qd: {qd.shape}\n")
-            #     dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
-            #     ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
-            #     # # print(f"[DEBUG] qdata: {q_data}\n")
-            #     # # print(f"[DEBUG] q: {q}\n")
-            #     q_data=np.append(q_data, q, axis = 1) 
-            #     # # At the first iteration velocity is 0  
-                
-            #     if first_time:
-            #         dq = np.zeros((nq,1))
-            #         q_old = q
-            #         first_time = False
-            #     else:
-            #         t = time.time()
-            #         timestamps = np.append(timestamps, (t-t_0)) 
-            #         dt = t - t_old
-            #     #     # print(f"[DEBUG] dt: {dt}\n")  
-            #         t_old = t
-            #         dq = diff(q, q_old, dt)
-            #         q_old = q
-            #     # # calculate errors
-            #     err = q - qd
-            #     # # print(f"[DEBUG] e: {err}\n")
-            #     # # print(f"[DEBUG] q: {q * 180/3.14}\n")
-            #     # # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
-            #     err_dot = dq
-                
-            #     tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
-                
-            #     input_history = np.append(input_history[:,1:], tau,axis=1)
 
-            #     input_mean = np.mean(input_history, axis = 1)
+                print(f"full thing is: {tvec.shape}\n")
+                print(f"shape qd_mat: {qd_mat.shape}\n")
+                # print(f"shape of tvec: {tvec.sh}")
+                first_time = True
+                input_history = np.zeros((nq,10))
+                q_data = np.zeros((nq,1))
+                tau_data = np.zeros((nq,1))
+                timestamps = np.zeros((1,1))
+                dt_loop = np.zeros((1,1))       # hold dt data 
+                print(f"[MODE] TRAJECTORY\n")
+                Joints.disable_torque()
+                Joints.set_current_cntrl_mode()
+                Joints.enable_torque()
+                q_data = np.zeros((nq,1))
+                tau_data = np.zeros((nq,1))
+                timestamps = np.zeros((1,1))
+                dt_loop = np.zeros((1,1))       # hold dt data 
+                Kp = np.diag([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])*2
+                KD = 0.5
+                # zero =  np.zeros((self.nq,1))
+                t_old = time.time()
+                # our loop's "starting" time
+                t_0 = time.time()
+                while 1:
+                    if volts < threshold:
+                        print("voltage too low--powering off...")
+                        Joints.disable_torque()
+                        break
+                    rclpy.spin_once(motors_node)
+                    # print("traj 1...")
+                    if motors_node.mode == 'rest' or motors_node.mode == 'stop':
+                        Joints.send_torque_cmd(nq * [0])
+                        Joints.disable_torque()
+                        first_time = True
+                        break
+                    
+                    q = np.array(Joints.get_position()).reshape(-1,1)
+                    
+                    n = get_qindex((time.time() - t_0), tvec)
+                    print(f"n: {n}\n")
+                    if n == len(tvec[0])-1:
+                        t_0 = time.time() - tvec[0][200]
+                    
+                    if n == len(tvec[0]) - 1:
+                        t_0 = time.time()
+                    
+                    qd = np.array(qd_mat[:, n]).reshape(-1,1)
+                    dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
+                    ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
+                    # # print(f"[DEBUG] qdata: {q_data}\n")
+                    print(f"[DEBUG] qd: {qd}\n")
+                    q_data=np.append(q_data, q, axis = 1) 
+                    # # At the first iteration velocity is 0  
+                    
+                    if first_time:
+                        dq = np.zeros((nq,1))
+                        q_old = q
+                        first_time = False
+                    else:
+                        t = time.time()
+                        timestamps = np.append(timestamps, (t-t_0)) 
+                        dt = t - t_old
+                    #     # print(f"[DEBUG] dt: {dt}\n")  
+                        t_old = t
+                        dq = diff(q, q_old, dt)
+                        q_old = q
+                    # # calculate errors
+                    err = q - qd
+                    # # print(f"[DEBUG] e: {err}\n")
+                    # # print(f"[DEBUG] q: {q * 180/3.14}\n")
+                    # # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
+                    err_dot = dq
+                    
+                    tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
+                    
+                    input_history = np.append(input_history[:,1:], tau,axis=1)
 
-            #     input = grab_arm_current(input_mean, min_torque, max_torque)
-            #     # print(f"[DEBUG] tau: {tau}\n")
-            #     # Joints.send_torque_cmd(input)
-            # Joints.disable_torque()
+                    input_mean = np.mean(input_history, axis = 1)
 
-        elif motors_node.mode == 'traj2':
-            first_time = True
-            # while 1:
-            #     if volts < 11.5:
-            #         Joints.disable_torque()
-            #         break
-            #     rclpy.spin_once(motors_node)
-            #     if motors_node.mode == 'rest' or motors_node.mode == 'stop':
-            #         Joints.send_torque_cmd(nq * [0])
-            #         break
-            #     Joints.send_torque_cmd(nq * [20])
+                    input = grab_arm_current(input_mean, min_torque, max_torque)
+                    # print(f"[DEBUG] tau: {tau}\n")
+                    Joints.send_torque_cmd(input)
+                Joints.disable_torque()
 
-            #     print("traj1 yall")
-        elif motors_node.mode == 'stop':
-            print("ending entire program...")
-            print("disabling torques entirely...")
-            # Joints.send_torque_cmd(nq * [0])
-            # Joints.disable_torque()
-            break
-        elif motors_node.mode == 'rest':
-            first_time = True
-            # volt_string = xiao.readline()
-            # volts = float(volt_string[:-2])
-            # if volts < 11.5:
-            #     Joints.disable_torque()
-            #     break
-            # print("rest mode....")
-            # Joints.send_torque_cmd(nq * [0])
-        elif motors_node.mode == 'traj_input':
-            first_time = True
-            # input_history = np.zeros((nq,10))
-            # q_data = np.zeros((nq,1))
-            # tau_data = np.zeros((nq,1))
-            # timestamps = np.zeros((1,1))
-            # dt_loop = np.zeros((1,1))       # hold dt data 
-            # first_time = True
-            # Joints.disable_torque()
-            # Joints.set_current_cntrl_mode()
-            # Joints.enable_torque()
-            # q_data = np.zeros((nq,1))
-            # tau_data = np.zeros((nq,1))
-            # timestamps = np.zeros((1,1))
-            # dt_loop = np.zeros((1,1))       # hold dt data 
-            # Kp = np.diag([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])*2
-            # KD = 0.5
-            # # Load desired trajectories from motors node
-            qd_mat = motors_node.qds
-            dqd_mat = motors_node.dqds
-            ddqd_mat = motors_node.ddqds
-            tvec = motors_node.tvec
-            print(f"qd_mat.shape: {qd_mat.shape}")
-            # print(f"dqd_mat.shape: {dqd_mat.shape}")
-            # print(f"ddqd_mat.shape: {ddqd_mat.shape}")
-            # print(f"tvec_mat.shape: {tvec.shape}")
-            n = 0
-            qd = np.array(qd_mat[:, n]).reshape(-1,1)
-            print(f"qd shape: {qd.shape}")
-            print(f"qd: {qd}")
-            # # zero =  np.zeros((self.nq,1))
-            # t_old = time.time()
-            # # our loop's "starting" time
-            # t_0 = time.time()
-            # while 1:
-            #     if volts < 11.5:
-            #         Joints.disable_torque()
-            #         break
-            #     rclpy.spin_once(motors_node)
+            elif motors_node.mode == 'traj2':
+                first_time = True
+                while 1:
+                    if volts < threshold:
+                        Joints.disable_torque()
+                        break
+                    rclpy.spin_once(motors_node)
+                    if motors_node.mode == 'rest' or motors_node.mode == 'stop':
+                        Joints.send_torque_cmd(nq * [0])
+                        break
+                #     Joints.send_torque_cmd(nq * [20])
 
-            #     if motors_node.mode == 'rest' or motors_node.mode == 'stop':
-            #         Joints.send_torque_cmd(nq * [0])
-            #         Joints.disable_torque()
-            #         first_time = True
-            #         break
-                
-            #     q = np.array(Joints.get_position()).reshape(-1,1)
-            #     n = get_qindex((time.time() - t_0), tvec)
-            #     if n == len(tvec[0])-1:
-            #         t_0 = time.time() - tvec[0][200]
-                
-            #     if n == len(tvec[0]) - 1:
-            #         t_0 = time.time()
-                
-            #     # TODO: add this from message
-            #     qd = np.array(qd_mat[:, n]).reshape(-1,1)
-            #     dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
-            #     ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
-                # tvec = np.array(todo)
-        else:
-            print("wrong command received....")
+                #     print("traj1 yall")
+            elif motors_node.mode == 'stop':
+                print("ending entire program...")
+                print("disabling torques entirely...")
+                Joints.send_torque_cmd(nq * [0])
+                Joints.disable_torque()
+                cmd_msg = String()
+                cmd_msg.data = "stop_received"
+                motors_node.cmd_received_pub.publish(cmd_msg)
+                print("sent stop received msg")
+                break
+            elif motors_node.mode == 'rest':
+                first_time = True
+                volt_string = xiao.readline()
+                volts = float(volt_string[:-2])
+                if volts < threshold:
+                    Joints.disable_torque()
+                    print("THRESHOLD MET TURN OFFFF")
+                    break
+                print("rest mode....")
+                Joints.send_torque_cmd(nq * [0])
+                cmd_msg = String()
+                cmd_msg.data = 'rest_received'
+                motors_node.cmd_received_pub.publish(cmd_msg)
+                print("sent rest received msg")
+            elif motors_node.mode == 'traj_input':
+                # Load desired trajectories from motors node
+                print("traj input")
+                qd_mat = motors_node.qds
+                dqd_mat = motors_node.dqds
+                ddqd_mat = motors_node.ddqds
+                tvec = motors_node.tvec     
+                # print(f"qd mat: {qd_mat.shape}\n")
+                # print(f"qd mat first elemetn: {qd_mat[:, 1]}\n")
+                print(f"full thing is: {tvec.shape}\n")
+                print(f"shape qd_mat: {qd_mat.shape}\n")
+                # print(f"shape of tvec: {tvec.sh}")
+                first_time = True
+                first_loop = True
+                input_history = np.zeros((nq,10))
+                q_data = np.zeros((nq,1))
+                tau_data = np.zeros((nq,1))
+                timestamps = np.zeros((1,1))
+                dt_loop = np.zeros((1,1))       # hold dt data 
+                print(f"[MODE] TRAJECTORY\n")
+                Joints.disable_torque()
+                Joints.set_current_cntrl_mode()
+                Joints.enable_torque()
+                q_data = np.zeros((nq,1))
+                tau_data = np.zeros((nq,1))
+                timestamps = np.zeros((1,1))
+                dt_loop = np.zeros((1,1))       # hold dt data 
+                Kp = np.diag([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])*2
+                KD = 0.5
+                # zero =  np.zeros((self.nq,1))
+                t_old = time.time()
+                # our loop's "starting" time
+                t_0 = time.time()
+                while 1:
+                    if volts < threshold:
+                        print("voltage too low--powering off...")
+                        Joints.disable_torque()
+                        break
+                    rclpy.spin_once(motors_node)
+                    # print("traj 1...")
+                    if motors_node.mode == 'rest' or motors_node.mode == 'stop':
+                        Joints.send_torque_cmd(nq * [0])
+                        Joints.disable_torque()
+                        first_time = True
+                        break
+                    
+                    q = np.array(Joints.get_position()).reshape(-1,1)
+                    if first_loop:
+                        n = get_qindex((time.time() - t_0), tvec)
+                    else:
+                        # print("done with first loop")
+                        offset = t_0 - 2
+                        n = get_qindex((time.time() - offset), tvec)
+
+                    # print(f"n: {n}\n")
+                    if n == len(tvec[0]) - 1:
+                        first_loop = False
+                        t_0 = time.time()
+                    
+                    qd = np.array(qd_mat[:, n]).reshape(-1,1)
+                    dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
+                    ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
+                    # # print(f"[DEBUG] qdata: {q_data}\n")
+                    # print(f"[DEBUG] qd: {qd}\n")
+                    q_data=np.append(q_data, q, axis = 1) 
+                    # # At the first iteration velocity is 0  
+                    
+                    if first_time:
+                        dq = np.zeros((nq,1))
+                        q_old = q
+                        first_time = False
+                    else:
+                        t = time.time()
+                        timestamps = np.append(timestamps, (t-t_0)) 
+                        dt = t - t_old
+                    #     # print(f"[DEBUG] dt: {dt}\n")  
+                        t_old = t
+                        dq = diff(q, q_old, dt)
+                        q_old = q
+                    # # calculate errors
+                    err = q - qd
+                    # # print(f"[DEBUG] e: {err}\n")
+                    # # print(f"[DEBUG] q: {q * 180/3.14}\n")
+                    # # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
+                    err_dot = dq
+                    
+                    tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
+                    
+                    input_history = np.append(input_history[:,1:], tau,axis=1)
+
+                    input_mean = np.mean(input_history, axis = 1)
+
+                    input = grab_arm_current(input_mean, min_torque, max_torque)
+                    # print(f"[DEBUG] tau: {tau}\n")
+                    Joints.send_torque_cmd(input)
+                Joints.disable_torque()
+
+
+            else:
+                print("wrong command received....")
+    except:
+        Joints.send_torque_cmd(nq * [0])
+        Joints.disable_torque()
+    
 
     rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
 
-
-#         elif msg.data == 'd2':
-#             # first_time = True
-#             # input_history = np.zeros((self.nq,10))
-#             # q_data = np.zeros((self.nq,1))
-#             # tau_data = np.zeros((self.nq,1))
-#             # timestamps = np.zeros((1,1))
-#             # dt_loop = np.zeros((1,1))       # hold dt data 
-#             # first_time = True
-#             # log = 'Running For loop Trajectory'
-#             # self.get_logger().info(log)
-#             # print(f"[MODE] TRAJECTORY\n")
-#             # self.Joints.disable_torque()
-#             # self.Joints.set_current_cntrl_mode()
-#             # self.Joints.enable_torque()
-#             # log = "structs"
-#             # self.get_logger().info(log)
-#             # q_data = np.zeros((self.nq,1))
-#             # tau_data = np.zeros((self.nq,1))
-#             # timestamps = np.zeros((1,1))
-#             # dt_loop = np.zeros((1,1))       # hold dt data 
-#             # Open up controller parameters
-#             # Kp, KD, config_params = parse_config()
-#             Kp = np.diag([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])*2
-#             KD = 0.5
-#             # log = "uploading"
-#             # self.get_logger().info(log)
-
-#             # Load desired trajectories from MATLAB
-#             qd_mat = mat2np('/home/crush/drl-turtle/ros/py_pubsub/py_pubsub/qd.mat', 'qd')
-#             dqd_mat = mat2np('/home/crush/drl-turtle/ros/py_pubsub/py_pubsub/dqd.mat', 'dqd')
-#             ddqd_mat = mat2np('/home/crush/drl-turtle/ros/py_pubsub/py_pubsub/ddqd.mat', 'ddqd')
-#             tvec = mat2np('/home/crush/drl-turtle/ros/py_pubsub/py_pubsub/tvec.mat', 'tvec')
-
-#             # zero =  np.zeros((self.nq,1))
-#             t_old = time.time()
-#             # our loop's "starting" time
-#             t_0 = time.time()
-#             # log = "runnign loop"
-#             # self.get_logger().info(log)
-#             while 1:
-#                 if msg.data == 'd3':
-#                     # self.Joints.disable_torque()
-#                     break
-#                 log = "in the while loop"
-#                 self.get_logger().info(log)
-#                 # q = np.array(self.Joints.get_position()).reshape(-1,1)
-#                  # q = np.array(self.Joints.get_position()).reshape(-1,1)
-                
-#                 # n = get_qindex((time.time() - t_0), tvec)
-#                 # if n == len(tvec[0])-1:
-#                 #     t_0 = time.time() - tvec[0][200]
-                
-#                 # if n == len(tvec[0]) - 1:
-#                 #     t_0 = time.time()
-                
-#                 # qd = np.array(qd_mat[:, n]).reshape(-1,1)
-#                 # dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
-#                 # ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
-#                 # q_data=np.append(q_data, q, axis = 1) 
-#                 # # At the first iteration velocity is 0  
-                
-#                 # if first_time:
-#                 #     dq = np.zeros((self.nq,1))
-#                 #     q_old = q
-#                 #     first_time = False
-#                 # else:
-#                 #     t = time.time()
-#                 #     timestamps = np.append(timestamps, (t-t_0)) 
-#                 #     dt = t - t_old
-#                 #     t_old = t
-#                 #     dq = diff(q, q_old, dt)
-#                 #     q_old = q
-#                 # # calculate errors
-#                 # err = q - qd
-#                 # err_dot = dq
-                
-#                 # tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
-#                 # input_history = np.append(input_history[:,1:], tau,axis=1)
-#                 # input_mean = np.mean(input_history, axis = 1)
-#                 # inputs = grab_arm_current(input_mean, min_torque, max_torque)
-
-#                 # self.Joints.send_torque_cmd(self.nq * [20])
-#                 # n = get_qindex((time.time() - t_0), tvec)
-#                 # if n == len(tvec[0])-1:
-#                 #     t_0 = time.time() - tvec[0][200]
-                
-#                 # if n == len(tvec[0]) - 1:
-#                 #     t_0 = time.time()
-                
-#                 # qd = np.array(qd_mat[:, n]).reshape(-1,1)
-#                 # dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
-#                 # ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
-#                 # q_data=np.append(q_data, q, axis = 1) 
-#                 # # At the first iteration velocity is 0  
-                
-#                 # if first_time:
-#                 #     dq = np.zeros((self.nq,1))
-#                 #     q_old = q
-#                 #     first_time = False
-#                 # else:
-#                 #     t = time.time()
-#                 #     timestamps = np.append(timestamps, (t-t_0)) 
-#                 #     dt = t - t_old
-#                                # err_dot = dq
-#  #     t_old = t
-#                 #     dq = diff(q, q_old, dt)
-#                 #     q_old = q
-#                 # # calculate errors
-#                 # err = q - qd
-#                 # err_dot = dq
-                
-#                 # tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
-#                 # input_history = np.append(input_history[:,1:], tau,axis=1)
-#                 # input_mean = np.mean(input_history, axis = 1)
-#                 # inputs = grab_arm_current(input_mean, min_torque, max_torque)
-
-#                 # self.Joints.send_torque_cmd(self.nq * [20])
-#             # self.Joints.disable_torque()
-#             log = "Ending Loop Trajectory"
-#             self.get_logger().info(log)
-#         if msg.data == 'd3':
-#             # self.Joints.disable_torque()
-#             log = 'Disabled motor torques'
-#         elif msg.data == 'stop':
-#             # self.Joints.disable_torque()
-#             log = 'stopping'
-#         else: 
-#             log = 'I heard:' + msg.data            self.mode = 'rest'
