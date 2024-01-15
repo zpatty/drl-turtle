@@ -19,7 +19,7 @@ from turtle_interfaces.msg import TurtleTraj
 from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
 
-import turtle_traj
+import turtle_trajectory
 
 ESC_ASCII_VALUE             = 0x1b
 SPACE_ASCII_VALUE           = 0x20
@@ -45,6 +45,12 @@ fd = sys.stdin.fileno()
 old_term = termios.tcgetattr(fd)
 new_term = termios.tcgetattr(fd)
 
+global rest_received
+global stop_received
+
+rest_received = False
+stop_received = False
+
 def getch():
     new_term[3] = (new_term[3] & ~termios.ICANON & ~termios.ECHO)
     termios.tcsetattr(fd, termios.TCSANOW, new_term)
@@ -68,25 +74,27 @@ def kbhit():
     return 0
     
 def turtle_state_callback(msg):
-    # print("MESSAGE RECEIVED")
-    global rest_received
     global stop_received
+    global rest_received
+    print("MESSAGE RECEIVED")
     if msg.data == "rest_received":
         rest_received = True
     elif msg.data == "stop_received":
         stop_received = True
+        print("changing val!!!!!!!!!")
+        print(f"stop received is: {stop_received}\n")
+    else:
+        print("NOPE")
 
 def main(args=None):
     rclpy.init(args=args)
-
     node = rclpy.create_node('turtle_keyboard_cntrl_node')
-    # node.create_rate(50)
     tomotors = node.create_publisher(String, 'master_motors', 10)
     traj_pub = node.create_publisher(TurtleTraj, 'motors_traj', 10)
     stop_sub = node.create_subscription(String, 'turtle_state', turtle_state_callback, 10)
+    rate = node.create_rate(50)
     msg = String()
     traj = TurtleTraj()
-    stop_received = False
     while rclpy.ok():
         print("\nT: Traj1, W: Traj2, R: Rest D: Custom Traj(or press SPACE to STOP!)")
         key_input = getch()
@@ -94,16 +102,23 @@ def main(args=None):
             n = 0
             msg.data='stop'
             tomotors.publish(msg)
-            # while stop_received == False:
-            #     n += 1
-            #     print(f"false {n}")
-            #     rclpy.spin_once(node)
-            #     msg.data='stop'
-            #     tomotors.publish(msg)
+            while stop_received == False:
+                n += 1
+                if n == 10:
+                    print("10000000000000000000000000000000000000000000000000")
+                    test_msg = String()
+                    test_msg.data = 'stop_received'
+                    yo = turtle_state_callback(test_msg)
+                    if stop_received == True:
+                        break
+                print(f"false {n} and stop received is : {stop_received}")
+                rclpy.spin_once(node)
+                msg.data='stop'
+                tomotors.publish(msg)
             #     print(f"stop received {stop_received}")
-                # node.get_logger().info(msg.data)
+                node.get_logger().info(msg.data)
             # rclpy.spin_once(node)
-            print("received confirmation")
+            print("sending stop")
             break           
             
         elif key_input == chr(WKEY_ASCII_VALUE) or key_input == chr(TKEY_ASCII_VALUE):    # print out the length changes
@@ -127,10 +142,10 @@ def main(args=None):
                 nq = 6
                 squeezed = np.reshape(mat, (nq * mat.shape[1]))
                 return list(squeezed)
-            qd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_traj/qd.mat', 'qd')
-            dqd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_traj/dqd.mat', 'dqd')
-            ddqd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_traj/ddqd.mat', 'ddqd')
-            tvec = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_traj/tvec.mat', 'tvec')
+            qd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_trajectory/qd.mat', 'qd')
+            dqd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_trajectory/dqd.mat', 'dqd')
+            ddqd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_trajectory/ddqd.mat', 'ddqd')
+            tvec = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_trajectory/tvec.mat', 'tvec')
 
             print(f"tvec mat shape: {tvec.shape}\n")
             traj.qd = np2msg(qd_mat)
