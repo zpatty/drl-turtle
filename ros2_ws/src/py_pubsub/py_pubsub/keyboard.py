@@ -88,6 +88,8 @@ def turtle_state_callback(msg):
 
 def main(args=None):
     rclpy.init(args=args)
+    global stop_received
+    global rest_received
     node = rclpy.create_node('turtle_keyboard_cntrl_node')
     tomotors = node.create_publisher(String, 'master_motors', 10)
     traj_pub = node.create_publisher(TurtleTraj, 'motors_traj', 10)
@@ -99,26 +101,16 @@ def main(args=None):
         print("\nT: Traj1, W: Traj2, R: Rest D: Custom Traj(or press SPACE to STOP!)")
         key_input = getch()
         if key_input == chr(SPACE_ASCII_VALUE):
-            n = 0
+            stop_received = False
             msg.data='stop'
             tomotors.publish(msg)
             while stop_received == False:
-                n += 1
-                if n == 10:
-                    print("10000000000000000000000000000000000000000000000000")
-                    test_msg = String()
-                    test_msg.data = 'stop_received'
-                    yo = turtle_state_callback(test_msg)
-                    if stop_received == True:
-                        break
-                print(f"false {n} and stop received is : {stop_received}")
                 rclpy.spin_once(node)
                 msg.data='stop'
                 tomotors.publish(msg)
-            #     print(f"stop received {stop_received}")
                 node.get_logger().info(msg.data)
-            # rclpy.spin_once(node)
-            print("sending stop")
+            log = "Stop was sucessfully sent! Closing program...."
+            node.get_logger().info(log)
             break           
             
         elif key_input == chr(WKEY_ASCII_VALUE) or key_input == chr(TKEY_ASCII_VALUE):    # print out the length changes
@@ -131,12 +123,15 @@ def main(args=None):
         elif key_input == chr(RKEY_ASCII_VALUE):
             msg.data='rest'
             tomotors.publish(msg)
-            # rest_received = False
-            # while rest_received == False:
-            #     rclpy.spin_once(node)
-            #     msg.data='rest'
-            #     tomotors.publish(msg)
-            #     node.get_logger().info(msg)
+            rest_received = False
+            while rest_received == False:
+                rclpy.spin_once(node)
+                msg.data='rest'
+                tomotors.publish(msg)
+                node.get_logger().info(msg.data)
+            log = "Rest command was sucessfully sent!"
+            node.get_logger().info(log)
+            
         elif key_input == chr(DKEY_ASCII_VALUE):
             def np2msg(mat):
                 nq = 6
@@ -147,7 +142,7 @@ def main(args=None):
             ddqd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_trajectory/ddqd.mat', 'ddqd')
             tvec = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_trajectory/tvec.mat', 'tvec')
 
-            print(f"tvec mat shape: {tvec.shape}\n")
+            # print(f"tvec mat shape: {tvec.shape}\n")
             traj.qd = np2msg(qd_mat)
             traj.dqd = np2msg(dqd_mat)
             traj.ddqd = np2msg(ddqd_mat)
