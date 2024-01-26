@@ -8,26 +8,23 @@ clear
 % down = 150;
 up = 240;
 down = 110;
-% up = 150;
-% down = 90;
-straight = [230 150 230];
-surface = [240 190 250];
+up = 150;
+down = 90;
 turn = 30;
 turn = 0;
 % front fins
 shoulder1 = [180 up down up];
-shoulder2 = [180 surface];
+shoulder2 = [180 230 150 230];
 shoulder3 = [180 240 140 240];
 shoulder4 = 180 + (180 - shoulder1 - turn);
 shoulder5 = 180 + (180 - shoulder2);
 shoulder6 = [180 120 220 120];
 
 % back fins 
-rear_angle = 180;
 shoulder7 = [180 180 180 180];
-shoulder8 = [180 rear_angle rear_angle rear_angle];
+shoulder8 = [180 180 180 180];
 shoulder9 = [180 180 180 180];
-shoulder10 = 180 + (180 - shoulder8);
+shoulder10 = [180 180 180 180];
 % time points for a single cycle
 timePoints = [0 2 3 4];
 tshift = timePoints(2:end) + timePoints(2:end);
