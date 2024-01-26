@@ -12,7 +12,7 @@ from rclpy.node import Node
 from rclpy.executors import Executor, MultiThreadedExecutor
 import numpy as np
 from matplotlib import pyplot as plt
-from ros2_ws.src.turtle_hardware.turtle_hardware.turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
+from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
 
 from turtle_interfaces.msg import TurtleTraj
 
@@ -134,13 +134,13 @@ def main(args=None):
             
         elif key_input == chr(DKEY_ASCII_VALUE):
             def np2msg(mat):
-                nq = 6
+                nq = 10
                 squeezed = np.reshape(mat, (nq * mat.shape[1]))
                 return list(squeezed)
-            qd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_trajectory/qd.mat', 'qd')
-            dqd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_trajectory/dqd.mat', 'dqd')
-            ddqd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_trajectory/ddqd.mat', 'ddqd')
-            tvec = mat2np('/home/zach/drl-turtle/ros2_ws/src/py_pubsub/py_pubsub/turtle_trajectory/tvec.mat', 'tvec')
+            qd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/qd.mat', 'qd')
+            dqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/dqd.mat', 'dqd')
+            ddqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/ddqd.mat', 'ddqd')
+            tvec = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/tvec.mat', 'tvec')
 
             # print(f"tvec mat shape: {tvec.shape}\n")
             traj.qd = np2msg(qd_mat)

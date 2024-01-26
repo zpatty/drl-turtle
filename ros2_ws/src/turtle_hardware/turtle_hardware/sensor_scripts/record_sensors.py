@@ -4,27 +4,21 @@ from rclpy.executors import Executor, MultiThreadedExecutor
 from rcl_interfaces.msg import SetParametersResult
 from turtle_interfaces.msg import TurtleTraj
 import json
+import time
+import scipy
 import sys
 import os
 
-submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware"
+submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/sensor_scripts"
 sys.path.append(submodule)
 
 from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
-from dynamixel_sdk import *                    # Uses Dynamixel SDK library
-from ros2_ws.src.turtle_hardware.turtle_hardware.turtle_dynamixel.Dynamixel import *                        # Dynamixel motor class                                  
-from ros2_ws.src.turtle_hardware.turtle_hardware.turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
-from ros2_ws.src.turtle_hardware.turtle_hardware.turtle_dynamixel.turtle_controller import *                # Controller 
-from ros2_ws.src.turtle_hardware.turtle_hardware.turtle_dynamixel.Constants import *                        # File of constant variables
-from ros2_ws.src.turtle_hardware.turtle_hardware.turtle_dynamixel.Mod import *
-from ros2_ws.src.turtle_hardware.turtle_hardware.turtle_dynamixel.utilities import *
 import math
 from math import cos, sin
 from datetime import datetime
 import numpy as np
 from matplotlib import pyplot as plt
-from ros2_ws.src.turtle_hardware.turtle_hardware.turtle_dynamixel.utilities import *
 import json
 import traceback
 from queue import Queue
@@ -53,17 +47,20 @@ def main(args=None):
     while time_elapsed < delta_t:
         xiao =  serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
         sensors = xiao.readline()
-        sensor_dict = json.loads(sensors.decode('utf-8'))
+        # print(f"raw: {sensors}\n")
+        # print(f"raw first character: {sensors[0]}")
+        if sensors[0] == 123:
+            sensor_dict = json.loads(sensors.decode('utf-8'))
 
-        # add time stamp
-        t = time.time()
-        time_elapsed = t-t_0
-        timestamps = np.append(timestamps, time_elapsed) 
-
-        # add sensor data
-        acc_data = np.append(acc_data, sensor_dict['Acc'])
-        gyr_data = np.append(gyr_data, sensor_dict['Gyr'])
-        mag_data = np.append(mag_data, sensor_dict['Mag'])
+            # add time stamp
+            t = time.time()
+            time_elapsed = t-t_0
+            timestamps = np.append(timestamps, time_elapsed) 
+            
+            # add sensor data
+            acc_data = np.append(acc_data, sensor_dict['Acc'])
+            gyr_data = np.append(gyr_data, sensor_dict['Gyr'])
+            mag_data = np.append(mag_data, sensor_dict['Mag'])
     print("recorded data to folder")
     save_data(acc_data=acc_data, gyr_data=gyr_data, mag_data=mag_data, timestamps=timestamps)
 if __name__=='__main__':

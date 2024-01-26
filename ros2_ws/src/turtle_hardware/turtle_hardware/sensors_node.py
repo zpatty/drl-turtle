@@ -21,15 +21,14 @@ class TurtleSensorsPublisher(Node):
         super().__init__('sensors_node')
         self.declare_parameter('port', descriptor = ParameterDescriptor(type = ParameterType.PARAMETER_STRING_ARRAY))
 
-        # self.port = self.get_parameter('port').get_parameter_value().string_array_value
-        # self.baud = self.get_parameter('baud').get_parameter_value().string_array_value
         self.freq = 100
         self.t_0 = 0
+        self.seq = 0
 
         self.n_axis = 3
         self.acc_data = np.zeros((self.n_axis,1))
         self.gyr_data = np.zeros((self.n_axis,1))
-        self.mag_data = np.zeros((self.n_axis,1))
+        self.quat_data = np.zeros((4,1))
         self.timestamps = np.zeros((1,1))
 
         timer_period =  1/self.freq  #seconds
@@ -37,52 +36,65 @@ class TurtleSensorsPublisher(Node):
         self.sensor_msg = TurtleSensors()
         
         self.sensors_publisher = self.create_publisher(TurtleSensors, topic, 10)
-        # self.xiao = serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
+        self.xiao = serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
         self.timer = self.create_timer(timer_period, self.handle_sensors)
 
-        
     def handle_sensors(self):
         # msg.header.stamp = self.get_clock().now().to_msg()
 
-        # sensors = self.xiao.readline()
-        # sensor_dict = json.loads(sensors.decode('utf-8'))
+        sensors = self.xiao.readline()
+        # check that byte is valid string
+        if sensors[0] == 123:
+            sensor_dict = json.loads(sensors.decode('utf-8'))
 
-        # add time stamp
-        t = 20
-        time_elapsed = t-self.t_0
-        # timestamps = np.append(timestamps, time_elapsed) 
+            # add time stamp
+            t = 20
+            time_elapsed = t-self.t_0
+            # timestamps = np.append(timestamps, time_elapsed) 
 
-        # add sensor data
-        # acc_data = np.append(acc_data, sensor_dict['Acc'])
-        # gyr_data = np.append(gyr_data, sensor_dict['Gyr'])
-        # mag_data = np.append(mag_data, sensor_dict['Mag'])
+            # add sensor data
+            acc_data = sensor_dict['Acc']
+            gyr_data = sensor_dict['Gyr']
+            quat_data = sensor_dict['Quat']
 
-        # pack it into message
-        q = [0.0,1.0,2.0,3.0,4.0,5.0]
+            # pack it into message
+            # quaternion 
+            self.sensor_msg.imu.orientation.x = quat_data[0]
+            self.sensor_msg.imu.orientation.y = quat_data[1]
+            self.sensor_msg.imu.orientation.z = quat_data[2]
+            self.sensor_msg.imu.orientation.w = quat_data[3]
 
-        # quaternion 
-        self.sensor_msg.imu.orientation.x = q[0]
-        self.sensor_msg.imu.orientation.y = q[1]
-        self.sensor_msg.imu.orientation.z = q[2]
-        self.sensor_msg.imu.orientation.w = q[3]
+            # angular velocity
+            self.sensor_msg.imu.angular_velocity.x = gyr_data[0]
+            self.sensor_msg.imu.angular_velocity.y = gyr_data[1]
+            self.sensor_msg.imu.angular_velocity.z = gyr_data[2]
 
-        # angular velocity
-        self.sensor_msg.imu.angular_velocity.x = q[0]
-        self.sensor_msg.imu.angular_velocity.y = q[0]
-        self.sensor_msg.imu.angular_velocity.z = q[0]
+            # linear acceleration
+            self.sensor_msg.imu.linear_acceleration.x = acc_data[0]
+            self.sensor_msg.imu.linear_acceleration.y = acc_data[1]
+            self.sensor_msg.imu.linear_acceleration.z = acc_data[2]
 
-        # linear acceleration
-        self.sensor_msg.imu.linear_acceleration.x = q[0]
-        self.sensor_msg.imu.linear_acceleration.y = q[0]
-        self.sensor_msg.imu.linear_acceleration.z = q[0]
+            # voltage
+            self.sensor_msg.voltage = sensor_dict['Voltage'][0]
 
-        # voltage
-        self.sensor_msg.voltage = 12.0
+            # # log data for safe keeping
+            # # add sensor data
+            # acc_data = np.append(acc_data, sensor_dict['Acc'])
+            # gyr_data = np.append(gyr_data, sensor_dict['Gyr'])
+            # mag_data = np.append(mag_data, sensor_dict['Mag'])
 
-        # publish msg 
-        self.sensors_publisher.publish(self.sensor_msg)
-        print(f"battery voltage: {self.sensor_msg.voltage}\n")
-
+            # misc
+            self.sensor_msg.header.stamp= rclpy.Time.now()
+            self.sensor_msg.header.seq = self.seq
+            self.seq = self.seq + 1
+            # publish msg 
+            self.sensors_publisher.publish(self.sensor_msg)
+            print(f"battery voltage: {self.sensor_msg.voltage}\n")
+    def reset_callback(self):
+        """
+        When we want to save data into rosbag and record a new one
+        """
+        self.seq = 0
 
 def main(args=None):
     rclpy.init(args=args)
