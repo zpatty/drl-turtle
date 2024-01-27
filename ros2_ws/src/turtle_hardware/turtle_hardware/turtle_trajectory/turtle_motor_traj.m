@@ -42,7 +42,7 @@ tvec = 0:0.01:timePoints_cycle(end);
 % 
 tvec = 0:0.01:timePoints(end);
 qd = qd(:, 1:length(tvec));
-dqd = dqd(:, 1:length(tvec));
+dqd = dqd(:, 1:length(tvec));   
 ddqd = ddqd(:, 1:length(tvec));
 save('qd.mat','qd');
 save('dqd.mat','dqd');
