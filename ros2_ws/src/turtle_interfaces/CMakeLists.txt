@@ -18,6 +18,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TurtleTraj.msg"
   "msg/TurtleSensors.msg"
   "msg/TurtleMotorPos.msg"
+  "msg/TurtleIMU.msg"
   DEPENDENCIES sensor_msgs # Add packages that above messages depend on, in this case sensor_msgs for TurtleSensors.msg
 )
 
