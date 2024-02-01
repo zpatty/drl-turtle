@@ -14,7 +14,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
 
-from turtle_interfaces.msg import TurtleTraj
+from turtle_interfaces.msg import TurtleTraj, TurtleSensors
 
 from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
@@ -51,6 +51,8 @@ global stop_received
 rest_received = False
 stop_received = False
 
+global traj
+traj = TurtleTraj()
 def getch():
     new_term[3] = (new_term[3] & ~termios.ICANON & ~termios.ECHO)
     termios.tcsetattr(fd, termios.TCSANOW, new_term)
@@ -79,21 +81,76 @@ def turtle_state_callback(msg):
     print("MESSAGE RECEIVED")
     if msg.data == "rest_received":
         rest_received = True
+        print("REST RECEIVED!!!!!!")
     elif msg.data == "stop_received":
         stop_received = True
-        print("changing val!!!!!!!!!")
-        print(f"stop received is: {stop_received}\n")
+        print("STOP RECEIVED!!!!!!")
     else:
         print("NOPE")
 
+def save_data(acc_data=np.array([1,2,3]), gyr_data=np.array([1,2,3]), quat_data=np.array([1,2,3]), voltage_data=np.array([1,2,3]), q_data=np.array([1,2,3]), qd_data=np.array([1,2,3]), tau_data=np.array([1,2,3]), t_0=0, timestamps=np.array([1,2,3])):
+    """
+    Saves data of cyclical trajectory passed into the turtle 
+    @param : q_data :  holds both q and dq arrays 
+    """
+    t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+    folder_name =  "turtle_data/" + t
+    os.makedirs(folder_name, exist_ok=True)
+    scipy.io.savemat(folder_name + "/data.mat", {'acc_data': acc_data.T,'gyr_data': gyr_data.T,'quat_data': quat_data.T, 'voltage_data': voltage_data.T, 'q_data': q_data.T, 'qd_data': qd_data.T, 'tau_data': tau_data.T, 't_0': t_0, 'time_data': timestamps})
+
+def turtle_data_callback(msg):
+    """
+    Callback function that opens turtle sensor data and saves it locally to machine
+    """
+    print("DATA CALLBACK CALLED\n")
+    # extract and reopen numpy arrays
+    quat_x = msg.imu.quat_x
+    quat_y = msg.imu.quat_y
+    quat_z = msg.imu.quat_z
+    quat_w = msg.imu.quat_w
+
+    quat_data = np.array([quat_x, quat_y, quat_z, quat_w])
+
+    acc_x = msg.imu.acc_x
+    acc_y = msg.imu.acc_y
+    acc_z = msg.imu.acc_z
+
+    acc_data = np.array([acc_x, acc_y, acc_z])
+
+    gyr_x = msg.imu.gyr_x
+    gyr_y = msg.imu.gyr_y
+    gyr_z = msg.imu.gyr_z
+
+    gyr_data = np.array([gyr_x, gyr_y, gyr_z])
+
+    voltage_data = np.array(msg.voltage).reshape(1, len(msg.voltage))
+    global traj
+    t_0 = msg.t_0
+    n = len(msg.timestamps)
+    q_data = np.array(msg.q).reshape(10, n)
+    tau_data = np.array(msg.tau).reshape(10, n)
+    len_qd = len(list(traj.tvec))
+    qd_data = np.array(msg.qd).reshape(10, len_qd)
+    timestamps = np.array(msg.timestamps).reshape(1, n)
+
+    save_data(acc_data=acc_data, gyr_data=gyr_data,quat_data=quat_data, 
+              voltage_data=voltage_data, q_data=q_data, qd_data=qd_data,
+                 tau_data=tau_data, t_0=t_0, timestamps=timestamps)
+    # save_data(q_data=qwe_data, qd_data=qd_data,
+    #              tau_data=tau_data, t_0=t_0, timestamps=timestamps)
+    
+    print("Data saved to folder!")
+
+# tau_data=np.append(tau_data, tau_, axis=1) 
 def main(args=None):
     rclpy.init(args=args)
     global stop_received
     global rest_received
+    global traj
     node = rclpy.create_node('keyboard_node')
     tomotors = node.create_publisher(String, 'turtle_mode_cmd', 10)
     traj_pub = node.create_publisher(TurtleTraj, 'turtle_traj', 10)
-    stop_sub = node.create_subscription(String, 'turtle_state', turtle_state_callback, 10)
+    turtle_sub = node.create_subscription(TurtleSensors, 'turtle_sensors', turtle_data_callback, 10)
     rate = node.create_rate(50)
     msg = String()
     traj = TurtleTraj()
@@ -149,6 +206,7 @@ def main(args=None):
             # print(f"t vec list: {tvec.tolist()}")
 
             traj.tvec = tvec.tolist()[0]
+
             print("sent trajectories...")
             traj_pub.publish(traj)
         
