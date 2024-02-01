@@ -27,8 +27,8 @@ rear_yaw = 180;
 rear_pitch = 180;
 shoulder7 = [180 rear_pitch rear_pitch rear_pitch];
 shoulder8 = [180 rear_yaw rear_yaw rear_yaw];
-shoulder9 = (180 - shoulder8);
-shoulder10 = 180 - shoulder7;
+shoulder9 = 180 + (180 - shoulder8);
+shoulder10 = 180 + (180 - shoulder7);
 % time points for a single cycle
 timePoints = [0 2 3 4];
 tshift = timePoints(2:end) + timePoints(2:end);
@@ -45,10 +45,10 @@ tvec = 0:0.01:timePoints(end);
 qd = qd(:, 1:length(tvec));
 dqd = dqd(:, 1:length(tvec));   
 ddqd = ddqd(:, 1:length(tvec));
-save('qd_straight.mat','qd');
-save('dqd_straight.mat','dqd');
-save('ddqd_straight.mat','ddqd');
-save('tvec_straight.mat','tvec');
+save('straight/qd.mat','qd');
+save('straight/dqd.mat','dqd');
+save('straight/ddqd.mat','ddqd');
+save('straight/tvec.mat','tvec');
 
 %% Turn with front flippers
 up = 240;
@@ -69,8 +69,8 @@ rear_yaw = 180;
 rear_pitch = 180;
 shoulder7 = [180 rear_pitch rear_pitch rear_pitch];
 shoulder8 = [180 rear_yaw rear_yaw rear_yaw];
-shoulder9 = (180 - shoulder8);
-shoulder10 = 180 - shoulder7;
+shoulder9 = 180 + (180 - shoulder8);
+shoulder10 = 180 + (180 - shoulder7);
 % time points for a single cycle
 timePoints = [0 2 3 4];
 tshift = timePoints(2:end) + timePoints(2:end);
@@ -113,8 +113,8 @@ rear_yaw = 180;
 rear_pitch = 180;
 shoulder7 = [180 rear_pitch rear_pitch rear_pitch];
 shoulder8 = [180 rear_yaw rear_yaw rear_yaw];
-shoulder9 = (180 - shoulder8);
-shoulder10 = 180 - shoulder7;
+shoulder9 = 180 + (180 - shoulder8);
+shoulder10 = 180 + (180 - shoulder7);
 % time points for a single cycle
 timePoints = [0 2 3 4];
 tshift = timePoints(2:end) + timePoints(2:end);
@@ -139,47 +139,50 @@ save('tvec_dive.mat','tvec');
 %% Surface
 % up = 240;
 % down = 110;
-up = 150;
+up = 220;
 down = 90;
-% straight = [230 150 230];
-surface = [240 190 250];
+straight = [260 260 260 260];
+% surface = [240 190 250];
+% surface = [180 180 180];
 turn = 30;
 turn = 0;
+fin = [180 180 70 180];
 % front fins
-shoulder1 = [180 up down up];
-shoulder2 = [180 surface];
-shoulder3 = [180 240 140 240];
+shoulder1 = [180 up down up up];
+shoulder2 = [180 straight];
+shoulder3 = [180 fin];
 shoulder4 = 180 + (180 - shoulder1 - turn);
 shoulder5 = 180 + (180 - shoulder2);
-shoulder6 = [180 120 220 120];
+shoulder6 = 180 + (180 - shoulder3);
 
 % back fins 
 rear_yaw = 180;
 rear_pitch = 180;
-shoulder7 = [180 rear_pitch rear_pitch rear_pitch];
-shoulder8 = [180 rear_yaw rear_yaw rear_yaw];
-shoulder9 = (180 - shoulder8);
-shoulder10 = 180 - shoulder7;
+shoulder7 = [180 rear_pitch rear_pitch rear_pitch rear_pitch];
+shoulder8 = [180 rear_yaw rear_yaw rear_yaw rear_yaw];
+shoulder9 = 180 + (180 - shoulder8);
+shoulder10 = 180 + (180 - shoulder7);
 % time points for a single cycle
-timePoints = [0 2 3 4];
-tshift = timePoints(2:end) + timePoints(2:end);
-timePoints_cycle = [timePoints, tshift(2:end)];
+timePoints = [0 2 3 4 6];
+% tshift = timePoints(2:end) + timePoints(2:end);
+tshift = timePoints(3:end) - timePoints(2:end-1);
+timePoints_cycle = [timePoints, timePoints(end) + cumsum(tshift)];
 
 wayPoints = [shoulder1; shoulder2; shoulder3; shoulder4; shoulder5; shoulder6; shoulder7; shoulder8; shoulder9; shoulder10] * pi/180;
 wayPoints = [wayPoints(:,1), repmat(wayPoints(:,2:end-1),1,2), wayPoints(:,end)];
 % wayPoints = [repmat(wayPoints(:, 1:end-1), 1,2),wayPoints(:, 1)]
 
-tvec = 0:0.01:timePoints_cycle(end);
+tvec = 0:0.005:timePoints_cycle(end);
 [qd,dqd,ddqd,ppc] = cubicpolytraj(wayPoints,timePoints_cycle,tvec);
 % 
-tvec = 0:0.01:timePoints(end);
+tvec = 0:0.005:timePoints(end);
 qd = qd(:, 1:length(tvec));
 dqd = dqd(:, 1:length(tvec));   
 ddqd = ddqd(:, 1:length(tvec));
-save('qd_surface.mat','qd');
-save('dqd_surface.mat','dqd');
-save('ddqd_surface.mat','ddqd');
-save('tvec_surface.mat','tvec');
+save('surface/qd.mat','qd');
+save('surface/dqd.mat','dqd');
+save('surface/ddqd.mat','ddqd');
+save('surface/tvec.mat','tvec');
 
 %% Turn with rear flippers
 up = 240;
@@ -200,8 +203,8 @@ rear_yaw = 180;
 rear_pitch = 180;
 shoulder7 = [180 rear_pitch rear_pitch rear_pitch];
 shoulder8 = [180 rear_yaw rear_yaw rear_yaw];
-shoulder9 = (180 - shoulder8);
-shoulder10 = 180 - shoulder7;
+shoulder9 = 180 + (180 - shoulder8);
+shoulder10 = 180 + (180 - shoulder7);
 % time points for a single cycle
 timePoints = [0 2 3 4];
 tshift = timePoints(2:end) + timePoints(2:end);
