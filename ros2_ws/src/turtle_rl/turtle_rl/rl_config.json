@@ -1,0 +1,6 @@
+{
+    "letter": 20,
+    "num_episodes": 0.08,
+    "num_epochs": 0.06,
+    "reward_type": 0.0
+}
