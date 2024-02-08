@@ -89,7 +89,7 @@ def turtle_state_callback(msg):
     else:
         print("NOPE")
 
-def save_data(acc_data=np.array([1,2,3]), gyr_data=np.array([1,2,3]), quat_data=np.array([1,2,3]), voltage_data=np.array([1,2,3]), q_data=np.array([1,2,3]), qd_data=np.array([1,2,3]), tau_data=np.array([1,2,3]), t_0=0, timestamps=np.array([1,2,3])):
+def save_data(acc_data=np.array([1,2,3]), gyr_data=np.array([1,2,3]), quat_data=np.array([1,2,3]), voltage_data=np.array([1,2,3]), q_data=np.array([1,2,3]), qd_data=np.array([1,2,3]), dq_data=np.array([1,2,3]), tau_data=np.array([1,2,3]), t_0=0, timestamps=np.array([1,2,3])):
     """
     Saves data of cyclical trajectory passed into the turtle 
     @param : q_data :  holds both q and dq arrays 
@@ -97,7 +97,7 @@ def save_data(acc_data=np.array([1,2,3]), gyr_data=np.array([1,2,3]), quat_data=
     t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
     folder_name =  "turtle_data/" + t
     os.makedirs(folder_name, exist_ok=True)
-    scipy.io.savemat(folder_name + "/data.mat", {'acc_data': acc_data.T,'gyr_data': gyr_data.T,'quat_data': quat_data.T, 'voltage_data': voltage_data.T, 'q_data': q_data.T, 'qd_data': qd_data.T, 'tau_data': tau_data.T, 't_0': t_0, 'time_data': timestamps})
+    scipy.io.savemat(folder_name + "/data.mat", {'acc_data': acc_data.T,'gyr_data': gyr_data.T,'quat_data': quat_data.T, 'voltage_data': voltage_data.T, 'q_data': q_data.T, 'dq_data': dq_data.T, 'qd_data': qd_data.T, 'tau_data': tau_data.T, 't_0': t_0, 'time_data': timestamps})
 
 def turtle_data_callback(msg):
     """
@@ -129,6 +129,7 @@ def turtle_data_callback(msg):
     t_0 = msg.t_0
     n = len(msg.timestamps)
     q_data = np.array(msg.q).reshape(10, n)
+    dq_data = np.array(msg.dq).reshape(10, n)
     tau_data = np.array(msg.tau).reshape(10, n)
     len_qd = len(list(traj.tvec))
     qd_data = np.array(msg.qd).reshape(10, len_qd)
@@ -136,7 +137,7 @@ def turtle_data_callback(msg):
     timestamps = np.array(msg.timestamps).reshape(1, n)
 
     save_data(acc_data=acc_data, gyr_data=gyr_data,quat_data=quat_data, 
-              voltage_data=voltage_data, q_data=q_data, qd_data=qd_data,
+              voltage_data=voltage_data, q_data=q_data, dq_data=dq_data, qd_data=qd_data,
                  tau_data=tau_data, t_0=t_0, timestamps=timestamps)
     # save_data(q_data=qwe_data, qd_data=qd_data,
     #              tau_data=tau_data, t_0=t_0, timestamps=timestamps)
