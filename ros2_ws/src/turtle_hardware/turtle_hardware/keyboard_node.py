@@ -31,7 +31,8 @@ CKEY_ASCII_VALUE            = 0x63
 BKEY_ASCII_VALUE            = 0x62      # key to bend the top module
 UKEY_ASCII_VALUE            = 0x75      # key to unbend the modules
 NKEY_ASCII_VALUE            = 0x6E
-IKEY_ASCII_VALUE            = 0x69     
+IKEY_ASCII_VALUE            = 0x69 
+PKEY_ASCII_VALUE            = 0x70  
 QKEY_ASCII_VALUE            = 0x71 
 TKEY_ASCII_VALUE            = 0x74   
 RKEY_ASCII_VALUE            = 0x72     
@@ -144,6 +145,10 @@ def turtle_data_callback(msg):
 
 # tau_data=np.append(tau_data, tau_, axis=1) 
 def main(args=None):
+    def np2msg(mat):
+        nq = 10
+        squeezed = np.reshape(mat, (nq * mat.shape[1]))
+        return list(squeezed)
     rclpy.init(args=args)
     global stop_received
     global rest_received
@@ -176,11 +181,6 @@ def main(args=None):
             if key_input == chr(TKEY_ASCII_VALUE):
                 print("Sending STRAIGHT trajectory\n")
                 # STRAIGHT
-                # msg.data='traj1'
-                def np2msg(mat):
-                    nq = 10
-                    squeezed = np.reshape(mat, (nq * mat.shape[1]))
-                    return list(squeezed)
                 qd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/straight/qd.mat', 'qd')
                 dqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/straight/dqd.mat', 'dqd')
                 ddqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/straight/ddqd.mat', 'ddqd')
@@ -201,10 +201,6 @@ def main(args=None):
                 # msg.data='traj2'
                 print("Sending DIVE trajectory\n")
                 # DIVE 
-                def np2msg(mat):
-                    nq = 10
-                    squeezed = np.reshape(mat, (nq * mat.shape[1]))
-                    return list(squeezed)
                 qd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/dive/qd.mat', 'qd')
                 dqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/dive/dqd.mat', 'dqd')
                 ddqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/dive/ddqd.mat', 'ddqd')
@@ -226,10 +222,6 @@ def main(args=None):
         elif key_input == chr(CKEY_ASCII_VALUE):
             # TURNRR
             print("Sending TURNRR trajectory\n")
-            def np2msg(mat):
-                nq = 10
-                squeezed = np.reshape(mat, (nq * mat.shape[1]))
-                return list(squeezed)
             qd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/turnrr/qd.mat', 'qd')
             dqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/turnrr/dqd.mat', 'dqd')
             ddqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/turnrr/ddqd.mat', 'ddqd')
@@ -249,10 +241,6 @@ def main(args=None):
         elif key_input == chr(BKEY_ASCII_VALUE):
             # TURNRF
             print("Sending TURNRF trajectory\n")
-            def np2msg(mat):
-                nq = 10
-                squeezed = np.reshape(mat, (nq * mat.shape[1]))
-                return list(squeezed)
             qd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/turnrf/qd.mat', 'qd')
             dqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/turnrf/dqd.mat', 'dqd')
             ddqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/turnrf/ddqd.mat', 'ddqd')
@@ -271,10 +259,6 @@ def main(args=None):
         elif key_input == chr(UKEY_ASCII_VALUE):
             # TURNRR
             print("Sending SURFACE trajectory\n")
-            def np2msg(mat):
-                nq = 10
-                squeezed = np.reshape(mat, (nq * mat.shape[1]))
-                return list(squeezed)
             qd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/surface/qd.mat', 'qd')
             dqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/surface/dqd.mat', 'dqd')
             ddqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/surface/ddqd.mat', 'ddqd')
@@ -304,10 +288,6 @@ def main(args=None):
             node.get_logger().info(log)
             
         elif key_input == chr(DKEY_ASCII_VALUE):
-            def np2msg(mat):
-                nq = 10
-                squeezed = np.reshape(mat, (nq * mat.shape[1]))
-                return list(squeezed)
             qd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/qd.mat', 'qd')
             dqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/dqd.mat', 'dqd')
             ddqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/ddqd.mat', 'ddqd')
@@ -318,12 +298,25 @@ def main(args=None):
             traj.dqd = np2msg(dqd_mat)
             traj.ddqd = np2msg(ddqd_mat)
             # print(f"t vec list: {tvec.tolist()}")
-
             traj.tvec = tvec.tolist()[0]
 
             print("sent trajectories...")
             traj_pub.publish(traj)
         
+        elif key_input == chr(PKEY_ASCII_VALUE):
+            qd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/qd_p.mat', 'qd')
+            tvec = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/tvec_p.mat', 'tvec')
+
+            # print(f"tvec mat shape: {tvec.shape}\n")
+            traj.qd = np2msg(qd_mat)
+            traj.dqd = []
+            traj.ddqd = []
+            # print(f"t vec list: {tvec.tolist()}")
+            traj.tvec = tvec.tolist()[0]
+            print("sent trajectories...")
+            traj_pub.publish(traj)
+        else:
+            print("Wrong input received")
 
     rclpy.shutdown()
 
