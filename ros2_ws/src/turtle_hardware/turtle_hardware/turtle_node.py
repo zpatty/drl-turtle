@@ -164,7 +164,7 @@ class TurtleRobot(Node):
         squeezed = np.reshape(mat, (nq * mat.shape[1]))
         return squeezed.tolist()
     
-    def publish_turtle_data(self, q_data, tau_data, timestamps, t_0):
+    def publish_turtle_data(self, q_data, dq_data, tau_data, timestamps, t_0):
         """
         At the end of a trajectory (i.e when we set the turtle into a rest state or stop state), turtle node needs to 
         package all the sensor and motor data collected during that trajectory and publish it to the turtle_sensors node
@@ -223,6 +223,7 @@ class TurtleRobot(Node):
 
         # motor positions, desired positions and tau data
         turtle_msg.q = self.np2msg(q_data) 
+        turtle_msg.dq = self.np2msg(dq_data)
         # TODO: report dq?
         qd_squeezed = self.np2msg(self.qds)
         # print(f"checking type: {type(qd_squeezed)}")
@@ -250,6 +251,16 @@ def read_sensors(xiao, turtle_node):
     """
     Appends current sensor reading to the turtle node's sensor data structs
     """
+    def add_place_holder():
+        acc = np.array([-100.0, -100.0, -100.0]).reshape((3,1))
+        gyr = np.array([-100.0, -100.0, -100.0]).reshape((3,1))
+        quat = np.array([-100.0, -100.0, -100.0, -100.0]).reshape((4,1))
+        volt = -1
+        turtle_node.acc_data = np.append(turtle_node.acc_data, acc, axis=1)
+        turtle_node.gyr_data = np.append(turtle_node.gyr_data, gyr, axis=1)
+        turtle_node.quat_data = np.append(turtle_node.quat_data, quat, axis=1)
+        turtle_node.voltage_data = np.append(turtle_node.voltage_data, volt)
+    
     no_check = False
     sensors = xiao.readline()
     # print(sensors)
@@ -275,6 +286,12 @@ def read_sensors(xiao, turtle_node):
                     turtle_node.quat_data = np.append(turtle_node.quat_data, quat, axis=1)
                     turtle_node.voltage_data = np.append(turtle_node.voltage_data, volt)
                     turtle_node.voltage = volt
+            else:
+                add_place_holder()
+        else:
+            add_place_holder()
+    else:
+        add_place_holder()
 
 # THIS IS TURTLE CODE
 def main(args=None):
@@ -389,6 +406,7 @@ def main(args=None):
                 first_loop = True
                 input_history = np.zeros((nq,10))
                 q_data = np.zeros((nq,1))
+                dq_data = np.zeros((nq,1))
                 tau_data = np.zeros((nq,1))
                 timestamps = np.zeros((1,1))
                 print(f"[MODE] TRAJECTORY\n")
@@ -407,7 +425,7 @@ def main(args=None):
                         print("voltage too low--powering off...")
                         Joints.disable_torque()
                         print("saving data....")
-                        turtle_node.publish_turtle_data(t_0=t_0, q_data=q_data, tau_data=tau_data, timestamps=timestamps) 
+                        turtle_node.publish_turtle_data(t_0=t_0, q_data=q_data, dq_data=dq_data, tau_data=tau_data, timestamps=timestamps) 
                         break
                     rclpy.spin_once(turtle_node)
                     # print("traj 1...")
@@ -415,7 +433,7 @@ def main(args=None):
                         Joints.send_torque_cmd([0] *len(IDs))
                         Joints.disable_torque()
                         print("saving data...")
-                        turtle_node.publish_turtle_data(t_0=t_0, q_data=q_data, tau_data=tau_data, timestamps=timestamps) 
+                        turtle_node.publish_turtle_data(t_0=t_0, q_data=q_data, dq_data=dq_data, tau_data=tau_data, timestamps=timestamps) 
                         first_time = True
                         break
                     q = np.array(Joints.get_position()).reshape(-1,1)
@@ -443,6 +461,7 @@ def main(args=None):
                     
                     if first_time:
                         dq = np.zeros((nq,1))
+                        dq_data=np.append(dq_data, dq, axis = 1) 
                         q_old = q
                         first_time = False
                     else:
@@ -451,6 +470,7 @@ def main(args=None):
                     #     # print(f"[DEBUG] dt: {dt}\n")  
                         t_old = t
                         dq = diff(q, q_old, dt)
+                        dq_data=np.append(dq_data, dq, axis = 1) 
                         q_old = q
                     timestamps = np.append(timestamps, (time.time()-t_begin)) 
                     tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
