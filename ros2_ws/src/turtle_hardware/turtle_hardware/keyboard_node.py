@@ -131,6 +131,7 @@ def turtle_data_callback(msg):
     tau_data = np.array(msg.tau).reshape(10, n)
     len_qd = len(list(traj.tvec))
     qd_data = np.array(msg.qd).reshape(10, len_qd)
+    dqd_data = np.array(msg.qd).reshape(10, len_qd)
     timestamps = np.array(msg.timestamps).reshape(1, n)
 
     save_data(acc_data=acc_data, gyr_data=gyr_data,quat_data=quat_data, 
@@ -151,6 +152,7 @@ def main(args=None):
     tomotors = node.create_publisher(String, 'turtle_mode_cmd', 10)
     traj_pub = node.create_publisher(TurtleTraj, 'turtle_traj', 10)
     turtle_sub = node.create_subscription(TurtleSensors, 'turtle_sensors', turtle_data_callback, 10)
+    turtle_cmd_received = node.create_subscription(String, 'turtle_state', turtle_state_callback, 10)
     rate = node.create_rate(50)
     msg = String()
     traj = TurtleTraj()
@@ -288,8 +290,6 @@ def main(args=None):
 
             print("sent trajectories...")
             traj_pub.publish(traj)
-
-        
 
         elif key_input == chr(RKEY_ASCII_VALUE):
             msg.data='rest'
