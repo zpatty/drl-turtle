@@ -70,6 +70,9 @@ class Mod:
     def enable_torque(self):
         #Enable Dynamixel Torques
         for ID in self.IDS:
+            # to ensure broken motor 8 does not get enabled
+            # if ID != 8:
+            # print(f"ID: {ID}")
             dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, ID, ADDR_TORQUE_ENABLE, TORQUE_ENABLE)
             if dxl_comm_result != COMM_SUCCESS:
                 print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
@@ -99,6 +102,7 @@ class Mod:
         address = ADDR_PRESENT_POSITION
         pos = []
         for ID in self.IDS:
+            # print(f"ID pos: {ID}\n")
             data = self.groupSyncRead.data_dict[ID]
             # print(f"data: {data}\n")
             d3 = bin(data[3])[2:]
@@ -132,9 +136,21 @@ class Mod:
                 print("%s" % self.packetHandler.getRxPacketError(dxl_error))
             else:
                 print(f"[STATUS] Motor {ID} operating mode changed to current control mode.")
+    def set_current_cntrl_back_fins(self):
+        # Set operating mode to current control mode (used for torque control)
+        back_fins = [7,8,9,10]
+        for ID in back_fins:
+            dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, ID, ADDR_OPERATING_MODE, CURRENT_CONTROL_MODE)
+            if dxl_comm_result != COMM_SUCCESS:
+                print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+            elif dxl_error != 0:
+                print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+            else:
+                print(f"[STATUS] Motor {ID} operating mode changed to current control mode.")
     def set_extended_pos_mode(self):
         # Set operating mode to extended pos mode (used to manually reset arm)
-        for ID in self.IDS:
+        front_fins = [1,2,3,4,5,6]
+        for ID in front_fins:
             dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, ID, ADDR_OPERATING_MODE, EXT_POSITION_CONTROL_MODE)
             if dxl_comm_result != COMM_SUCCESS:
                 print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
@@ -174,9 +190,32 @@ class Mod:
             # print("[STATUS] Torque command sent")
         # Clear syncwrite parameter storage
         self.groupSyncWrite.clearParam()
+
+    def send_backfins_torque(self):
+        offset = 6
+        torques = [0, 0, 0, 0]
+        for i in range(len(torques)):    
+            torque = [DXL_LOBYTE(DXL_LOWORD(torques[i])), DXL_HIBYTE(DXL_LOWORD(torques[i]))]
+            # Allocate goal position value into byte array
+
+            # Add Dynamixel goal position value to the Syncwrite parameter storage
+            dxl_addparam_result = self.groupSyncWrite.addParam(self.IDS[i + offset], torque)
+            if dxl_addparam_result != True:
+                print("[ERROR] [ID:%03d] groupSyncWrite addparam failed" % self.IDS[i + offset])
+                quit()
+        # Syncwrite goal position
+        dxl_comm_result = self.groupSyncWrite.txPacket()
+        if dxl_comm_result != COMM_SUCCESS:
+            print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+        # else:
+            # print("[STATUS] Torque command sent")
+        # Clear syncwrite parameter storage
+        self.groupSyncWrite.clearParam()
+    
     def send_pos_cmd(self, pos):
         posSyncWrite = GroupSyncWrite(self.portHandler, self.packetHandler, ADDR_GOAL_POSITION, LEN_GOAL_POSITION)
-        for i in range(len(pos)):
+        num_motors = 6
+        for i in range(num_motors):
             # Allocate goal position value into byte array
             p = [DXL_LOBYTE(DXL_LOWORD(pos[i])), DXL_HIBYTE(DXL_LOWORD(pos[i])), DXL_LOBYTE(DXL_HIWORD(pos[i])), DXL_HIBYTE(DXL_HIWORD(pos[i]))]
             # Add parameter storage for Dynamixel present position value

@@ -148,10 +148,13 @@ class TurtleRobot(Node):
         """    
         n = len(msg.tvec)
         self.qds = np.array(msg.qd).reshape(10,n)
-        self.dqds = np.array(msg.dqd).reshape(10,n)
-        self.ddqds = np.array(msg.ddqd).reshape(10,n)
         self.tvec = np.array(msg.tvec).reshape(1,n)
-        self.mode = 'traj_input'
+        if len(msg.dqd) < 1:
+            self.mode = 'position_control_mode'
+        else:
+            self.dqds = np.array(msg.dqd).reshape(10,n)
+            self.ddqds = np.array(msg.ddqd).reshape(10,n)
+            self.mode = 'traj_input'
     
     def np2msg(self, mat):
         """
@@ -289,7 +292,7 @@ def main(args=None):
         print("[MOTORS STATUS] Suceeded to open port")
     else:
         print("[ERROR] Failed to change baudrate")
-    IDs = [1,2,3,4,5,6,7,9,10]
+    IDs = [1,2,3,4,5,6,7, 8, 9,10]
     nq = 10
     Joints = Mod(packetHandlerJoint, portHandlerJoint, IDs)
     Joints.disable_torque()
@@ -297,7 +300,7 @@ def main(args=None):
     Joints.enable_torque()
     q = np.array(Joints.get_position()).reshape(-1,1)
     place_holder = 3.14
-    q = np.insert(q, 7, place_holder).reshape((10,1))
+    # q = np.insert(q, 7, place_holder).reshape((10,1))
 
     print(f"Our initial q: " + str(q))
     print("going into while loop...")
@@ -309,11 +312,35 @@ def main(args=None):
                 break
             rclpy.spin_once(turtle_node)
             
-            if turtle_node.mode == 'traj1':
+            if turtle_node.mode == 'position_control_mode':
                 # Load desired trajectories from MATLAB
-               print("TODO: need traj 1 command")
-               break
-
+                print("POSITION CONTROL")
+                Joints.disable_torque()
+                Joints.set_extended_pos_mode()
+                Joints.set_current_cntrl_back_fins()
+                Joints.enable_torque()
+                qd_mat = turtle_node.qds
+                tvec = turtle_node.tvec   
+                t_0 = time.time()
+                while 1:
+                    if turtle_node.voltage < threshold:
+                        print("voltage too low--powering off...")
+                        Joints.disable_torque()
+                        break
+                    rclpy.spin_once(turtle_node)
+                    if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
+                        Joints.send_torque_cmd([0] *len(IDs))
+                        Joints.disable_torque()
+                        first_time = True
+                        break
+                    else:
+                        n = get_qindex((time.time() - t_0), tvec)
+                        qd = np.array(qd_mat[:, n]).reshape(-1,1)
+                        qd = qd[:6]
+                        print(f"qd: {qd}")
+                        
+                        Joints.send_pos_cmd(np.squeeze(to_motor_steps(qd)))
+                        Joints.send_backfins_torque()
             elif turtle_node.mode == 'traj2':
                 print("traj2 yall")
                 break
@@ -368,7 +395,7 @@ def main(args=None):
                 Joints.disable_torque()
                 Joints.set_current_cntrl_mode()
                 Joints.enable_torque()
-                Kp = np.diag([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.0, 0.5, 0.5])*3
+                Kp = np.diag([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])*2
                 KD = 0.5
                 t_begin = time.time()
                 # zero =  np.zeros((self.nq,1))
@@ -392,7 +419,7 @@ def main(args=None):
                         first_time = True
                         break
                     q = np.array(Joints.get_position()).reshape(-1,1)
-                    q = np.insert(q, 7, place_holder).reshape((10,1))
+                    # q = np.insert(q, 7, place_holder).reshape((10,1))
 
                     if first_loop:
                         n = get_qindex((time.time() - t_0), tvec)
@@ -434,7 +461,7 @@ def main(args=None):
                     input_mean = np.mean(input_history, axis = 1)
 
                     inputt = grab_arm_current(input_mean, min_torque, max_torque)
-                    del inputt[7]
+                    # del inputt[7]
                     # print(f"[DEBUG] tau: {tau}\n")
                     print(f"voltage: {turtle_node.voltage}\n")
                     Joints.send_torque_cmd(inputt)
