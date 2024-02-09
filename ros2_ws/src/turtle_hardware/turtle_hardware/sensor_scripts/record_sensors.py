@@ -41,27 +41,45 @@ def main(args=None):
     gyr_data = np.zeros((n_axis,1))
     mag_data = np.zeros((n_axis,1))
     timestamps = np.zeros((1,1))
+    voltage_data = np.zeros((1,1))
+    quat_data = np.zeros((4,1))
     delta_t = 15
     t_0 = time.time()
     time_elapsed = 0
-    while time_elapsed < delta_t:
-        xiao =  serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
-        sensors = xiao.readline()
-        # print(f"raw: {sensors}\n")
-        # print(f"raw first character: {sensors[0]}")
-        if sensors[0] == 123:
-            sensor_dict = json.loads(sensors.decode('utf-8'))
+    xiao =  serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
+    xiao.reset_input_buffer()
 
-            # add time stamp
-            t = time.time()
-            time_elapsed = t-t_0
-            timestamps = np.append(timestamps, time_elapsed) 
-            
-            # add sensor data
-            acc_data = np.append(acc_data, sensor_dict['Acc'])
-            gyr_data = np.append(gyr_data, sensor_dict['Gyr'])
-            mag_data = np.append(mag_data, sensor_dict['Mag'])
-    print("recorded data to folder")
-    save_data(acc_data=acc_data, gyr_data=gyr_data, mag_data=mag_data, timestamps=timestamps)
+    while time_elapsed < delta_t:
+        # if xiao.in_waiting > 0:
+        #     line = xiao.readline().decode('utf-8').rstrip()
+        #     print(line)
+        # no_check = False
+        sensors = xiao.readline()
+        # sensors = xiao.readline().decode('utf-8').rstrip()
+        # print(f"raw: {sensors}\n")
+        # # print(f"raw first character: {sensors[0]}")
+        if len(sensors) != 0:
+        # this ensures the right json string format
+            if sensors[0] == 32 and sensors[-1] == 10:
+                try:
+                    sensor_dict = json.loads(sensors.decode('utf-8'))
+                except:
+                    no_check = True
+                
+                # add sensor data
+                if no_check == False:
+                    sensor_keys = ('Acc', 'Gyr', 'Quat', 'Voltage')
+                    if set(sensor_keys).issubset(sensor_dict):
+                        acc = np.array(sensor_dict['Acc']).reshape((3,1))
+                        gyr = np.array(sensor_dict['Gyr']).reshape((3,1))
+                        quat = np.array(sensor_dict['Quat']).reshape((4,1))
+                        volt = sensor_dict['Voltage'][0]
+                        acc_data = np.append(acc_data, acc, axis=1)
+                        gyr_data = np.append(gyr_data, gyr, axis=1)
+                        quat_data = np.append(quat_data, quat, axis=1)
+                        voltage_data = np.append(voltage_data, volt)
+                        voltage = volt
+    # print("recorded data to folder")
+    # save_data(acc_data=acc_data, gyr_data=gyr_data, mag_data=mag_data, timestamps=timestamps)
 if __name__=='__main__':
     main()

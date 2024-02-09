@@ -139,10 +139,10 @@ save('tvec_dive.mat','tvec');
 %% Surface
 % up = 240;
 % down = 110;
-up = 220;
+up = 200;
 down = 90;
 straight = [260 260 260 260];
-surface = [260 270 180 260];
+surface = [230 240 170 230];
 % surface = [180 180 180];
 turn = 30;
 turn = 0;
@@ -163,7 +163,7 @@ shoulder8 = [180 rear_yaw rear_yaw rear_yaw rear_yaw];
 shoulder9 = 180 + (180 - shoulder8);
 shoulder10 = 180 + (180 - shoulder7);
 % time points for a single cycle
-timePoints = [0 2 2.67 3.33 4];
+timePoints = [0 2 2.67 4 4.5];
 % tshift = timePoints(2:end) + timePoints(2:end);
 tshift = timePoints(3:end) - timePoints(2:end-1);
 timePoints_cycle = [timePoints, timePoints(end) + cumsum(tshift)];
