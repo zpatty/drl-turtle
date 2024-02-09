@@ -448,6 +448,7 @@ def main(args=None):
 
                     # print(f"n: {n}\n")
                     if n == len(tvec[0]) - 1:
+                        print(f"time: {(time.time() - offset)}\n")
                         first_loop = False
                         t_0 = time.time()
                     
