@@ -42,6 +42,11 @@ class TurtleSensorsPublisher(Node):
             self.sensor_mode_callback,
             10)
         self.sensors_pub = self.create_publisher(TurtleSensors, 'turtle_sensors', 10)
+        self.cmd_received_pub = self.create_publisher(
+            String,
+            'turtle_state',
+            10
+        )
         self.xiao = serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
         self.xiao.reset_input_buffer()
         self.create_rate(50)
@@ -58,16 +63,20 @@ class TurtleSensorsPublisher(Node):
         This method is what enables us to set "emergency stops" mid-trajectory. 
         """
         # global mode
+        print(f"MESSAGE : {msg.data}")
         if msg.data == 'traj1':
             self.mode = 'traj1'
         elif msg.data == 'traj2':
             self.mode = 'traj2'
+        elif msg.data == 'teacher':
+            self.mode = 'teacher'
         elif msg.data == 'stop':
             self.mode = 'stop'
         else:
             self.mode = 'rest'
 
     def read_voltage(self):
+        no_check = False
         turtle_msg = TurtleSensors()
         sensors = self.xiao.readline()
         if len(sensors) != 0:
@@ -79,12 +88,12 @@ class TurtleSensorsPublisher(Node):
                     no_check = True
                 # add sensor data
                 if no_check == False:
-                    sensor_keys = ('Voltage')
+                    sensor_keys = {'Voltage'}
                     if set(sensor_keys).issubset(sensor_dict):
                         volt = sensor_dict['Voltage'][0]
                         self.voltage = volt   
                         turtle_msg.voltage = [self.voltage]   
-                        self.voltage_pub.publish(turtle_msg)
+                        # self.voltage_pub.publish(turtle_msg)
 
 
 
@@ -198,18 +207,20 @@ def main(args=None):
     print("it has been made")
     try: 
         while rclpy.ok():
-            print("hi")
             rclpy.spin_once(sensors_node)
-            print(sensors_node.mode)
             if sensors_node.mode == 'stop':
                 print("ending entire program...")
-                sensors_node.read_voltage()
+                # sensors_node.read_voltage()
+                cmd_msg = String()
+                cmd_msg.data = "stop_received"
+                sensors_node.cmd_received_pub.publish(cmd_msg)
+                break
                 print("stop received but still in rest mode....")
             elif sensors_node.mode == 'rest':
                 sensors_node.read_voltage()
                 print("rest mode....")
                 print(f"current voltage: {sensors_node.voltage}\n")
-            elif sensors_node.mode == 'traj_input':
+            elif sensors_node.mode == 'teacher':
                 print("starting sensor recording")
                 while 1:
                     rclpy.spin_once(sensors_node)
