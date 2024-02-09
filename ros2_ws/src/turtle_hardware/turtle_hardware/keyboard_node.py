@@ -181,10 +181,10 @@ def main(args=None):
             if key_input == chr(TKEY_ASCII_VALUE):
                 print("Sending STRAIGHT trajectory\n")
                 # STRAIGHT
-                qd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/straight/qd.mat', 'qd')
-                dqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/straight/dqd.mat', 'dqd')
-                ddqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/straight/ddqd.mat', 'ddqd')
-                tvec = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/straight/tvec.mat', 'tvec')
+                qd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/straight/qd.mat', 'qd')
+                dqd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/straight/dqd.mat', 'dqd')
+                ddqd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/straight/ddqd.mat', 'ddqd')
+                tvec = mat2np('/home/zach/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/straight/tvec.mat', 'tvec')
 
                 # print(f"tvec mat shape: {tvec.shape}\n")
                 traj.qd = np2msg(qd_mat)
@@ -259,10 +259,10 @@ def main(args=None):
         elif key_input == chr(UKEY_ASCII_VALUE):
             # TURNRR
             print("Sending SURFACE trajectory\n")
-            qd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/surface/qd.mat', 'qd')
-            dqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/surface/dqd.mat', 'dqd')
-            ddqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/surface/ddqd.mat', 'ddqd')
-            tvec = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/surface/tvec.mat', 'tvec')
+            qd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/surface/qd.mat', 'qd')
+            dqd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/surface/dqd.mat', 'dqd')
+            ddqd_mat = mat2np('/home/zach/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/surface/ddqd.mat', 'ddqd')
+            tvec = mat2np('/home/zach/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/surface/tvec.mat', 'tvec')
 
             # print(f"tvec mat shape: {tvec.shape}\n")
             traj.qd = np2msg(qd_mat)
