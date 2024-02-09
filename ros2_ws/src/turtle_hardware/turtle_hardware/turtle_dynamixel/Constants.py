@@ -68,6 +68,6 @@ max_joint_theta = 4.27
 
 # min and max are in mA because Dynamixel takes in mA inputs for current control
 max_torque = 75
-xw_max_torque = 2500 #4500
+xw_max_torque = 2000 #4500
 min_torque = 5
 xw_min_torque = 2

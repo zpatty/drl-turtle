@@ -413,8 +413,8 @@ def main(args=None):
                 Joints.disable_torque()
                 Joints.set_current_cntrl_mode()
                 Joints.enable_torque()
-                Kp = np.diag([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])*2
-                KD = 0.5
+                Kp = np.diag([0.5, 0.1, 0.05, 0.5, 0.1, 0.05, 0.05, 0.05, 0.0, 0.0])*3.5
+                KD = 0.35
                 t_begin = time.time()
                 # zero =  np.zeros((self.nq,1))
                 t_old = time.time()
