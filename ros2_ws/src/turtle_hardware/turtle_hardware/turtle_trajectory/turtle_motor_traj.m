@@ -6,8 +6,8 @@ clear
 % the cycle trajectory (i.e 2nd and last element) must be the same
 % up = 210;
 % down = 150;
-up = 240;
-down = 110;
+up = 210;
+down = 90;
 % up = 150;
 % down = 90;
 straight = [230 150 230];
@@ -25,12 +25,12 @@ shoulder6 = [180 120 220 120];
 % back fins 
 rear_yaw = 180;
 rear_pitch = 180;
-shoulder7 = [180 rear_pitch rear_pitch rear_pitch];
-shoulder8 = [180 rear_yaw rear_yaw rear_yaw];
+shoulder7 = [180 170 120 180];
+shoulder8 = [180 200 270 180];
 shoulder9 = 180 + (180 - shoulder8);
 shoulder10 = 180 + (180 - shoulder7);
 % time points for a single cycle
-timePoints = [0 2 3 4];
+timePoints = [0 2 2.5 3.5];
 tshift = timePoints(2:end) + timePoints(2:end);
 timePoints_cycle = [timePoints, tshift(2:end)];
 
@@ -45,10 +45,10 @@ tvec = 0:0.01:timePoints(end);
 qd = qd(:, 1:length(tvec));
 dqd = dqd(:, 1:length(tvec));   
 ddqd = ddqd(:, 1:length(tvec));
-% save('straight/qd.mat','qd');
-% save('straight/dqd.mat','dqd');
-% save('straight/ddqd.mat','ddqd');
-% save('straight/tvec.mat','tvec');
+save('straight/qd.mat','qd');
+save('straight/dqd.mat','dqd');
+save('straight/ddqd.mat','ddqd');
+save('straight/tvec.mat','tvec');
 
 %% Turn with front flippers
 up = 240;
@@ -142,11 +142,11 @@ save('tvec_dive.mat','tvec');
 up = 200;
 down = 90;
 straight = [260 260 260 260];
-surface = [230 240 170 230];
+surface = [230 240 180 230];
 % surface = [180 180 180];
 turn = 30;
 turn = 0;
-fin = [180 180 230 180];
+fin = [180 180 220 180];
 % front fins
 shoulder1 = [180 up down up up];
 shoulder2 = [180 surface];
@@ -163,7 +163,7 @@ shoulder8 = [180 rear_yaw rear_yaw rear_yaw rear_yaw];
 shoulder9 = 180 + (180 - shoulder8);
 shoulder10 = 180 + (180 - shoulder7);
 % time points for a single cycle
-timePoints = [0 2 2.67 4 4.5];
+timePoints = [0 2 2.67 4 4.2];
 % tshift = timePoints(2:end) + timePoints(2:end);
 tshift = timePoints(3:end) - timePoints(2:end-1);
 timePoints_cycle = [timePoints, timePoints(end) + cumsum(tshift)];
