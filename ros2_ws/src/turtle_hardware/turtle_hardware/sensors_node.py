@@ -34,17 +34,17 @@ class TurtleSensorsPublisher(Node):
         self.t_0 = 0
         self.n_axis = 3
         self.sensor_msg = TurtleSensors()
-        self.sensor_mode = 'rest'
+        self.mode = 'rest'
         # subscribes to keyboard setting different turtle modes 
         self.mode_cmd_sub = self.create_subscription(
             String,
             topic,
             self.sensor_mode_callback,
             10)
-        self.sensors_publisher = self.create_publisher(TurtleSensors, topic, 10)
+        self.sensors_pub = self.create_publisher(TurtleSensors, 'turtle_sensors', 10)
         self.xiao = serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
         self.xiao.reset_input_buffer()
-
+        self.create_rate(50)
         self.acc_data = np.zeros((self.n_axis,1))
         self.gyr_data = np.zeros((self.n_axis,1))
         self.quat_data = np.zeros((4,1))
@@ -89,6 +89,7 @@ class TurtleSensorsPublisher(Node):
 
 
     def handle_sensors(self):
+        no_check = False
         # msg.header.stamp = self.get_clock().now().to_msg()
         sensors = self.xiao.readline()
         # sensors = xiao.readline().decode('utf-8').rstrip()
@@ -114,15 +115,92 @@ class TurtleSensorsPublisher(Node):
                         self.quat_data = np.append(self.quat_data, quat, axis=1)
                         self.voltage_data = np.append(self.voltage_data, volt)
                         self.voltage = volt    
+    
+    def publish_turtle_data(self):
+        turtle_msg = TurtleSensors()
+        
+        # # extract and flatten numpy arrays
+        # print("quat")
+        quat_x = self.quat_data[0, :]
+        quat_y = self.quat_data[1, :]
+        quat_z = self.quat_data[2, :]
+        quat_w = self.quat_data[3, :]
+
+        # print("acc")
+        acc_x = self.acc_data[0, :]
+        acc_y = self.acc_data[1, :]
+        acc_z = self.acc_data[2, :]
+
+        # print("gyr")
+        gyr_x = self.gyr_data[0, :]
+        gyr_y = self.gyr_data[1, :]
+        gyr_z = self.gyr_data[2, :]
+
+        # print("wuat msg")
+        # # quaternion 
+        # print(f"quat x: {quat_x}\n")
+        quatx = quat_x.tolist()
+        # print(f"quat x: {quatx}\n")
+        # print(f"element type: {type(quatx[0])}")
+        turtle_msg.imu.quat_x = quat_x.tolist()
+        turtle_msg.imu.quat_y = quat_y.tolist()
+        turtle_msg.imu.quat_z = quat_z.tolist()
+        turtle_msg.imu.quat_w = quat_w.tolist()
+        # print("gyr msg")
+        # # angular velocity
+        turtle_msg.imu.gyr_x = gyr_x.tolist()
+        turtle_msg.imu.gyr_y = gyr_y.tolist()
+        turtle_msg.imu.gyr_z = gyr_z.tolist()
+        # print("acc msg")
+        # # linear acceleration
+        turtle_msg.imu.acc_x = acc_x.tolist()
+        turtle_msg.imu.acc_y = acc_y.tolist()
+        turtle_msg.imu.acc_z = acc_z.tolist()
+        
+        # print("volt msg")
+        # # voltage
+        volt_data = self.voltage_data.tolist()
+        # print(f"voltage data: {volt_data}")
+        turtle_msg.voltage = volt_data  
+
+        # timestamps and t_0
+        # turtle_msg.timestamps = timestamps.tolist()
+        # turtle_msg.t_0 = t_0
+
+        # motor positions, desired positions and tau data
+        # turtle_msg.q = self.np2msg(q_data) 
+        # turtle_msg.dq = self.np2msg(dq_data)
+        # TODO: report dq?
+        # qd_squeezed = self.np2msg(self.qds)
+        # print(f"checking type: {type(qd_squeezed)}")
+        # for i in qd_squeezed:
+        #     print(f"check element type: {type(i)}")
+        # turtle_msg.qd = qd_squeezed
+        # turtle_msg.tau = self.np2msg(tau_data)
+
+        # publish msg 
+        self.sensors_pub.publish(turtle_msg)
+
+        # reset the sensor variables for next trajectory recording
+        # self.qds = np.zeros((10,1))
+        # self.dqds = np.zeros((10,1))
+        # self.ddqds = np.zeros((10,1))
+        # self.tvec = np.zeros((1,1))
+        self.acc_data = np.zeros((self.n_axis,1))
+        self.gyr_data = np.zeros((self.n_axis,1))
+        self.mag_data = np.zeros((self.n_axis,1))
+        self.voltage_data = np.zeros((1,1))
 
 def main(args=None):
     rclpy.init(args=args)
-    sensors_node = TurtleSensorsPublisher('turtle_sensors')
-
+    print("init sensors node")
+    sensors_node = TurtleSensorsPublisher('turtle_mode_cmd')
+    print("it has been made")
     try: 
         while rclpy.ok():
+            print("hi")
             rclpy.spin_once(sensors_node)
-
+            print(sensors_node.mode)
             if sensors_node.mode == 'stop':
                 print("ending entire program...")
                 sensors_node.read_voltage()
@@ -150,9 +228,6 @@ def main(args=None):
         print(e)
         
 
-
-        
-    
     rclpy.shutdown()
 
 if __name__ == '__main__':
