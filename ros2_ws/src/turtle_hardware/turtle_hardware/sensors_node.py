@@ -5,6 +5,7 @@ from rcl_interfaces.msg import ParameterDescriptor, ParameterType
 from std_msgs.msg import String
 from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleMotorPos
 import numpy as np
+import time
 import json
 import sys
 import os
@@ -48,8 +49,9 @@ class TurtleSensorsPublisher(Node):
             10
         )
         self.xiao = serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
+        # time.sleep(2)
         self.xiao.reset_input_buffer()
-        self.create_rate(50)
+        self.create_rate(100)
         self.acc_data = np.zeros((self.n_axis,1))
         self.gyr_data = np.zeros((self.n_axis,1))
         self.quat_data = np.zeros((4,1))
@@ -98,32 +100,50 @@ class TurtleSensorsPublisher(Node):
 
 
     def handle_sensors(self):
+        def add_place_holder():
+            acc = np.array([-100.0, -100.0, -100.0]).reshape((3,1))
+            gyr = np.array([-100.0, -100.0, -100.0]).reshape((3,1))
+            quat = np.array([-100.0, -100.0, -100.0, -100.0]).reshape((4,1))
+            volt = -1
+            self.acc_data = np.append(self.acc_data, acc, axis=1)
+            self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
+            self.quat_data = np.append(self.quat_data, quat, axis=1)
+            self.voltage_data = np.append(self.voltage_data, volt)
+        
         no_check = False
         # msg.header.stamp = self.get_clock().now().to_msg()
+        self.xiao.reset_input_buffer()
         sensors = self.xiao.readline()
+        
         # sensors = xiao.readline().decode('utf-8').rstrip()
-        # print(f"raw: {sensors}\n")
-        # # print(f"raw first character: {sensors[0]}")
-        if len(sensors) != 0:
-        # this ensures the right json string format
-            if sensors[0] == 32 and sensors[-1] == 10:
-                try:
-                    sensor_dict = json.loads(sensors.decode('utf-8'))
-                except:
-                    no_check = True
-                # add sensor data
-                if no_check == False:
-                    sensor_keys = ('Acc', 'Gyr', 'Quat', 'Voltage')
-                    if set(sensor_keys).issubset(sensor_dict):
-                        acc = np.array(sensor_dict['Acc']).reshape((3,1))
-                        gyr = np.array(sensor_dict['Gyr']).reshape((3,1))
-                        quat = np.array(sensor_dict['Quat']).reshape((4,1))
-                        volt = sensor_dict['Voltage'][0]
-                        self.acc_data = np.append(self.acc_data, acc, axis=1)
-                        self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
-                        self.quat_data = np.append(self.quat_data, quat, axis=1)
-                        self.voltage_data = np.append(self.voltage_data, volt)
-                        self.voltage = volt    
+        print(f"raw: {sensors}\n")
+        # # # print(f"raw first character: {sensors[0]}")
+        # if len(sensors) != 0:
+        # # this ensures the right json string format
+        #     if sensors[0] == 32 and sensors[-1] == 10:
+        #         try:
+        #             sensor_dict = json.loads(sensors.decode('utf-8'))
+        #         except:
+        #             no_check = True
+        #         # add sensor data
+        #         if no_check == False:
+        #             sensor_keys = ('Acc', 'Gyr', 'Quat', 'Voltage')
+        #             if set(sensor_keys).issubset(sensor_dict):
+        #                 acc = np.array(sensor_dict['Acc']).reshape((3,1))
+        #                 gyr = np.array(sensor_dict['Gyr']).reshape((3,1))
+        #                 quat = np.array(sensor_dict['Quat']).reshape((4,1))
+        #                 volt = sensor_dict['Voltage'][0]
+        #                 self.acc_data = np.append(self.acc_data, acc, axis=1)
+        #                 self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
+        #                 self.quat_data = np.append(self.quat_data, quat, axis=1)
+        #                 self.voltage_data = np.append(self.voltage_data, volt)
+        #                 self.voltage = volt    
+        #             else:
+        #                 add_place_holder()
+        #     else:
+        #         add_place_holder()
+        # else:
+        #     add_place_holder()
     
     def publish_turtle_data(self):
         turtle_msg = TurtleSensors()
@@ -238,7 +258,7 @@ def main(args=None):
         print(exec_type, fname, tb.tb_lineno)
         print(e)
         
-
+    sensors_node.xiao.close()
     rclpy.shutdown()
 
 if __name__ == '__main__':
