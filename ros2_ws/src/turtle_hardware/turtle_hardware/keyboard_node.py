@@ -130,18 +130,18 @@ def turtle_data_callback(msg):
     n = len(msg.timestamps)
     q_data = np.array(msg.q).reshape(10, n)
     dq_data = np.array(msg.dq).reshape(10, n)
-    tau_data = np.array(msg.tau).reshape(10, n)
-    len_qd = len(list(traj.tvec))
-    qd_data = np.array(msg.qd).reshape(10, len_qd)
-    dqd_data = np.array(msg.qd).reshape(10, len_qd)
     timestamps = np.array(msg.timestamps).reshape(1, n)
-
-    save_data(acc_data=acc_data, gyr_data=gyr_data,quat_data=quat_data, 
-              voltage_data=voltage_data, q_data=q_data, dq_data=dq_data, qd_data=qd_data,
-                 tau_data=tau_data, t_0=t_0, timestamps=timestamps)
-    # save_data(q_data=qwe_data, qd_data=qd_data,
-    #              tau_data=tau_data, t_0=t_0, timestamps=timestamps)
-    
+    if len(msg.tau) > 10:
+        tau_data = np.array(msg.tau).reshape(10, n)
+        len_qd = len(list(traj.tvec))
+        qd_data = np.array(msg.qd).reshape(10, len_qd)
+        dqd_data = np.array(msg.qd).reshape(10, len_qd)
+        save_data(acc_data=acc_data, gyr_data=gyr_data,quat_data=quat_data, 
+                voltage_data=voltage_data, q_data=q_data, dq_data=dq_data, qd_data=qd_data,
+                    tau_data=tau_data, t_0=t_0, timestamps=timestamps)
+    else: 
+        save_data(acc_data=acc_data, gyr_data=gyr_data,quat_data=quat_data, 
+                  voltage_data=voltage_data, q_data=q_data, dq_data=dq_data, timestamps=timestamps)
     print("Data saved to folder!")
 
 # tau_data=np.append(tau_data, tau_, axis=1) 
@@ -317,6 +317,9 @@ def main(args=None):
             traj.tvec = tvec.tolist()[0]
             print("sent trajectories...")
             traj_pub.publish(traj)
+        elif key_input == chr(IKEY_ASCII_VALUE):
+            msg.data='teacher'
+            tomotors.publish(msg)
         else:
             print("Wrong input received")
 
