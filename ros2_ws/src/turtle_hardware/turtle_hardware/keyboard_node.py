@@ -142,7 +142,7 @@ def turtle_data_callback(msg):
                   voltage_data=voltage_data, q_data=q_data, dq_data=dq_data, timestamps=timestamps)
     print("Data saved to folder!")
 
-directions = {'s': 'straight', 
+primitives = {'s': 'straight', 
               'd': 'dive', 
               'b': 'turnrf', 
               'c': 'turnrr',
@@ -182,16 +182,16 @@ def main(args=None):
             node.get_logger().info(log)
             break           
             
-        elif key_input in directions:
+        elif key_input in primitives:
             """
             One of the motion primitive trajectories will be sent 
             """
-            direction = directions[key_input]
-            print(f"Sent {direction} trajectory")
-            qd_mat = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{direction}/qd.mat', 'qd')
-            dqd_mat = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{direction}/dqd.mat', 'dqd')
-            ddqd_mat = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{direction}/ddqd.mat', 'ddqd')
-            tvec = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{direction}/tvec.mat', 'tvec')
+            primitive = primitives[key_input]
+            print(f"Sent {primitive} trajectory")
+            qd_mat = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
+            dqd_mat = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
+            ddqd_mat = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
+            tvec = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
 
             # print(f"tvec mat shape: {tvec.shape}\n")
             traj.qd = np2msg(qd_mat)
