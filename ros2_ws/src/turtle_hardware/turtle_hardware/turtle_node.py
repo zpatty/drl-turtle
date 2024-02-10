@@ -135,8 +135,8 @@ class TurtleRobot(Node):
         # global mode
         if msg.data == 'traj1':
             self.mode = 'traj1'
-        elif msg.data == 'traj2':
-            self.mode = 'traj2'
+        elif msg.data == 'group':
+            self.mode = 'group'
         elif msg.data == 'stop':
             self.mode = 'stop'
         elif msg.data == 'teacher':
@@ -348,7 +348,7 @@ def main(args=None):
             rclpy.spin_once(turtle_node)
             
             if turtle_node.mode == 'position_control_mode':
-                # Load desired trajectories from MATLAB
+                # Load desired position trajectories from MATLAB
                 print("POSITION CONTROL")
                 Joints.disable_torque()
                 Joints.set_extended_pos_mode()
@@ -376,8 +376,10 @@ def main(args=None):
                         
                         Joints.send_pos_cmd(np.squeeze(to_motor_steps(qd)))
                         Joints.send_backfins_torque()
-            elif turtle_node.mode == 'traj2':
-                print("traj2 yall")
+            elif turtle_node.mode == 'group':
+                # group of motion primitives will run 
+                # TODO: save list of motion primitives onto turtle robot for now
+
                 break
             elif turtle_node.mode == 'stop':
                 print("ending entire program...")
@@ -509,35 +511,14 @@ def main(args=None):
                     read_sensors(xiao=xiao, turtle_node=turtle_node)
                 Joints.disable_torque()
             elif turtle_node.mode == 'teacher':
-                # NOTE: each trajectory starts with a two second offset period for turtle to properly 
-                # get to the first desired q state (TODO: maybe set it to 1 second offset?)
-
-                # Load desired trajectories from motors node
-                print("traj input")
-                qd_mat = turtle_node.qds
-                dqd_mat = turtle_node.dqds
-                ddqd_mat = turtle_node.ddqds
-                tvec = turtle_node.tvec     
-                # print(f"qd mat: {qd_mat.shape}\n")
-                # print(f"qd mat first elemetn: {qd_mat[:, 1]}\n")
-                print(f"full thing is: {tvec.shape}\n")
-                print(f"shape qd_mat: {qd_mat.shape}\n")
-                # print(f"shape of tvec: {tvec.sh}")
-                first_time = True
-                first_loop = True
-                input_history = np.zeros((nq,10))
                 q_data = np.zeros((nq,1))
                 dq_data = np.zeros((nq,1))
                 tau_data = np.zeros((nq,1))
                 timestamps = np.zeros((1,1))
-                print(f"[MODE] TRAJECTORY\n")
                 Joints.disable_torque()
                 Joints.set_current_cntrl_mode()
                 Joints.enable_torque()
-                Kp = np.diag([0.5, 0.1, 0.05, 0.5, 0.1, 0.05, 0.1, 0.1, 0.0, 0.0])*3.5
-                KD = 0.35
                 t_begin = time.time()
-                # zero =  np.zeros((self.nq,1))
                 t_old = time.time()
                 # our loop's "starting" time
                 t_0 = time.time()
@@ -558,28 +539,7 @@ def main(args=None):
                         first_time = True
                         break
                     q = np.array(Joints.get_position()).reshape(-1,1)
-                    # q = np.insert(q, 7, place_holder).reshape((10,1))
-
-                    if first_loop:
-                        n = get_qindex((time.time() - t_0), tvec)
-                    else:
-                        # print("done with first loop")
-                        offset = t_0 - 2
-                        n = get_qindex((time.time() - offset), tvec)
-
-                    # print(f"n: {n}\n")
-                    if n == len(tvec[0]) - 1:
-                        # print(f"time: {(time.time() - offset)}\n")
-                        first_loop = False
-                        t_0 = time.time()
-                    
-                    qd = np.array(qd_mat[:, n]).reshape(-1,1)
-                    dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
-                    ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
-                    # # print(f"[DEBUG] qdata: {q_data}\n")
-                    # print(f"[DEBUG] qd: {qd}\n")
                     q_data=np.append(q_data, q, axis = 1) 
-                    # # At the first iteration velocity is 0  
                     
                     if first_time:
                         dq = np.zeros((nq,1))
@@ -589,32 +549,18 @@ def main(args=None):
                     else:
                         t = time.time()
                         dt = t - t_old
-                    #     # print(f"[DEBUG] dt: {dt}\n")  
                         t_old = t
                         dq = diff(q, q_old, dt)
                         dq_data=np.append(dq_data, dq, axis = 1) 
                         q_old = q
                     timestamps = np.append(timestamps, (time.time()-t_begin)) 
-                    # tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
-                    # tau_data=np.append(tau_data, tau, axis=1) 
-                    
-                    # input_history = np.append(input_history[:,1:], tau,axis=1)
-
-                    # input_mean = np.mean(input_history, axis = 1)
-
-                    # inputt = grab_arm_current(input_mean, min_torque, max_torque)
-                    # del inputt[7]
-                    # print(f"[DEBUG] inputt: {inputt}\n")
-                    # print(f"voltage: {turtle_node.voltage}\n")
-                    # inputt = [0]*10
-                    # Joints.send_torque_cmd(inputt)
                     read_sensors(xiao=xiao, turtle_node=turtle_node)
                 Joints.disable_torque()
                 
             else:
                 print("wrong command received....")
     except Exception as e:
-        print("some error occurred")
+        print("some error occurred ¯\_(ツ)_/¯")
         Joints.send_torque_cmd([0] * len(IDs))
         Joints.disable_torque()
         exec_type, obj, tb = sys.exc_info()
