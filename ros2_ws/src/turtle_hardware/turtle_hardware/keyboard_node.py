@@ -167,7 +167,7 @@ def main(args=None):
     msg = String()
     traj = TurtleTraj()
     while rclpy.ok():
-        print("\nS: Straight, W: Dive, B: TurnRF, C: TurnRR, R: Rest U: SURFACE, D: Custom Traj(or press SPACE to STOP!)")
+        print("\nS: Straight, D: Dive, B: TurnRF, C: TurnRR, R: Rest U: SURFACE, W: Custom Traj, T: Teaching mode(or press SPACE to STOP!)")
         key_input = getch()
         if key_input == chr(SPACE_ASCII_VALUE):
             stop_received = False
@@ -216,7 +216,7 @@ def main(args=None):
             log = "Rest command was sucessfully sent!"
             node.get_logger().info(log)
             
-        elif key_input == chr(DKEY_ASCII_VALUE):
+        elif key_input == chr(WKEY_ASCII_VALUE):
             """
             Sends turtle robot a custom trajectory
             """
@@ -232,7 +232,7 @@ def main(args=None):
             # print(f"t vec list: {tvec.tolist()}")
             traj.tvec = tvec.tolist()[0]
 
-            print("sent trajectories...")
+            print("sent custom trajectory...")
             traj_pub.publish(traj)
         
         elif key_input == chr(PKEY_ASCII_VALUE):
@@ -248,14 +248,15 @@ def main(args=None):
             traj.ddqd = []
             # print(f"t vec list: {tvec.tolist()}")
             traj.tvec = tvec.tolist()[0]
-            print("sent trajectories...")
+            print("sent position trajectory...")
             traj_pub.publish(traj)
-        elif key_input == chr(IKEY_ASCII_VALUE):
+        elif key_input == chr(TKEY_ASCII_VALUE):
             """
             Sets the turtle robot into teaching mode such that user can record flipper demonstrations
             """
             msg.data='teacher'
             tomotors.publish(msg)
+            print("Teaching mode....")
         else:
             print("Wrong input received")
 
