@@ -220,10 +220,10 @@ def main(args=None):
             """
             Sends turtle robot a custom trajectory
             """
-            qd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/qd.mat', 'qd')
-            dqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/dqd.mat', 'dqd')
-            ddqd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/ddqd.mat', 'ddqd')
-            tvec = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/tvec.mat', 'tvec')
+            qd_mat = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/qd.mat', 'qd')
+            dqd_mat = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/dqd.mat', 'dqd')
+            ddqd_mat = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/ddqd.mat', 'ddqd')
+            tvec = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/tvec.mat', 'tvec')
 
             # print(f"tvec mat shape: {tvec.shape}\n")
             traj.qd = np2msg(qd_mat)
