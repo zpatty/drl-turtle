@@ -163,7 +163,7 @@ def main(args=None):
     traj_pub = node.create_publisher(TurtleTraj, 'turtle_traj', 10)
     turtle_sub = node.create_subscription(TurtleSensors, 'turtle_sensors', turtle_data_callback, 10)
     turtle_cmd_received = node.create_subscription(String, 'turtle_state', turtle_state_callback, 10)
-    rate = node.create_rate(50)
+    rate = node.create_rate(100)
     msg = String()
     traj = TurtleTraj()
     while rclpy.ok():
@@ -239,8 +239,8 @@ def main(args=None):
             """
             Sets the turtle robot into position control for crawling
             """
-            qd_mat = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/qd_p.mat', 'qd')
-            tvec = mat2np('/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/tvec_p.mat', 'tvec')
+            qd_mat = mat2np(home_dir + f'drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/qd_p.mat', 'qd')
+            tvec = mat2np(home_dir + f'drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/tvec_p.mat', 'tvec')
 
             # print(f"tvec mat shape: {tvec.shape}\n")
             traj.qd = np2msg(qd_mat)
