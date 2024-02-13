@@ -9,6 +9,7 @@ from pgpelib.restore import to_torch_module
 from gymnasium.wrappers import RecordEpisodeStatistics, RecordVideo
 
 ENV_NAME = 'HalfCheetah-v4'
+AGENT = 'cheetah-agent'
 
 def load_params():
     best_params = torch.load('best_params.pth')
@@ -29,7 +30,7 @@ def test(policy, best_params):
     env = gym.make(ENV_NAME, render_mode="rgb_array")
 
     # set recording thing
-    env = RecordVideo(env, video_folder="cheetah-agent", name_prefix="eval",
+    env = RecordVideo(env, video_folder=AGENT, name_prefix="eval",
                   episode_trigger=lambda x: True)
 
     # load parameters of final solution into the policy
@@ -85,7 +86,7 @@ def test(policy, best_params):
         if done:
             print("DONE")
             break
-    env.close()
+    # env.close()
     
     return cumulative_reward
 
