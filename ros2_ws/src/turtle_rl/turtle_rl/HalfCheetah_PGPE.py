@@ -1,6 +1,16 @@
+import os
+import torch
+import time
+import scipy
+from torch import nn
+from copy import copy, deepcopy
+import numpy as np
+from typing import Optional, Union, Iterable, List, Dict, Tuple, Any
+from numbers import Real, Integral
 from pgpelib import PGPE
 from pgpelib.policies import LinearPolicy, MLPPolicy
 from pgpelib.restore import to_torch_module
+
 
 import numpy as np
 import pickle
@@ -8,11 +18,14 @@ import torch
 
 import gymnasium as gym
 
+ParamVector = Union[List[Real], np.ndarray]
+Action = Union[List[Real], np.ndarray, Integral]
 # from gym.version import VERSION
 # print(f"VERSION: {VERSION}")
 
 ENV_NAME = 'HalfCheetah-v4'
-
+PARAM_FILE = 'best_params.pth'
+POLICY_FILE = 'policy.pkl'
 
 def set_random_seed(seed):
     np.random.seed(seed)
@@ -21,22 +34,180 @@ def set_random_seed(seed):
 seed = 0
 set_random_seed(seed=seed)
 
-def load_params():
-    best_params = torch.load('best_params.pth')
+def load_params(fname):
+    best_params = torch.load(fname)
     return best_params
 
-def save_policy(policy):
-    with open('policy.pkl', 'wb') as f:
+def save_policy(policy, fname):
+    with open(fname, 'wb') as f:
         pickle.dump(policy, f)
 
-def load_policy():
-    with open('policy.pkl', 'rb') as f:
+def load_policy(fname):
+    with open(fname, 'rb') as f:
         policy = pickle.load(f)
     return policy
 
-def train():
+def positive_int_or_none(x) -> Union[int, None]:
+    if x is None:
+        return None
+    x = int(x)
+    if x <= 0:
+        x = None
+    return x
 
-    # our policy object (fitness function)
+class DualCPG:
+    """
+    Bo Chen implementation (the dual-neuron model)
+    paper references:
+        : https://arxiv.org/pdf/2307.08178.pdf
+    """
+    def __init__(self, 
+                 num_params=21,
+                 num_mods=10,
+                 alpha=0.3,
+                 omega=0.3,
+                 observation_normalization=True,
+                 seed=0.0):
+        # self._observation_space, self._action_space = (
+        #     get_env_spaces(self._env_name, self._env_config)
+        # )
+
+        self._seed = seed       # seed to replicate 
+        self.alpha = alpha      # mutual inhibition weight
+        self.omega = omega      # inter-module connection weight of the neuron
+        self.num_mods = num_mods                # number of CPG modules
+        self.y = np.zeros((num_mods, 2))        # holds the output ith CPG mod (2 neurons per cpg mod)
+        self.params = np.zeros((num_params,1))  # holds the params of the CPG [tau, B, E] = [freq, phase, amplitude]
+        self.U = np.zeros((num_mods, 2))        # the U state of the CPG
+        self.V = np.zeros((num_mods, 2))        # the V state of the CPG
+    def set_parameters(self, params):
+        """
+        # TODO: for some reason BoChen only learns B2-->Bn 
+        # it isn't clear in paper how they learn/or choose B1
+        Updates parameters of the CPG oscillators.
+        We currently have the structure to be a 20x1 vector like so:
+        = tau: frequency for all oscillators
+        = B1 : phase offset for CPG mod 2
+        = ...        = ...
+
+        = Bn: phase offset for CPG mod n
+        = E1 : amplitude for CPG mod 1
+        = ...
+        = En: amplitude for CPG mod n
+        """
+        self.params = params
+    def get_action(self, dt):
+        """
+        Return action based off of observation and current CPG params
+        
+        """
+        num_neurons = 2
+        def ode_to_solve(state, tau, E, B, alpha, omega, y_other_neuron, y_prev_mod):
+            U, V= state
+            y = max(0, U)
+            dUdt = (E - B * V - alpha * y_other_neuron + omega * y_prev_mod - U)/tau
+            dVdt = (y - V)/tau
+            return [dUdt, dVdt]
+        # calculate y_out, which in this case we are using as the tau we pass into the turtle
+        action = np.zeros((self.num_mods))
+        tau = self.params[0]
+        Es = self.params[1:self.num_mods + 1]
+        Bs = self.params[self.num_mods + 1:]
+        for i in range(self.num_mods):
+            E = Es[i]
+            B = Bs[i]
+            for j in range(num_neurons):
+                if i != 0: 
+                    y_prev_mod = self.y[i-1, j]
+                else:
+                    y_prev_mod = 0
+                y_other_neuron = self.y[i, 1-j]
+                state = [self.U[i,j], self.V[i,j]]
+
+                t_0 = 0.0
+                t = 0.1
+                t_points = [0,dt]
+
+                solution = scipy.integrate.solve_ivp(
+                    fun = lambda t, y: ode_to_solve(state, tau, E, B, self.alpha, self.omega, y_other_neuron, y_prev_mod),
+                    t_span=[t_0, t], 
+                    y0=state,
+                    method='RK45',
+                    t_eval = t_points
+                )
+
+                U = solution.y[0, 1]
+                V = solution.y[1, 1]
+                self.y[i, j] = max(0, U)
+            y_out = self.y[i, 0] - self.y[i, 1]
+            action[i] = y_out
+
+        # print(f"action: {action}")
+        return action
+    def run(self, 
+            env,
+            max_episode_length=2.0):
+        """Run an episode.
+
+        Args:
+            env: The env object we need to run a step
+            max_episode_length: The maximum time window we will allow for
+                interactions within a single episode (i.e 2 seconds, 3 seconds, etc.)
+                Default is 2 seconds because a typical turtle gait lasts for about that long.
+        Returns:
+            A tuple (cumulative_reward, total_episode_time).
+        """
+
+        # TODO: look into whether you need to normalize the observation or not
+        cumulative_reward = 0.0
+        observation, __ = env.reset()
+        t_start = time.time()
+        t = time.time()
+        first_time = True
+        while True:
+            if first_time:
+                dt = 0.0001
+                first_time = False
+            else:
+                dt = 0.0001
+                # print(dt)
+            action = self.get_action(dt)
+            observation, reward, terminated, truncated, info = env.step(action)
+            done = truncated or terminated
+            time_elapsed = time.time() - t_start
+            cumulative_reward += reward
+            t = time.time()
+            if max_episode_length is not None and time_elapsed > max_episode_length:
+                break
+            if done:
+                break
+
+        return cumulative_reward, t
+    def set_params_and_run(self,
+                           env,
+                           policy_parameters: ParamVector,
+                           max_episode_length=2.0,
+                           ):
+        """Set the the parameters of the policy by copying them
+        from the given parameter vector, then run an episode.
+
+        Args:
+            policy_parameters: The policy parameters to be used.
+            decrease_rewards_by: The reward at each timestep will be
+                decreased by this given amount.
+            max_episode_length: The maximum number of interactions
+                allowed in an episode.
+        Returns:
+            A tuple (cumulative_reward, t (len of episode in seconds)).
+        """
+        self.set_parameters(policy_parameters)
+        cumulative_reward, t = self.run(env,
+            max_episode_length=max_episode_length
+        )
+        return cumulative_reward, t
+
+def train(num_params=20, num_mods=10, save=False):
+    env = gym.make(ENV_NAME)
     policy = MLPPolicy(
         
         # The name of the environment in which the policy will be tested:
@@ -59,24 +230,27 @@ def train():
         observation_normalization=False
     )
 
-    print(f"policy: {policy}")
-
     # our initial solution (initial parameter vector) for PGPE to start exploring from 
-    x0 = np.zeros(policy.get_parameters_count(), dtype='float32')
+    x0 = np.zeros((num_params))
+    mu = np.zeros((num_params))
+    sigma = 0.08
 
     print(f"initial solution: {x0}")
 
+    cpg = DualCPG(num_params=num_params, num_mods=num_mods)
+
     pgpe = PGPE(
+
         
         # We are looking for solutions whose lengths are equal
         # to the number of parameters required by the policy:
-        solution_length=policy.get_parameters_count(),
+        solution_length=x0.shape[0],
         
         # Population size:
-        popsize=250,
+        popsize=10,
         
         # Initial mean of the search distribution:
-        center_init=x0,
+        center_init=mu,
         
         # Learning rate for when updating the mean of the search distribution:
         center_learning_rate=0.075,
@@ -87,7 +261,7 @@ def train():
         optimizer_config={'max_speed': 0.15},
         
         # Initial standard deviation of the search distribution:
-        stdev_init=0.08,
+        stdev_init=sigma,
         
         # Learning rate for when updating the standard deviation of the
         # search distribution:
@@ -106,20 +280,20 @@ def train():
     print(f"PGPE: {pgpe}")
 
     # Number of iterations
-    num_iterations = 50
-    # num_iterations = 20
+    num_iterations = 20
+    # num_iterations = 10
 
     # The main loop of the evolutionary computation
     for i in range(1, 1 + num_iterations):
 
         # Get the solutions from the pgpe solver
-        solutions = pgpe.ask()
+        solutions = pgpe.ask()          # this is population size
 
         # The list below will keep the fitnesses
         # (i-th element will store the reward accumulated by the
         # i-th solution)
         fitnesses = []
-        
+        # print(f"num of sols: {len(solutions)}")
         for solution in solutions:
             # For each solution, we load the parameters into the
             # policy and then run it in the gym environment,
@@ -128,7 +302,8 @@ def train():
             # reward), and num_interactions (an integer specifying
             # how many interactions with the environment were done
             # using these policy parameters).
-            fitness, num_interactions = policy.set_params_and_run(solution)
+            # print(f"proposed sol: {solution}")
+            fitness, num_interactions = cpg.set_params_and_run(env, solution)
             
             # In the case of this example, we are only interested
             # in our fitness values, so we add it to our fitnesses list.
@@ -146,22 +321,17 @@ def train():
 
     # save the best params
     torch.save(best_params, 'best_params.pth')
-    with open('policy.pkl', 'wb') as f:
-        pickle.dump(policy, f)
+    if save:
+        save_policy(policy=policy, fname=POLICY_FILE)
+        return policy, best_params
+    else:
+        return best_params
 
-    return policy, best_params
-
-def test(policy, best_params):
+def test(best_params):
 
     # instantiate gym environment 
-    env = gym.make(ENV_NAME, render_mode="human", camera_id=1)
-    print("made env")
+    env = gym.make(ENV_NAME, render_mode="human")
     # load parameters of final solution into the policy
-    policy.set_parameters(best_params)
-    print("set params")
-    # convert policy object to a PyTorch module
-    net = to_torch_module(policy)
-    print("made a net")
     # Now we test out final policy
     # Declare the cumulative_reward variable, which will accumulate
     # all the rewards we get from the environment
@@ -169,14 +339,9 @@ def test(policy, best_params):
 
     # Reset the environment, and get the observation of the initial
     # state into a variable.
-    print("attempt reset")
-    print(env.reset())
-    print(f"len of env reset: {len(env.reset())}")
     observation, __ = env.reset()
-    print("reset env")
     # Visualize the initial state
-    # env.render()
-    env._get_viewer('human').render(camera_id=0) 
+    env.render()
 
     # Main loop of the trajectory
     while True:
@@ -184,9 +349,10 @@ def test(policy, best_params):
         # We pass the observation vector through the PyTorch module
         # and get an action vector
         with torch.no_grad():
-            action = net(
-                torch.as_tensor(observation, dtype=torch.float32)
-            ).numpy()
+            # action = net(
+            #     torch.as_tensor(observation, dtype=torch.float32)
+            # ).numpy()
+            action = 0
 
         if isinstance(env.action_space, gym.spaces.Box):
             # If the action space of the environment is Box
@@ -211,21 +377,22 @@ def test(policy, best_params):
         observation, reward, terminated, truncated, info = env.step(interaction)
         done = truncated or terminated
         env.render()
-        # env._get_viewer('human').render(camera_id=0) 
         cumulative_reward += reward
-
+        print("...\n")
         if done:
+            print("DONE")
             break
     
     return cumulative_reward
 
 
 def main(args=None):
-    policy, best_params = train()
+    best_params = train(num_params=13, num_mods=6)
     # best_params = torch.load('best_params.pth')
     # policy = load_policy()
-    reward = test(policy=policy, best_params=best_params)
-    print(f"reward from learned policy: {reward}")
+    # reward = test(policy=policy, best_params=best_params)
+    # reward = test(best_params)
+    # print(f"reward from learned policy: {reward}")
     
 if __name__ == '__main__':
     main()
