@@ -87,15 +87,19 @@ def turtle_state_callback(msg):
     else:
         print("NOPE")
 
-def save_data(acc_data=np.array([1,2,3]), gyr_data=np.array([1,2,3]), quat_data=np.array([1,2,3]), voltage_data=np.array([1,2,3]), q_data=np.array([1,2,3]), qd_data=np.array([1,2,3]), dq_data=np.array([1,2,3]), tau_data=np.array([1,2,3]), t_0=0, timestamps=np.array([1,2,3])):
+def save_data(folder="turtle_data/", acc_data=np.array([1,2,3]), gyr_data=np.array([1,2,3]), quat_data=np.array([1,2,3]), voltage_data=np.array([1,2,3]), q_data=np.array([1,2,3]), qd_data=np.array([1,2,3]), dq_data=np.array([1,2,3]), ddq_data=np.array([1,2,3]), tau_data=np.array([1,2,3]), t_0=0, timestamps=np.array([1,2,3])):
     """
     Saves data of cyclical trajectory passed into the turtle 
     @param : q_data :  holds both q and dq arrays 
     """
     t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
-    folder_name =  "turtle_data/" + t
+    folder_name =  folder + t
     os.makedirs(folder_name, exist_ok=True)
-    scipy.io.savemat(folder_name + "/data.mat", {'acc_data': acc_data.T,'gyr_data': gyr_data.T,'quat_data': quat_data.T, 'voltage_data': voltage_data.T, 'q_data': q_data.T, 'dq_data': dq_data.T, 'qd_data': qd_data.T, 'tau_data': tau_data.T, 't_0': t_0, 'time_data': timestamps})
+    if folder == "turtle_teacher/":
+        scipy.io.savemat(folder_name + "/data.mat", {'acc_data': acc_data.T,'gyr_data': gyr_data.T,'quat_data': quat_data.T, 'voltage_data': voltage_data.T, 'qd': q_data, 'dqd': dq_data, 'ddqd': ddq_data, 't_0': t_0, 'tvec': timestamps})
+    else:
+        scipy.io.savemat(folder_name + "/data.mat", {'acc_data': acc_data.T,'gyr_data': gyr_data.T,'quat_data': quat_data.T, 'voltage_data': voltage_data.T, 'q_data': q_data.T, 'dq_data': dq_data.T, 'ddq_data': ddq_data.T, 'qd_data': qd_data.T, 'tau_data': tau_data.T, 't_0': t_0, 'time_data': timestamps})
+
 
 def turtle_data_callback(msg):
     """
@@ -138,8 +142,10 @@ def turtle_data_callback(msg):
                 voltage_data=voltage_data, q_data=q_data, dq_data=dq_data, qd_data=qd_data,
                     tau_data=tau_data, t_0=t_0, timestamps=timestamps)
     else: 
-        save_data(acc_data=acc_data, gyr_data=gyr_data,quat_data=quat_data, 
-                  voltage_data=voltage_data, q_data=q_data, dq_data=dq_data, timestamps=timestamps)
+        # we are in teacher mode so grab acceleration data too
+        ddq_data = np.array(msg.ddq).reshape(10,n)
+        save_data(folder="turtle_teacher/", acc_data=acc_data, gyr_data=gyr_data,quat_data=quat_data, 
+                  voltage_data=voltage_data, q_data=q_data, dq_data=dq_data, ddq_data=ddq_data, timestamps=timestamps)
     print("Data saved to folder!")
 
 primitives = {'s': 'straight', 
@@ -152,6 +158,7 @@ def main(args=None):
     home_dir = os.path.expanduser("~")
     def np2msg(mat):
         nq = 10
+        print(f"mat shape 1: {mat.shape}")
         squeezed = np.reshape(mat, (nq * mat.shape[1]))
         return list(squeezed)
     rclpy.init(args=args)
@@ -257,8 +264,28 @@ def main(args=None):
             msg.data='teacher'
             tomotors.publish(msg)
             print("Teaching mode....")
+        elif key_input == chr(NKEY_ASCII_VALUE):
+            """
+            Sends turtle robot a custom trajectory
+            """
+            folder = '02_15_2024_18_09_32'
+            qd_mat = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_teacher/qd.mat', 'qd')
+            dqd_mat = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_teacher/dqd.mat', 'dqd')
+            ddqd_mat = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_teacher/ddqd.mat', 'ddqd')
+            tvec = mat2np(home_dir + f'/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_teacher/tvec.mat', 'tvec')
+
+            # print(f"tvec mat shape: {tvec.shape}\n")
+            traj.qd = np.array(np2msg(qd_mat)).tolist()
+            traj.dqd = np.array(np2msg(dqd_mat)).tolist()
+            traj.ddqd = np.array(np2msg(ddqd_mat)).tolist()
+            # print(f"t vec list: {tvec.tolist()}")
+            traj.tvec = tvec.tolist()[0]
+
+            print("sent custom trajectory...")
+            traj_pub.publish(traj)
         else:
             print("Wrong input received")
+        
 
     rclpy.shutdown()
 
