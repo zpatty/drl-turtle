@@ -113,7 +113,7 @@ class TurtleRobot(Node):
             10
         )
         self.mode_cmd_sub       # prevent unused variable warning
-        self.create_rate(50)
+        self.create_rate(100)
         self.mode = 'rest'      # initialize motors mode to rest state
         self.voltage = 12.0
         self.n_axis = 3
@@ -157,7 +157,18 @@ class TurtleRobot(Node):
             self.dqds = np.array(msg.dqd).reshape(10,n)
             self.ddqds = np.array(msg.ddqd).reshape(10,n)
             self.mode = 'traj_input'
-    
+
+    def teacher_callback(self, msg):
+        """
+        Has the robot turtle follow the teacher trajectory
+        
+        """
+        n = len(msg.tvec)
+        self.qds = np.array(msg.qd).reshape(10,n)
+        self.tvec = np.array(msg.tvec).reshape(1,n)
+        self.dqds = np.array(msg.dqd).reshape(10,n)
+        self.ddqds = np.array(msg.ddqd).reshape(10,n)
+        self.mode = 'teacher_traj_input'
     def np2msg(self, mat):
         """
         flattens nd numpy array into a lst for ros pkg messaging
@@ -166,7 +177,7 @@ class TurtleRobot(Node):
         squeezed = np.reshape(mat, (nq * mat.shape[1]))
         return squeezed.tolist()
     
-    def publish_turtle_data(self, q_data, dq_data, tau_data, timestamps, t_0):
+    def publish_turtle_data(self, q_data, dq_data, tau_data, timestamps, t_0, ddq_data=[]):
         """
         At the end of a trajectory (i.e when we set the turtle into a rest state or stop state), turtle node needs to 
         package all the sensor and motor data collected during that trajectory and publish it to the turtle_sensors node
@@ -226,7 +237,8 @@ class TurtleRobot(Node):
         # motor positions, desired positions and tau data
         turtle_msg.q = self.np2msg(q_data) 
         turtle_msg.dq = self.np2msg(dq_data)
-        # TODO: report dq?
+        if len(ddq_data) > 0:
+            turtle_msg.ddq = self.np2msg(ddq_data)
         qd_squeezed = self.np2msg(self.qds)
         # print(f"checking type: {type(qd_squeezed)}")
         # for i in qd_squeezed:
@@ -388,8 +400,6 @@ def main(args=None):
                 cmd_msg.data = "stop_received"
                 turtle_node.cmd_received_pub.publish(cmd_msg)
                 print("sent stop received msg")
-                # save trajectory data
-                # turtle_node.publish_turtle_data(t_0=t_0, q_data=q_data) 
                 break
             elif turtle_node.mode == 'rest':
                 first_time = True
@@ -400,7 +410,7 @@ def main(args=None):
                     break
                 # print("rest mode....")
                 Joints.send_torque_cmd([0] *len(IDs))
-                # Joints.disable_torque()
+                Joints.disable_torque()
                 cmd_msg = String()
                 cmd_msg.data = 'rest_received'
                 turtle_node.cmd_received_pub.publish(cmd_msg)
@@ -432,7 +442,7 @@ def main(args=None):
                 Joints.disable_torque()
                 Joints.set_current_cntrl_mode()
                 Joints.enable_torque()
-                Kp = np.diag([0.5, 0.1, 0.05, 0.5, 0.1, 0.05, 0.1, 0.1, 0.0, 0.0])*3.5
+                Kp = np.diag([0.5, 0.1, 0.05, 0.6, 0.2, 0.08, 0.07, 0.07, 0.5, 0.2])*4
                 KD = 0.35
                 t_begin = time.time()
                 # zero =  np.zeros((self.nq,1))
@@ -508,9 +518,9 @@ def main(args=None):
                     Joints.send_torque_cmd(inputt)
                     read_sensors(xiao=xiao, turtle_node=turtle_node)
                 Joints.disable_torque()
-            elif turtle_node.mode == 'teacher':
+            elif turtle_node.mode == 'teacher_traj_input':
                 # NOTE: each trajectory starts with a two second offset period for turtle to properly 
-                # get to the first desired q state (TODO: maybe set it to 1 second offset?)
+                # get to the first desired q state 
 
                 # Load desired trajectories from motors node
                 print("traj input")
@@ -520,8 +530,8 @@ def main(args=None):
                 tvec = turtle_node.tvec     
                 # print(f"qd mat: {qd_mat.shape}\n")
                 # print(f"qd mat first elemetn: {qd_mat[:, 1]}\n")
-                print(f"full thing is: {tvec.shape}\n")
-                print(f"shape qd_mat: {qd_mat.shape}\n")
+                # print(f"full thing is: {tvec.shape}\n")
+                # print(f"shape qd_mat: {qd_mat.shape}\n")
                 # print(f"shape of tvec: {tvec.sh}")
                 first_time = True
                 first_loop = True
@@ -530,7 +540,7 @@ def main(args=None):
                 dq_data = np.zeros((nq,1))
                 tau_data = np.zeros((nq,1))
                 timestamps = np.zeros((1,1))
-                print(f"[MODE] TRAJECTORY\n")
+                print(f"[MODE] TEACHER TRAJECTORY\n")
                 Joints.disable_torque()
                 Joints.set_current_cntrl_mode()
                 Joints.enable_torque()
@@ -551,7 +561,7 @@ def main(args=None):
                     rclpy.spin_once(turtle_node)
                     # print("traj 1...")
                     if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
-                        # Joints.send_torque_cmd([0] *len(IDs))
+                        Joints.send_torque_cmd([0] *len(IDs))
                         Joints.disable_torque()
                         print("saving data...")
                         turtle_node.publish_turtle_data(t_0=t_0, q_data=q_data, dq_data=dq_data, tau_data=tau_data, timestamps=timestamps) 
@@ -560,13 +570,13 @@ def main(args=None):
                     q = np.array(Joints.get_position()).reshape(-1,1)
                     # q = np.insert(q, 7, place_holder).reshape((10,1))
 
-                    if first_loop:
-                        n = get_qindex((time.time() - t_0), tvec)
-                    else:
-                        # print("done with first loop")
-                        offset = t_0 - 2
-                        n = get_qindex((time.time() - offset), tvec)
-
+                    # if first_loop:
+                    #     n = get_qindex((time.time() - t_0), tvec)
+                    # else:
+                    #     # print("done with first loop")
+                    #     offset = t_0 - 2
+                    #     n = get_qindex((time.time() - offset), tvec)
+                    n = get_qindex((time.time() - t_0), tvec)
                     # print(f"n: {n}\n")
                     if n == len(tvec[0]) - 1:
                         # print(f"time: {(time.time() - offset)}\n")
@@ -595,19 +605,116 @@ def main(args=None):
                         dq_data=np.append(dq_data, dq, axis = 1) 
                         q_old = q
                     timestamps = np.append(timestamps, (time.time()-t_begin)) 
-                    # tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
-                    # tau_data=np.append(tau_data, tau, axis=1) 
+                    tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
+                    tau_data=np.append(tau_data, tau, axis=1) 
                     
-                    # input_history = np.append(input_history[:,1:], tau,axis=1)
+                    input_history = np.append(input_history[:,1:], tau,axis=1)
 
-                    # input_mean = np.mean(input_history, axis = 1)
+                    input_mean = np.mean(input_history, axis = 1)
 
-                    # inputt = grab_arm_current(input_mean, min_torque, max_torque)
+                    inputt = grab_arm_current(input_mean, min_torque, max_torque)
                     # del inputt[7]
                     # print(f"[DEBUG] inputt: {inputt}\n")
-                    # print(f"voltage: {turtle_node.voltage}\n")
+                    print(f"voltage: {turtle_node.voltage}\n")
                     # inputt = [0]*10
-                    # Joints.send_torque_cmd(inputt)
+                    Joints.send_torque_cmd(inputt)
+                    read_sensors(xiao=xiao, turtle_node=turtle_node)
+                Joints.disable_torque()
+            elif turtle_node.mode == 'teacher':
+                # NOTE: each trajectory starts with a two second offset period for turtle to properly 
+                # get to the first desired q state (TODO: maybe set it to 1 second offset?)
+
+                # Load desired trajectories from motors node
+                print("traj input")
+                qd_mat = turtle_node.qds
+                dqd_mat = turtle_node.dqds
+                ddqd_mat = turtle_node.ddqds
+                tvec = turtle_node.tvec     
+                # print(f"qd mat: {qd_mat.shape}\n")
+                # print(f"qd mat first elemetn: {qd_mat[:, 1]}\n")
+                print(f"full thing is: {tvec.shape}\n")
+                print(f"shape qd_mat: {qd_mat.shape}\n")
+                # print(f"shape of tvec: {tvec.sh}")
+                first_time = True
+                first_loop = True
+                input_history = np.zeros((nq,10))
+                q_data = np.zeros((nq,1))
+                dq_data = np.zeros((nq,1))
+                ddq_data = np.zeros((nq,1))
+                tau_data = np.zeros((nq,1))
+                timestamps = np.zeros((1,1))
+                print(f"[MODE] TRAJECTORY\n")
+                Joints.disable_torque()
+                Joints.set_current_cntrl_mode()
+                Joints.enable_torque()
+                Kp = np.diag([0.5, 0.1, 0.05, 0.5, 0.1, 0.05, 0.1, 0.1, 0.0, 0.0])*3.5
+                KD = 0.35
+                t_begin = time.time()
+                # zero =  np.zeros((self.nq,1))
+                t_old = time.time()
+                # our loop's "starting" time
+                t_0 = time.time()
+                while 1:
+                    if turtle_node.voltage < threshold:
+                        print("voltage too low--powering off...")
+                        Joints.disable_torque()
+                        print("saving data....")
+                        turtle_node.publish_turtle_data(t_0=t_0, q_data=q_data, dq_data=dq_data, tau_data=tau_data, timestamps=timestamps, ddq_data=ddq_data) 
+                        break
+                    rclpy.spin_once(turtle_node)
+                    # print("traj 1...")
+                    if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
+                        # Joints.send_torque_cmd([0] *len(IDs))
+                        Joints.disable_torque()
+                        print("saving data...")
+                        turtle_node.publish_turtle_data(t_0=t_0, q_data=q_data, dq_data=dq_data, tau_data=tau_data, timestamps=timestamps, ddq_data=ddq_data) 
+                        first_time = True
+                        break
+                    q = np.array(Joints.get_position()).reshape(-1,1)
+                    # q = np.insert(q, 7, place_holder).reshape((10,1))
+
+                    if first_loop:
+                        n = get_qindex((time.time() - t_0), tvec)
+                    else:
+                        # print("done with first loop")
+                        offset = t_0 - 2
+                        n = get_qindex((time.time() - offset), tvec)
+
+                    # print(f"n: {n}\n")
+                    if n == len(tvec[0]) - 1:
+                        # print(f"time: {(time.time() - offset)}\n")
+                        first_loop = False
+                        t_0 = time.time()
+                    
+                    qd = np.array(qd_mat[:, n]).reshape(-1,1)
+                    dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
+                    ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
+                    # # print(f"[DEBUG] qdata: {q_data}\n")
+                    # print(f"[DEBUG] qd: {qd}\n")
+                    q_data=np.append(q_data, q, axis = 1) 
+                    # # At the first iteration velocity is 0  
+                    
+                    if first_time:
+                        dq = np.zeros((nq,1))
+                        ddq = np.zeros((nq,1))
+                        dq_data=np.append(dq_data, dq, axis = 1) 
+                        ddq_data=np.append(ddq_data, ddq, axis = 1) 
+                        q_old = q
+                        dq_old = dq
+                        first_time = False
+                    else:
+                        t = time.time()
+                        dt = t - t_old
+                    #     # print(f"[DEBUG] dt: {dt}\n")  
+                        t_old = t
+                        dq = diff(q, q_old, dt)
+                        ddq = diff(dq, dq_old, dt)
+                        dq_data=np.append(dq_data, dq, axis = 1) 
+                        ddq_data=np.append(ddq_data, ddq, axis = 1) 
+                        q_old = q
+                        dq_old = dq
+                    timestamps = np.append(timestamps, (time.time()-t_begin)) 
+                    
                     read_sensors(xiao=xiao, turtle_node=turtle_node)
                 Joints.disable_torque()
                 
