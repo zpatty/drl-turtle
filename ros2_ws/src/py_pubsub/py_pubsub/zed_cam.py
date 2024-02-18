@@ -2,6 +2,34 @@ import numpy as np
 import cv2 as cv
 import os
 
+import rclpy
+from rclpy.node import Node
+from rclpy.executors import Executor, MultiThreadedExecutor
+from std_msgs.msg import Image
+
+from cv_bridge import CvBridge, CvBridgeError
+
+
+class Image_Publisher(Node):
+    def __init__(self):
+        super().__init__("image_tutorial")
+        self.add_msg_to_info_logger("initializing node")
+        self.image_publisher_ = self.create_publisher(Image, 'image', 10)
+        self.bridge = CvBridge()
+
+        
+    def publish(self, cv2_image):
+        try:
+             msg = self.bridge.cv2_to_imgmsg(cv2_image, "bgr8")
+             self.image_publisher_.publish(msg)
+        except CvBridgeError as e:
+             self.add_msg_to_info_logger(e)
+        self.add_msg_to_info_logger("sending_image")
+        
+
+    def add_msg_to_info_logger(self, msg):
+        self.get_logger().info(msg)
+
 ## updates/todo:
 
 # first section of code loads in the calibrations that come with the camera and lets us choose which one to use
@@ -144,41 +172,49 @@ cam.set(cv.CAP_PROP_FRAME_WIDTH, 4416)
 cam.set(cv.CAP_PROP_FRAME_HEIGHT, 1242)
 s,orignal = cam.read()
 height, width, channels = orignal.shape
-print(width)
-print(height)
+# print(width)
+# print(height)
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    image_publisher = Image_Publisher()
+    image_publisher.add_msg_to_info_logger("initializing camera")
+
+    while(True):
+        s,orignal = cam.read()
+        left=orignal[0:height,0:int(width/2)]
+        right=orignal[0:height,int(width/2):(width)]
+        
+        if not s:
+            print("failed to grab frame")
+            break
 
 
-while(True):
-    s,orignal = cam.read()
-    left=orignal[0:height,0:int(width/2)]
-    right=orignal[0:height,int(width/2):(width)]
+        fixedLeft = cv.remap(left, L_undist_map[0], L_undist_map[1], cv.INTER_LINEAR)
+        fixedRight = cv.remap(right, R_undist_map[0], R_undist_map[1], cv.INTER_LINEAR)
+
+    #prefer the above bc the below does some weird triangular stuff
+
+        # fixedLeft = cv.remap(left, L_map_x, L_map_y, cv.INTER_LINEAR)
+        # fixedRight = cv.remap(right, R_map_x, R_map_y, cv.INTER_LINEAR)
+
+        grayLeft = cv.cvtColor(fixedLeft, cv.COLOR_BGR2GRAY)
+        grayRight = cv.cvtColor(fixedRight, cv.COLOR_BGR2GRAY)
+
+        depth = stereo.compute(grayLeft, grayRight)
+
+        # cv.imshow('left', fixedLeft)
+        # cv.imshow('right', fixedRight)
+        cv.imshow('depth', depth/255)
+        image_publisher.publish(depth/255)
+        k = cv.waitKey(1)
+        if k%256 == 27:
+            # ESC pressed
+            print("Escape hit, closing...")
+            break
     
-    if not s:
-        print("failed to grab frame")
-        break
-
-
-    fixedLeft = cv.remap(left, L_undist_map[0], L_undist_map[1], cv.INTER_LINEAR)
-    fixedRight = cv.remap(right, R_undist_map[0], R_undist_map[1], cv.INTER_LINEAR)
-
-#prefer the above bc the below does some weird triangular stuff
-
-    # fixedLeft = cv.remap(left, L_map_x, L_map_y, cv.INTER_LINEAR)
-    # fixedRight = cv.remap(right, R_map_x, R_map_y, cv.INTER_LINEAR)
-
-    grayLeft = cv.cvtColor(fixedLeft, cv.COLOR_BGR2GRAY)
-    grayRight = cv.cvtColor(fixedRight, cv.COLOR_BGR2GRAY)
-
-    depth = stereo.compute(grayLeft, grayRight)
-
-    cv.imshow('left', fixedLeft)
-    cv.imshow('right', fixedRight)
-    cv.imshow('depth', depth/255)
-    k = cv.waitKey(1)
-    if k%256 == 27:
-        # ESC pressed
-        print("Escape hit, closing...")
-        break
-
-cam.release()
-cv.destroyAllWindows()
+    image_publisher.destroy_node()
+    rclpy.shutdown()    
+    cam.release()
+    cv.destroyAllWindows()
