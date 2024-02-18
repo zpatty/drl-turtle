@@ -138,7 +138,7 @@ stereo.setSpeckleRange(20)
 stereo.setSpeckleWindowSize(50)
 stereo.setUniquenessRatio(8)
 
-cam = cv.VideoCapture(10)
+cam = cv.VideoCapture(0)
 cam.set(cv.CAP_PROP_FPS, 200)
 cam.set(cv.CAP_PROP_FRAME_WIDTH, 4416)
 cam.set(cv.CAP_PROP_FRAME_HEIGHT, 1242)
