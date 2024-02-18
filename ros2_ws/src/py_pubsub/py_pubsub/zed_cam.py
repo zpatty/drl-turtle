@@ -5,7 +5,7 @@ import os
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import Executor, MultiThreadedExecutor
-from std_msgs.msg import Image
+from sensor_msgs.msg import Image
 
 from cv_bridge import CvBridge, CvBridgeError
 
