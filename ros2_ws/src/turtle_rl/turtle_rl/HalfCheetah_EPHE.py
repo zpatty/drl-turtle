@@ -17,6 +17,7 @@ import pickle
 import torch
 
 import gymnasium as gym
+from EPHE import EPHE
 
 ParamVector = Union[List[Real], np.ndarray]
 Action = Union[List[Real], np.ndarray, Integral]
@@ -31,8 +32,9 @@ def set_random_seed(seed):
     np.random.seed(seed)
 
 # set random seed
-seed = 1
-set_random_seed(seed=seed)
+# seed = 1
+# set_random_seed(seed=seed)
+# print(f"seed: {seed}\n")
 
 def load_params(fname):
     best_params = torch.load(fname)
@@ -226,22 +228,33 @@ class DualCPG:
     def __init__(self, 
                  num_params=21,
                  num_mods=10,
-                 alpha=3,
+                 B1=5,
+                 alpha=10,
                  omega=np.random.rand() * np.pi * 2,
                  observation_normalization=True,
+                 fix_B=False,
                  seed=0.0):
         # self._observation_space, self._action_space = (
         #     get_env_spaces(self._env_name, self._env_config)
         # )
 
-        self._seed = seed       # seed to replicate 
-        self.alpha = alpha      # mutual inhibition weight
-        self.omega = omega      # inter-module connection weight of the neuron
-        self.num_mods = num_mods                # number of CPG modules
-        self.y = np.zeros((num_mods, 2))        # holds the output ith CPG mod (2 neurons per cpg mod)
-        self.params = np.random.rand((num_params))  # holds the params of the CPG [tau, B, E] = [freq, phase, amplitude]
-        self.U = np.zeros((num_mods, 2))        # the U state of the CPG
-        self.V = np.zeros((num_mods, 2))        # the V state of the CPG
+        self._seed = seed                                   # seed to replicate 
+        self.alpha = alpha                                  # mutual inhibition weight
+        self.omega = omega                                  # inter-module connection weight of the neuron
+        self.num_mods = num_mods                            # number of CPG modules
+        self.y = np.random.rand(num_mods, 2) * 0.1          # holds the output ith CPG mod (2 neurons per cpg mod)
+        self.B1 = B1                                        # the first phase is fixed                             
+        self.params = np.random.rand((num_params)) * 0.1    # holds the params of the CPG [tau, B, E] = [freq, phase, amplitude]
+        self.U = np.random.rand(num_mods, 2) * 0.1          # the U state of the CPG
+        self.V = np.random.rand(num_mods, 2) * 0.1          # the V state of the CPG
+        self.fix_B = fix_B                                  # whether or not we fix the first B1 like in BoChen
+        self.first_time = True
+
+        print(f"starting alpha: {self.alpha}\n")
+        print(f"starting omega: {self.omega}\n")
+        print(f"number of CPG modules: {self.num_mods}\n")
+        if self.fix_B:
+            print(f"fixed B1: {self.B1}\n")
     def set_parameters(self, params):
         """
         # TODO: for some reason BoChen only learns B2-->Bn 
@@ -259,8 +272,24 @@ class DualCPG:
         """
         # make sure phase is kept between 0 and 2pi
         scaled = params.copy()
-        scaled[self.num_mods + 1:] = scaled[self.num_mods + 1:] % (2*np.pi)
+        tau = scaled[0] * 100
+        scaled[1:self.num_mods + 1]= (scaled[1:self.num_mods + 1]) % (2*np.pi)
+        scaled[0] = tau
+        # # scaled[1:self.num_mods + 1] = scaled[1:self.num_mods + 1]/tau
+        # scaled[self.num_mods + 1:] = scaled[self.num_mods + 1:]/tau
+        if scaled[0] < 0:
+            for i in range(10):
+                print(f"ITS NEGATIVE\n")
         self.params = scaled
+    
+    def set_weights(self, weights):
+        """
+        Change the intrinsic weights of the CPG modules. 
+        alpha is the mutual inhibtion weight 
+        omega is the inter-module connection weight of the neuron
+        """
+        self.alpha = weights[0]
+        self.omega = weights[1]
         
     def get_action(self, dt):
         """
@@ -277,24 +306,30 @@ class DualCPG:
         # calculate y_out, which in this case we are using as the tau we pass into the turtle
         action = np.zeros((self.num_mods))
         tau = self.params[0]
-        Es = self.params[1:self.num_mods + 1]
-        Bs = self.params[self.num_mods + 1:]
+        Bs = self.params[1:self.num_mods + 1]
+        Es = self.params[self.num_mods + 1:]
+        back_leg = [0, 1, 2]
+        front_leg = [3, 4, 5]
         for i in range(self.num_mods):
+            # print(i)
             E = Es[i]
             B = Bs[i]
+            if self.fix_B:
+                Bs[0] = self.B1
             for j in range(num_neurons):
                 if i != 0: 
                     y_prev_mod = self.y[i-1, j]
+                    # if i==3 and i-1 not in front_leg:
+                    #     y_prev_mod = 0
                 else:
                     y_prev_mod = 0.0
                 y_other_neuron = self.y[i, 1-j]
                 state = [self.U[i,j], self.V[i,j]]
-                # print(f"state: {state}\n")
                 t_points = [0,dt]
 
                 solution = scipy.integrate.solve_ivp(
                     fun = lambda t, y: ode_to_solve(state, tau, E, B, self.alpha, self.omega, y_other_neuron, y_prev_mod),
-                    t_span=[0, dt], 
+                    t_span=t_points, 
                     y0=state,
                     method='RK45',
                     t_eval = t_points
@@ -304,8 +339,31 @@ class DualCPG:
                     self.U[i,j] = solution.y[0, 1]
                     self.V[i,j] = solution.y[1, 1]
                 except:
-                    print("failed to solve ode")
+                    print("failed to solve ode with the following: \n")
+                    print(f"state= {state}\n")
+                    print(f"y_other_neuron= {y_other_neuron}\n")
+                    print(f"y_prev_mod= {y_prev_mod}")
+                    print(f"tau= {tau}\n")
+                    print(f"E= {E}\n")
+                    print(f"B= {B}\n")
+                    print(f"dt= {dt}\n")
+                    print(f"alpha={self.alpha}\n")
+                    print(f"omega={self.omega}\n")
                     pass
+                if self.first_time:
+                    if self.U[i, j] > 30 or self.V[i, j] > 30:
+                        print("PAST A THRESHOLD\n")
+                        print(f"state= {state}\n")
+                        print(f"y_other_neuron= {y_other_neuron}\n")
+                        print(f"y_prev_mod= {y_prev_mod}")
+                        print(f"tau= {tau}\n")
+                        print(f"E= {E}\n")
+                        print(f"B= {B}\n")
+                        print(f"dt= {dt}\n")
+                        print(f"alpha={self.alpha}\n")
+                        print(f"omega={self.omega}\n")
+                        self.first_time=False
+                    # self.first_time=False
                 self.y[i, j] = max(0, self.U[i,j])
             y_out = self.y[i, 0] - self.y[i, 1]
             action[i] = y_out
@@ -334,7 +392,9 @@ class DualCPG:
         first_time = True
         max_episode_length = 750
         while True:
-            dt = 0.01
+            # dt = 0.01
+            # dt = 0.005    
+            dt = 0.05
             action = self.get_action(dt)
             # print(f"params: {self.params}\n")
             # print(f"action: {action}\n")
@@ -343,11 +403,12 @@ class DualCPG:
             done = truncated or terminated
             time_elapsed = time.time() - t_start
             cumulative_reward += reward
+            # print(info)
             # t = time.time()
             # print(f"reward and cost: {(info['reward_run'], info['reward_ctrl'])}")
             t += 1
-            if t > max_episode_length:
-                break
+            # if t > max_episode_length:
+            #     break
             if done:
                 break
         return cumulative_reward, t
@@ -375,6 +436,7 @@ class DualCPG:
         )
         return cumulative_reward, t
 
+
 def train(num_params=20, num_mods=10, M=20, K=3):
     """
     Implements EPHE algorithm, where at each episode we sample params from N(v|h) M times.
@@ -382,195 +444,104 @@ def train(num_params=20, num_mods=10, M=20, K=3):
     
     """
     # env = gym.make(ENV_NAME, render_mode='human')
-    env = gym.make(ENV_NAME)
+    env = gym.make(ENV_NAME, ctrl_cost_weight=0.01)
 
-    # our initial solution (initial parameter vector) for PGPE to start exploring from 
-    x0 = np.zeros((num_params))
-    mu = np.random.rand((num_params))
-    sigma = np.ones((num_params)) * np.random.rand()
-    # mu = np.ones((num_params)) * 0.0001
-    # sigma = np.ones((num_params)) * 10e-4
-    print(f"initial solution: {x0}")
-    print(f"intial mu: {mu}")
-    print(f"initial sigma: {sigma}")
+    mu = np.random.rand((num_params)) * 2
+    # mu = np.array([7.07744993e-03, 
+    #             2.44747663e+00,
+    #             1.31816959e+00,
+    #             1.32267618e+00,
+    #             4.63262177e+00,
+    #             1.52837503e+00,
+    #             1.09880745e+00,
+    #             1.06433165e+00,
+    #             1.39569902e+00,
+    #             1.57176697e+00,
+    #             6.37261927e-01,
+    #             1.28373480e+00,
+    #             9.91353095e-01])
+    # sigma = np.ones((num_params)) * 0.8
+    sigma = np.random.rand((num_params)) * 0.4
 
-    cpg = DualCPG(num_params=num_params, num_mods=num_mods)
+    print(f"intial mu: {mu}\n")
+    print(f"initial sigma: {sigma}\n")
+    print(f"M: {M}\n")
+    print(f"K: {K}\n")
+
+
+    cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=0.3, omega=0.5)
+    # cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=2.5, omega=1.0)
+    # cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=0.3, omega=0.5, B1=15, fix_B=True)
     # Bo Chen paper says robot converged in 20 episodes
+    ephe = EPHE(
+        
+        # We are looking for solutions whose lengths are equal
+        # to the number of parameters required by the policy:
+        solution_length=mu.shape[0],
+        
+        # Population size: the number of trajectories we run with given mu and sigma 
+        popsize=M,
+        
+        # Initial mean of the search distribution:
+        center_init=mu,
+        
+        # Initial standard deviation of the search distribution:
+        stdev_init=sigma,
+
+        # dtype is expected as float32 when using the policy objects
+        dtype='float32', 
+
+        K=K
+    )
+
     max_episodes = 20
     for episode in range(max_episodes):
-        
-        pgpe = PGPE(
-
-            
-            # We are looking for solutions whose lengths are equal
-            # to the number of parameters required by the policy:
-            solution_length=x0.shape[0],
-            
-            # Population size:
-            popsize=10,
-            
-            # Initial mean of the search distribution:
-            center_init=mu,
-            
-            # Learning rate for when updating the mean of the search distribution:
-            center_learning_rate=0.7,
-            
-            # Optimizer to be used for when updating the mean of the search
-            # distribution, and optimizer-specific configuration:
-            # optimizer='clipup',
-            # optimizer_config={'max_speed': 0.15},
-            
-            # Initial standard deviation of the search distribution:
-            stdev_init=sigma,
-            
-            # Learning rate for when updating the standard deviation of the
-            # search distribution:
-            stdev_learning_rate=0.7,
-            
-            # Limiting the change on the standard deviation:
-            stdev_max_change=0.2,
-            
-            # Solution ranking (True means 0-centered ranking will be used)
-            solution_ranking=True,
-            
-            # dtype is expected as float32 when using the policy objects
-            dtype='float32'
-        )
-
-        print(f"PGPE: {pgpe}")
-
-        # Number of iterations
-        num_iterations = 50
-        # num_iterations = 10
 
         # The main loop of the evolutionary computation
         # this is where we run our M trajectories
-        R = np.zeros(1 + M)
-        lst_params = np.zeros((num_params, 1 + M))
-        for i in range(1, 1 + M):
-
-            # Get the solutions from the pgpe solver
-            solutions = pgpe.ask()          # this is population size
-
-            # The list below will keep the fitnesses
-            # (i-th element will store the reward accumulated by the
-            # i-th solution)
-            fitnesses = []
-            # print(f"num of sols: {len(solutions)}")
-            for solution in solutions:
-                # For each solution, we load the parameters into the
-                # policy and then run it in the gym environment,
-                # by calling the method set_params_and_run(...).
-                # In return we get our fitness value (the accumulated
-                # reward), and num_interactions (an integer specifying
-                # how many interactions with the environment were done
-                # using these policy parameters).
-                # print(f"proposed sol: {solution}")
-                fitness, num_interactions = cpg.set_params_and_run(env, solution)
-                
-                # In the case of this example, we are only interested
-                # in our fitness values, so we add it to our fitnesses list.
-                fitnesses.append(fitness)
-            
-            # We inform our pgpe solver of the fitnesses we received,
-            # so that the population gets updated accordingly.
-            pgpe.tell(fitnesses)
-            
-            print("Iteration:", i, "  median score:", np.median(fitnesses))
-
-            # center point (mean) of the search distribution as solution of params
-            center_solution = pgpe.center.copy()
-            reward, __ = cpg.set_params_and_run(env, center_solution)
-            if reward > 0:
-                R[i] = reward
-            else:
+        lst_params = np.zeros((num_params, M))
+        # Get the M solutions from the ephe solver
+        solutions = ephe.ask()          # this is population size
+        R = np.zeros(M)
+        for i in range(M):
+            if min(solutions[i]) < 0:
+                print(f" sol: {solutions[i]}")
+            lst_params[:, i] = solutions[i]
+            fitness, num_interactions = cpg.set_params_and_run(env, solutions[i])
+            if fitness < 0:
                 R[i] = 0
-            # print(center_solution)
-            # print(lst_params[:, i])
-            lst_params[:, i] = center_solution
+            else:
+                R[i] = fitness
         
+        print("Episode:", episode, "  median score:", np.median(R))
+        print(f"all rewards: {R}\n")
         # get indices of K best rewards
-        # print(f"list of params: {lst_params.shape}")
-        # print(f"rewards: {R.shape}\n")
         best_inds = np.argsort(-R)[:K]
         # print(f"best inds: {best_inds}")
         k_params = lst_params[:, best_inds]
-        # print(f"k params: {k_params}")
+        print(f"k params: {k_params}")
         k_rewards = R[best_inds]
-        # print(f"k rewards: {k_rewards}")
-        k_sum = 0
-        for k in range(K):
-            k_sum += k_rewards[k] * k_params[:,k]
-            # print(k_sum)
+        print(f"k rewards: {k_rewards}")
+        # We inform our ephe solver of the fitnesses we received,
+        # so that the population gets updated accordingly.
+        ephe.update(k_rewards=k_rewards, k_params=k_params)
+        print(f"new mu: {ephe.center()}\n")
+        print(f"new sigma: {ephe.sigma()}\n")
+        
+    best_mu = ephe.center()
+    best_sigma = ephe.sigma()
+    print(f"best mu: {best_mu}\n")
+    print(f"best sigma: {best_sigma}\n")
 
-        # update mean and stdev
-        mu = k_sum/np.sum(k_rewards)
-        print(f"new mu: {mu}")
-        sig_sum = 0
-        for k in range(K):
-            sig_sum += k_rewards[k] * (k_params[:,k] - mu[k])**2
-        sigma = np.sqrt(sig_sum/np.sum(k_rewards))
-        print(f"new sigma: {sigma}")
-    best_params = center_solution
-
+    best_params = ephe.grab_params()
+    print(f"best params: {best_params}\n")
     # save the best params
-    torch.save(best_params, 'best_params.pth')
+    torch.save(best_params, 'best_params_ephe.pth')
 
     return best_params
 
-def test(best_params):
-
-    # instantiate gym environment 
-    env = gym.make(ENV_NAME, render_mode="human")
-    # load parameters of final solution into the policy
-    # Now we test out final policy
-    # Declare the cumulative_reward variable, which will accumulate
-    # all the rewards we get from the environment
-    cumulative_reward = 0.0
-
-    # Reset the environment, and get the observation of the initial
-    # state into a variable.
-    observation, __ = env.reset()
-    # Visualize the initial state
-    env.render()
-
-    # Main loop of the trajectory
-    while True:
-
-        # We pass the observation vector through the PyTorch module
-        # and get an action vector
-        with torch.no_grad():
-            # action = net(
-            #     torch.as_tensor(observation, dtype=torch.float32)
-            # ).numpy()
-            action = 0
-
-        if isinstance(env.action_space, gym.spaces.Box):
-            interaction = action
-        elif isinstance(env.action_space, gym.spaces.Discrete):
-            interaction = int(np.argmax(action))
-        else:
-            assert False, "Unknown action space"
-
-        observation, reward, terminated, truncated, info = env.step(interaction)
-        done = truncated or terminated
-        env.render()
-        cumulative_reward += reward
-        print("...\n")
-        if done:
-            print("DONE")
-            break
-    
-    return cumulative_reward
-
-
 def main(args=None):
-    best_params = train(num_params=13, num_mods=6, M=50)
-    # best_params = torch.load('best_params.pth')
-    # policy = load_policy()
-    # reward = test(policy=policy, best_params=best_params)
-    # reward = test(best_params)
-    # print(f"reward from learned policy: {reward}")
+    best_params = train(num_params=13, num_mods=6, M=20, K=3)
     
 if __name__ == '__main__':
     main()
