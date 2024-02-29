@@ -294,7 +294,7 @@ def train(num_params=20, num_mods=10, M=20, K=3):
     We then choose the best K params that are selected from the sorted reward of R(v^m).
     
     """
-    trial = 56
+    trial = 65
     trial_folder = f'CPG_exp_{trial}'
     best_param_fname = trial_folder + f'/best_params_ephe_{trial}.pth'
 
@@ -303,7 +303,14 @@ def train(num_params=20, num_mods=10, M=20, K=3):
     sca = 1
     mu = np.random.rand((num_params)) * 0.1
     params = np.random.rand((num_params)) * 0.1
-    sigma = np.random.rand((num_params)) + 0.3
+    tau_shift = 0.2
+    B_shift = 0.5
+    E_shift = 0.5
+    sigma = np.random.rand((num_params)) + [tau_shift, 
+                                            B_shift, B_shift, B_shift + 0.3,
+                                            B_shift + 0.3, B_shift, B_shift,
+                                            E_shift, E_shift, E_shift,
+                                            E_shift, E_shift, E_shift]
 
 #     mu = np.array([0.021395326246514725, 
 # 0.01293661443952422, 0.04000645712999791, 0.09379809888431935,
@@ -321,9 +328,9 @@ def train(num_params=20, num_mods=10, M=20, K=3):
 #   0.009649325723699432, 0.061900089259864316, 0.020083554216943578,
 #    0.006355903385121653, 0.09737701971521709, 0.001338679605284765,
 #     0.03777865448076115, 0.04009971283898407, 0.04224464544533092])
-    mu[0] = 0.06
-    params[0] = 0.06
-    sigma[0] = 0.3
+    # mu[0] = 0.06
+    # params[0] = 0.06
+    # sigma[0] = 0.3
     print(f"intial mu: {mu}\n")
     print(f"initial sigma: {sigma}\n")
     print(f"M: {M}\n")
@@ -398,7 +405,6 @@ def train(num_params=20, num_mods=10, M=20, K=3):
         folder_name = trial_folder + f"/CPG_episode_{episode}"
         for i in range(M):
             subplot=True
-
             lst_params[:, i] = solutions[i]
             fitness, total_actions = cpg.set_params_and_run(env=env, policy_parameters=solutions[i], max_episode_length=max_episode_length)
             timesteps = total_actions.shape[1] - 1
@@ -408,8 +414,6 @@ def train(num_params=20, num_mods=10, M=20, K=3):
                 print(f"params with best fitness: {solutions[i]} with reward {fitness}\n")
                 best_reward = fitness
                 best_params = solutions[i]
-            #     print(f"fitness: {fitness} at trajectory {i}")
-            #     subplot=True
             if subplot:
                 # Plotting each row as its own subplot
                 fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
@@ -419,7 +423,6 @@ def train(num_params=20, num_mods=10, M=20, K=3):
                     ax.set_xlabel("Time")
                     ax.set_ylabel("Data")
                     ax.grid(True)
-
                 plt.tight_layout()
                 # plt.show()
                 os.makedirs(folder_name, exist_ok=True)
@@ -428,8 +431,6 @@ def train(num_params=20, num_mods=10, M=20, K=3):
                 R[i] = 0
             else:
                 R[i] = fitness
-
-        
         print("--------------------- Episode:", episode, "  median score:", np.median(R), "------------------")
         print(f"all rewards: {R}\n")
         # get indices of K best rewards
@@ -443,16 +444,12 @@ def train(num_params=20, num_mods=10, M=20, K=3):
         ephe.update(k_rewards=k_rewards, k_params=k_params)
         print(f"new mu: {ephe.center()}\n")
         print(f"new sigma: {ephe.sigma()}\n")
-
         # save param data
         param_data[:, :, episode] = lst_params
         # save mus and sigmas 0.00639871]
-
         mu_data[:, episode] = ephe.center()
         sigma_data[:, episode] = ephe.sigma()
         reward_data[:, episode] = R
-
-        
     best_mu = ephe.center()
     best_sigma = ephe.sigma()
     print(f"best mu: {best_mu}\n")
@@ -501,15 +498,20 @@ def test(best_params):
 
 
 def main(args=None):
-    best_params = train(num_params=13, num_mods=6, M=40, K=3)
-    # best_params = torch.load('best_params_ephe_46.pth')
+    best_params = train(num_params=13, num_mods=6, M=40, K=5)
+    # best_params = torch.load('CPG_exp_57/best_params_ephe_57.pth')
     # print(f"best params: {best_params}\n")
     # best_params = np.array([0.05995898,
     # 0.3249511,  0.23618026, 1.1467696,
     # 1.601948,   1.7500631,  0.8504787,
     # 0.72862464, 0.39583203, 1.9946121,
     # 0.7511554,  0.9768969,  0.54476357])
-    # reward= test(best_params=best_params)
-    # print(f"total reward: {reward}")
+    reward= test(best_params=best_params)
+    print(f"total reward: {reward}")
+
+#     best params: [0.06600154 1.3065463  0.35091093 5.56598    1.0991176  0.7638497
+#  0.16066651 1.9449487  5.1943164  0.04553364 1.1190369  0.43531108
+#  0.34248984] got reward of 120.00636291530734
+
 if __name__ == '__main__':
     main()
