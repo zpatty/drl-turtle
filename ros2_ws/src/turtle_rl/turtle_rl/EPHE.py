@@ -54,16 +54,21 @@ class EPHE:
         if truncated:
             lower_bound = 0 
             upper_bound = np.inf
+
             for i in range(self._popsize):
                 mu = self._mu
                 sigma = self._sigma
-                a, b = (lower_bound - mu) / sigma, (upper_bound - mu) / sigma
-                normal_dist = truncnorm(a, b, loc=self._mu, scale=self._sigma)
-                solution = normal_dist.rvs(size=self._length).astype(self._dtype)
+                solution = []
+                for j in range(mu.shape[0]):
+                    m, s = mu[j], sigma[j]
+                    a, b = (lower_bound - m) / s, (upper_bound - m) / s
+                    normal_dist = truncnorm(a, b, loc=m, scale=s)
+                    sol_j = normal_dist.rvs(size=1).astype(self._dtype)
+                    solution.append(sol_j[0])
                 solutions.append(solution)
         else:
             print("TODO: implement this")
-        return solutions
+        return np.array(solutions)
     def ask(self):
         """
         Ask for a batch of solutions to evalute.
@@ -82,10 +87,11 @@ class EPHE:
 
         sig_sum = 0
         mu = self._mu.copy()
+        # mu = new_mu.copy()
         for k in range(self.K):
-            sig_sum += k_rewards[k] * (k_params[:,k] - mu[k])**2
-        print(f"sig sum: {sig_sum}\n")
-        print(f"reward sum: {np.sum(k_rewards)}\n")
+            sig_sum += k_rewards[k] * (k_params[:,k] - mu)**2
+        # print(f"sig sum: {sig_sum}\n")
+        # print(f"reward sum: {np.sum(k_rewards)}\n")
         new_sigma = np.sqrt(sig_sum/np.sum(k_rewards))
         self._mu = new_mu
         self._sigma = new_sigma
