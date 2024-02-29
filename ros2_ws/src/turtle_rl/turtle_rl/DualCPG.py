@@ -1,6 +1,5 @@
 import os
 import sys
-import json
 import torch
 import time
 import scipy
@@ -14,56 +13,20 @@ from pgpelib.policies import LinearPolicy, MLPPolicy
 from pgpelib.restore import to_torch_module
 import matplotlib.pyplot as plt
 
-
 import numpy as np
 import pickle
 import torch
 
 import gymnasium as gym
-from EPHE import EPHE
 
-ParamVector = Union[List[Real], np.ndarray]
-Action = Union[List[Real], np.ndarray, Integral]
-# from gym.version import VERSION
-# print(f"VERSION: {VERSION}")
 submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_rl/turtle_rl"
 sys.path.append(submodule)
+ParamVector = Union[List[Real], np.ndarray]
+Action = Union[List[Real], np.ndarray, Integral]
 
 ENV_NAME = 'HalfCheetah-v4'
 PARAM_FILE = 'best_params.pth'
 POLICY_FILE = 'policy.pkl'
-
-def set_random_seed(seed):
-    np.random.seed(seed)
-
-# set random seed
-# seed = 1
-# set_random_seed(seed=seed)
-# print(f"seed: {seed}\n")
-
-def load_params(fname):
-    best_params = torch.load(fname)
-    return best_params
-
-def save_policy(policy, fname):
-    with open(fname, 'wb') as f:
-        pickle.dump(policy, f)
-
-def load_policy(fname):
-    with open(fname, 'rb') as f:
-        policy = pickle.load(f)
-    return policy
-
-def positive_int_or_none(x) -> Union[int, None]:
-    if x is None:
-        return None
-    x = int(x)
-    if x <= 0:
-        x = None
-    return x
-
-
-
 
 class DualCPG:
     """
@@ -284,232 +247,31 @@ class DualCPG:
         )
         return cumulative_reward, total_actions
 
-def save_run(folder_name, i):
-    os.makedirs(folder_name, exist_ok=True)
-    plt.savefig(folder_name + f'CPG_output_run{i}.png')
-
-def train(num_params=20, num_mods=10, M=20, K=3):
-    """
-    Implements EPHE algorithm, where at each episode we sample params from N(v|h) M times.
-    We then choose the best K params that are selected from the sorted reward of R(v^m).
-    
-    """
-    trial = 56
-    trial_folder = f'CPG_exp_{trial}'
-    best_param_fname = trial_folder + f'/best_params_ephe_{trial}.pth'
-
-    # env = gym.make(ENV_NAME, render_mode='human')
-    env = gym.make(ENV_NAME)
-    sca = 1
-    mu = np.random.rand((num_params)) * 0.1
-    params = np.random.rand((num_params)) * 0.1
-    sigma = np.random.rand((num_params)) + 0.3
-
-#     mu = np.array([0.021395326246514725, 
-# 0.01293661443952422, 0.04000645712999791, 0.09379809888431935,
-# 0.07381154123693838, 0.03317916770772255, 0.043481347611358905,
-# 0.08381298057214348, 0.01864161051797645, 0.0662243193465235, 
-# 0.08479010128457715, 0.04094773000832961, 0.04938394623400562])
-#     sigma = np.array([0.36767487379399805, 
-# 0.8729206617795948, 0.5404589021235069, 0.9693470691881596,
-#  0.9148478579165913, 0.58181494411672, 0.36732255703377087,
-#   1.1449089377184745, 0.4845483330683615, 1.0223280488676538,
-#    0.8409672745905905, 0.6448499064979967, 0.7158460214519633])
-    
-#     params = np.array([0.0622495026589252,
-#  0.07710367182250855, 0.09634866410355647, 0.08225022455977553,
-#   0.009649325723699432, 0.061900089259864316, 0.020083554216943578,
-#    0.006355903385121653, 0.09737701971521709, 0.001338679605284765,
-#     0.03777865448076115, 0.04009971283898407, 0.04224464544533092])
-    mu[0] = 0.06
-    params[0] = 0.06
-    sigma[0] = 0.3
-    print(f"intial mu: {mu}\n")
-    print(f"initial sigma: {sigma}\n")
-    print(f"M: {M}\n")
-    print(f"K: {K}\n")
-
-    alpha = 0.5
-    omega = 0.5
-    cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=alpha, omega=omega)
-    cpg.set_parameters(params=params)
-
-    print(f"starting params: {cpg.get_params()}")
-    ephe = EPHE(
-        
-        # We are looking for solutions whose lengths are equal
-        # to the number of parameters required by the policy:
-        solution_length=mu.shape[0],
-        
-        # Population size: the number of trajectories we run with given mu and sigma 
-        popsize=M,
-        
-        # Initial mean of the search distribution:
-        center_init=mu,
-        
-        # Initial standard deviation of the search distribution:
-        stdev_init=sigma,
-
-        # dtype is expected as float32 when using the policy objects
-        dtype='float32', 
-
-        K=K
-    )
-
-    # Bo Chen paper says robot converged in 20 episodes
-    max_episodes = 20
-    max_episode_length = 60     # 60 * 0.05 = ~3 seconds
-
-    config_log = {
-        "mu_init": list(mu),
-        "sigma_init": list(sigma),
-        "params": list(params),
-        "M": M,
-        "K": K,
-        "max_episode_length": max_episode_length,
-        "alpha": alpha,
-        "omega": omega
-    }
-
-    # data structs for plotting
-    param_data = np.zeros((num_params, M, max_episodes))
-    mu_data = np.zeros((num_params, max_episodes))
-    sigma_data = np.zeros((num_params, max_episodes))
-    reward_data = np.zeros((M, max_episodes))
-    os.makedirs(trial_folder, exist_ok=True)
-
-    best_params = np.zeros((num_params))
-    best_reward = 0
-
-    # Specify the file path where you want to save the JSON file
-    file_path = trial_folder + "/config.json"
-
-    # Save the dictionary as a JSON file
-    with open(file_path, 'w') as json_file:
-        json.dump(config_log, json_file)
-    for episode in range(max_episodes):
-        print(f"episode: {episode}")
-        # The main loop of the evolutionary computation
-        # this is where we run our M trajectories
-        lst_params = np.zeros((num_params, M))
-        # Get the M solutions from the ephe solver
-        solutions = ephe.ask()          
-        R = np.zeros(M)
-        folder_name = trial_folder + f"/CPG_episode_{episode}"
-        for i in range(M):
-            subplot=True
-
-            lst_params[:, i] = solutions[i]
-            fitness, total_actions = cpg.set_params_and_run(env=env, policy_parameters=solutions[i], max_episode_length=max_episode_length)
-            timesteps = total_actions.shape[1] - 1
-            dt = 0.05
-            t = np.arange(0, timesteps*dt, dt)
-            if fitness > best_reward:
-                print(f"params with best fitness: {solutions[i]} with reward {fitness}\n")
-                best_reward = fitness
-                best_params = solutions[i]
-            #     print(f"fitness: {fitness} at trajectory {i}")
-            #     subplot=True
-            if subplot:
-                # Plotting each row as its own subplot
-                fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
-                for j, ax in enumerate(axs):
-                    ax.plot(t, total_actions[j, 1:])
-                    ax.set_title(f"CPG {j+1}")
-                    ax.set_xlabel("Time")
-                    ax.set_ylabel("Data")
-                    ax.grid(True)
-
-                plt.tight_layout()
-                # plt.show()
-                os.makedirs(folder_name, exist_ok=True)
-                plt.savefig(folder_name + f'/CPG_output_run{i}_reward_{fitness}.png')
-            if fitness < 0:
-                R[i] = 0
-            else:
-                R[i] = fitness
-
-        
-        print("--------------------- Episode:", episode, "  median score:", np.median(R), "------------------")
-        print(f"all rewards: {R}\n")
-        # get indices of K best rewards
-        best_inds = np.argsort(-R)[:K]
-        k_params = lst_params[:, best_inds]
-        print(f"k params: {k_params}")
-        k_rewards = R[best_inds]
-        print(f"k rewards: {k_rewards}")
-        # We inform our ephe solver of the fitnesses we received,
-        # so that the population gets updated accordingly.
-        ephe.update(k_rewards=k_rewards, k_params=k_params)
-        print(f"new mu: {ephe.center()}\n")
-        print(f"new sigma: {ephe.sigma()}\n")
-
-        # save param data
-        param_data[:, :, episode] = lst_params
-        # save mus and sigmas 0.00639871]
-
-        mu_data[:, episode] = ephe.center()
-        sigma_data[:, episode] = ephe.sigma()
-        reward_data[:, episode] = R
-
-        
-    best_mu = ephe.center()
-    best_sigma = ephe.sigma()
-    print(f"best mu: {best_mu}\n")
-    print(f"best sigma: {best_sigma}\n")
-    print(f"best params: {best_params} got reward of {best_reward}\n")
-    # save the best params
-    torch.save(best_params, best_param_fname)
-    # save data structs to matlab 
-    scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data, 'param_data': param_data, 'reward_data': reward_data})
-
-    return best_params
-
-######################################################################################################################
-def test(best_params):
-
-    # instantiate gym environment 
-    env = gym.make(ENV_NAME, render_mode="human", camera_id=1)
-    print("made env")
-    # load parameters of final solution into the policy
-    alpha = 0.5
-    omega = 0.5
-    cpg = DualCPG(num_params=13, num_mods=6, alpha=alpha, omega=omega)
-    cpg.set_parameters(best_params)
-    print("set params")
-    # Now we test out final policy
-    cumulative_reward = 0.0
-
-    # Reset the environment
-    print("attempt reset")
-    print(env.reset())
-
-    # Main loop of the trajectory
-    while True:
-
-        action = cpg.get_action(dt=0.05)
-        observation, reward, terminated, truncated, info = env.step(action)
-        done = truncated or terminated
-        env.render()
-        # env._get_viewer('human').render(camera_id=0) 
-        cumulative_reward += reward
-
-        if done:
-            break
-    
-    return cumulative_reward
-
-
 def main(args=None):
-    best_params = train(num_params=13, num_mods=6, M=40, K=3)
-    # best_params = torch.load('best_params_ephe_46.pth')
-    # print(f"best params: {best_params}\n")
-    # best_params = np.array([0.05995898,
-    # 0.3249511,  0.23618026, 1.1467696,
-    # 1.601948,   1.7500631,  0.8504787,
-    # 0.72862464, 0.39583203, 1.9946121,
-    # 0.7511554,  0.9768969,  0.54476357])
-    # reward= test(best_params=best_params)
-    # print(f"total reward: {reward}")
-if __name__ == '__main__':
+    num_params = 13
+    num_mods = 6
+
+    cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=0.5, omega=0.5)
+#     [0.41636106 0.54100776 0.8239186  0.09834354 1.0712537  1.3914797
+#  0.63032436 0.6544222  0.13903572 1.6890489  1.2025025  0.66522574
+#  0.40193564] 
+    params = np.array(np.array([0.06, 
+                                0.54,
+                                6.69403839,
+                                4.49516201,
+                                5.73885918,
+                                2.94585299,
+                                9.42455578,
+                                8.24290943,
+                                5.60851192,
+                                1.96789336,
+                                9.54688644,
+                                1.10151005,
+                                6.63896418]))
+    cpg.set_parameters(params=params)
+    cpg.plot(dt=0.05, timesteps=60, subplot=True)
+
+    return 0
+
+if __name__ == "__main__":
     main()
