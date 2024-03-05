@@ -88,7 +88,7 @@ class TurtleRobot(Node):
     TLDR; this is the node that handles all turtle hardware things
     """
 
-    def __init__(self, topic):
+    def __init__(self, topic, rclpy):
         super().__init__('turtle_node')
         # subscribes to keyboard setting different turtle modes 
         self.mode_cmd_sub = self.create_subscription(
@@ -155,9 +155,10 @@ class TurtleRobot(Node):
         self.input_history = np.zeros((self.nq,10))
         
         # set thresholds for motor angles 
-        self.epsilon = 0.1
+        self.epsilon = 0.3
         self.min_threshold = np.array([1.50, 3.0, 2.4, 2.28, 0.8, 1.56, 1.45, 1.2, 3.0, 2.3])
         self.max_threshold = np.array([3.53, 5.0, 4.8, 4.37, 4.15, 3.6, 3.2, 4.0, 4.0, 5.3])
+        self.rclpy = rclpy
 
     def turtle_mode_callback(self, msg):
         """
@@ -177,58 +178,51 @@ class TurtleRobot(Node):
             self.mode = 'rest'
     def reset(self):
         print(f"resetting turtle.../n")
-        # self.Joints.disable_torque()
+        self.Joints.disable_torque()
         self.Joints.enable_torque()
+        observation = "hi"
+        # reset the sensor variables for next trajectory recording
+        self.qds = np.zeros((10,1))
+        self.dqds = np.zeros((10,1))
+        self.ddqds = np.zeros((10,1))
+        self.tvec = np.zeros((1,1))
+        self.acc_data = np.zeros((self.n_axis,1))
+        self.gyr_data = np.zeros((self.n_axis,1))
+        self.mag_data = np.zeros((self.n_axis,1))
+        self.voltage_data = np.zeros((1,1))
+        return observation, "reset"
     
     def step(self, action):
         """
         action is tau which we pass into the turtle
         """
-        # desired = np.array([10, 10, 10])        # forward movement
-        desired = 10
-        # self.tau_data=np.append(self.tau_data, action, axis=1) 
-        # self.input_history = np.append(self.input_history[:,1:], action,axis=1)
-        # self.input_mean = np.mean(self.input_history, axis = 1) ")
-        print(f"CPG output: {action}\n")
-        action = (action * 1000000) + 20
-        
+        action = (action * 1000000) + 10
+        print(f"CPG output scaled: {action}\n")
+
         inputt = grab_arm_current(action, min_torque, max_torque)
-        print(f"pre action: {inputt}\n")
-        # need a control barrier function for joint limits 
         q = self.Joints.get_position()
         # print(q)
         observation = np.array(self.Joints.get_position())
-        # print(f"obs: {observation}")
-        # print(f"ball: {observation + self.epsilon}")
         clipped = np.where(observation + self.epsilon < self.max_threshold, inputt, 0)
         # print(f"clipped: {clipped}")
         clipped = np.where(observation - self.epsilon > self.min_threshold, clipped, 0)
-        # for o in range(len(observation)):
-        #     if observation[o]< 
         print(f"clipped: {clipped}")
         self.Joints.send_torque_cmd(clipped)
-        # print("sent joint cmd")
+        self.tau_data=np.append(self.tau_data, clipped, axis=1) 
         self.read_sensors()
         # get latest acc data 
-        # TODO: need a QP between our input and output such that it constrains our output for position constraints 
         acc = self.acc_data[:, -1]
-        # print(f"acc data: {acc}")
-        
+        print(f"acc: {acc}\n")
         terminated = False
-        # print(f"acc: {acc}")
-        print(f"sum: {acc + desired}")
-        print(f"acc data: {acc}\n")
-
-        reward = acc[0] - desired
+        reward = acc[0]
         if reward < 0:
             reward = 0
-        print(f"reward: {reward}\n")
+        # print(f"reward: {reward}\n")
         if reward > 1000:
             terminated = True
         truncated = False
         info = reward
         return observation, reward, terminated, truncated, info
-
 
     def trajectory_callback(self, msg):
         """
@@ -265,7 +259,7 @@ class TurtleRobot(Node):
         squeezed = np.reshape(mat, (nq * mat.shape[1]))
         return squeezed.tolist()
     
-    def publish_turtle_data(self, q_data, dq_data, tau_data, timestamps, t_0, ddq_data=[]):
+    def publish_turtle_data(self, q_data=[], dq_data=[], tau_data=[], timestamps=[], t_0=0, ddq_data=[]):
         """
         At the end of a trajectory (i.e when we set the turtle into a rest state or stop state), turtle node needs to 
         package all the sensor and motor data collected during that trajectory and publish it to the turtle_sensors node
@@ -403,233 +397,224 @@ class TurtleRobot(Node):
                         self.quat_data = np.append(self.quat_data, quat, axis=1)
                         self.voltage_data = np.append(self.voltage_data, volt)
                         self.voltage = volt
-                else:
-                    add_place_holder()
-            else:
-                add_place_holder()
-        else:
-            add_place_holder()
-
 # THIS IS TURTLE CODE
 def main(args=None):
     rclpy.init(args=args)
-    threshold = 11.1
-    turtle_node = TurtleRobot('turtle_mode_cmd')
-    # set up dynamixel stuff
-    place_holder = 3.14
-    # q = np.insert(q, 7, place_holder).reshape((10,1))
-
-    # print(f"Our initial q: " + str(q))
-    print("going into while loop...")
-
-    num_params = 21
-    M = 5
-    K = 2
     trial = 1
-    trial_folder = f'CPG_exp_{trial}'
-    best_param_fname = trial_folder + f'/best_params_ephe_{trial}.pth'
-    mu = np.random.rand((num_params)) * 20
-    params = np.random.rand((num_params)) * 20
-    tau_shift = 0.2
-    B_shift = 0.5
-    E_shift = 0.5
-    sigma = np.random.rand((num_params)) 
-    shifty_shift = [tau_shift, 
-                    B_shift, B_shift, B_shift + 0.3,
-                    B_shift + 0.3, B_shift, B_shift,
-                    E_shift, E_shift, E_shift,
-                    E_shift, E_shift, E_shift]
-    print(f"intial mu: {mu}\n")
-    print(f"initial sigma: {sigma}\n")
-    print(f"M: {M}\n")
-    print(f"K: {K}\n")
-    num_mods = 10
-    alpha = 0.5
-    omega = 0.5
-    cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=alpha, omega=omega)
-    cpg.set_parameters(params=params)
-
-    print(f"starting params: {cpg.get_params()}")
-    ephe = EPHE(
-        
-        # We are looking for solutions whose lengths are equal
-        # to the number of parameters required by the policy:
-        solution_length=mu.shape[0],
-        
-        # Population size: the number of trajectories we run with given mu and sigma 
-        popsize=M,
-        
-        # Initial mean of the search distribution:
-        center_init=mu,
-        
-        # Initial standard deviation of the search distribution:
-        stdev_init=sigma,
-
-        # dtype is expected as float32 when using the policy objects
-        dtype='float32', 
-
-        K=K
-    )
-
-    # Bo Chen paper says robot converged in 20 episodes
-    max_episodes = 20
-    max_episode_length = 60     # 60 * 0.05 = ~3 seconds
-
-    config_log = {
-        "mu_init": list(mu),
-        "sigma_init": list(sigma),
-        "params": list(params),
-        "M": M,
-        "K": K,
-        "max_episode_length": max_episode_length,
-        "alpha": alpha,
-        "omega": omega
-    }
-
-    # data structs for plotting
-    param_data = np.zeros((num_params, M, max_episodes))
-    mu_data = np.zeros((num_params, max_episodes))
-    sigma_data = np.zeros((num_params, max_episodes))
-    reward_data = np.zeros((M, max_episodes))
-    os.makedirs(trial_folder, exist_ok=True)
-
-    best_params = np.zeros((num_params))
-    best_reward = 0
-
-    # Specify the file path where you want to save the JSON file
-    file_path = trial_folder + "/config.json"
-
+    threshold = 11.1
+    turtle_node = TurtleRobot('turtle_mode_cmd', rclpy=rclpy)
     q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
-    for i in range(10):
-        print(f"Our initial q: " + str(q))
-
-    # Save the dictionary as a JSON file
-    with open(file_path, 'w') as json_file:
-        json.dump(config_log, json_file)
-    # try: 
-    while rclpy.ok():
-        if turtle_node.voltage < threshold:
-            print("[WARNING] volt reading too low--closing program....")
-            # Joints.disable_torque()
-            break
-        rclpy.spin_once(turtle_node)
-        if turtle_node.mode == 'stop':
-            print("ending entire program...")
-            print("disabling torques entirely...")
-            turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-            turtle_node.Joints.disable_torque()
-            cmd_msg = String()
-            cmd_msg.data = "stop_received"
-            turtle_node.cmd_received_pub.publish(cmd_msg)
-            print("sent stop received msg")
-            break
-        elif turtle_node.mode == 'rest':
-            first_time = True
-            turtle_node.read_voltage()
+    print(f"Our initial q: " + str(q))
+    try: 
+        while rclpy.ok():
+            rclpy.spin_once(turtle_node)
             if turtle_node.voltage < threshold:
+                print("[WARNING] volt reading too low--closing program....")
                 turtle_node.Joints.disable_torque()
-                print("THRESHOLD MET TURN OFFFF")
                 break
-            turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-            turtle_node.Joints.disable_torque()
-            cmd_msg = String()
-            cmd_msg.data = 'rest_received'
-            turtle_node.cmd_received_pub.publish(cmd_msg)
-            print(f"current voltage: {turtle_node.voltage}\n")
-        elif turtle_node.mode == 'train':
-            print("TRAIN MODE")
-            turtle_node.Joints.enable_torque()
-
-            for episode in range(max_episodes):
-                rclpy.spin_once(turtle_node)
+            if turtle_node.mode == 'stop':
+                print("ending entire program...")
+                print("disabling torques entirely...")
+                turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                turtle_node.Joints.disable_torque()
+                cmd_msg = String()
+                cmd_msg.data = "stop_received"
+                turtle_node.cmd_received_pub.publish(cmd_msg)
+                print("sent stop received msg")
+                break
+            elif turtle_node.mode == 'rest':
+                turtle_node.read_voltage()
                 if turtle_node.voltage < threshold:
-                    print("voltage too low--powering off...")
                     turtle_node.Joints.disable_torque()
-                    print("saving data....")
-                    # turtle_node.publish_turtle_data(t_0=t_0, q_data=q_data, dq_data=dq_data, tau_data=tau_data, timestamps=timestamps) 
+                    print("THRESHOLD MET TURN OFFFF")
                     break
-                if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
-                    turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-                    turtle_node.Joints.disable_torque()
-                    print("saving data...")
-                    # turtle_node.publish_turtle_data(t_0=t_0, q_data=q_data, dq_data=dq_data, tau_data=tau_data, timestamps=timestamps) 
-                    first_time = True
-                    break
-                print(f"episode: {episode}")
-                lst_params = np.zeros((num_params, M))
-                solutions = ephe.ask()          
-                R = np.zeros(M)
-                folder_name = trial_folder + f"/CPG_episode_{episode}"
-                for i in range(M):
-                    print(f"-------------------------------------------M : {M}--------------------------------------\n")
+                turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                turtle_node.Joints.disable_torque()
+                cmd_msg = String()
+                cmd_msg.data = 'rest_received'
+                turtle_node.cmd_received_pub.publish(cmd_msg)
+                print(f"current voltage: {turtle_node.voltage}\n\n\n\n")
+            elif turtle_node.mode == 'train1':
+                print("Isjpeert")
+             
+            elif turtle_node.mode == 'train':
+                print("TRAIN MODE")
+                # for saving data
+                trial_folder = f'CPG_exp_{trial}'
+                best_param_fname = trial_folder + f'/best_params_ephe_{trial}.pth'
+                os.makedirs(trial_folder, exist_ok=True)
+
+                # initial params for training
+                num_params = 21
+                M = 1
+                K = 3
+                mu = np.random.rand((num_params)) * 20
+                params = np.random.rand((num_params)) * 20
+                tau_shift = 0.2
+                B_shift = 0.5
+                E_shift = 0.5
+                sigma = np.random.rand((num_params)) 
+                shifty_shift = [tau_shift, 
+                                B_shift, B_shift, B_shift + 0.3,
+                                B_shift + 0.3, B_shift, B_shift,
+                                E_shift, E_shift, E_shift,
+                                E_shift, E_shift, E_shift]
+                print(f"intial mu: {mu}\n")
+                print(f"initial sigma: {sigma}\n")
+                print(f"M: {M}\n")
+                print(f"K: {K}\n")
+                num_mods = 10
+                alpha = 0.5
+                omega = 0.5
+                cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=alpha, omega=omega)
+                cpg.set_parameters(params=params)
+
+                print(f"--------------starting params: {cpg.get_params()}-----------")
+                ephe = EPHE(
+                    
+                    # We are looking for solutions whose lengths are equal
+                    # to the number of parameters required by the policy:
+                    solution_length=mu.shape[0],
+                    
+                    # Population size: the number of trajectories we run with given mu and sigma 
+                    popsize=M,
+                    
+                    # Initial mean of the search distribution:
+                    center_init=mu,
+                    
+                    # Initial standard deviation of the search distribution:
+                    stdev_init=sigma,
+
+                    # dtype is expected as float32 when using the policy objects
+                    dtype='float32', 
+
+                    K=K
+                )
+
+                # Bo Chen paper says robot converged in 20 episodes
+                max_episodes = 2
+                max_episode_length = 60     # 60 * 0.05 = ~3 seconds
+
+                config_log = {
+                    "mu_init": list(mu),
+                    "sigma_init": list(sigma),
+                    "params": list(params),
+                    "M": M,
+                    "K": K,
+                    "num episodes": max_episodes,
+                    "max_episode_length": max_episode_length,
+                    "alpha": alpha,
+                    "omega": omega
+                }
+
+                # data structs for plotting
+                param_data = np.zeros((num_params, M, max_episodes))
+                mu_data = np.zeros((num_params, max_episodes))
+                sigma_data = np.zeros((num_params, max_episodes))
+                reward_data = np.zeros((M, max_episodes))
+                best_params = np.zeros((num_params))
+                best_reward = 0
+
+                # Specify the file path where you want to save the JSON file
+                file_path = trial_folder + "/config.json"
+
+                # Save the dictionary as a JSON file
+                with open(file_path, 'w') as json_file:
+                    json.dump(config_log, json_file)
+        
+                # get to training
+                turtle_node.Joints.enable_torque()
+                for episode in range(max_episodes):
+                    folder_name = trial_folder + f"/CPG_episode_{episode}"
                     rclpy.spin_once(turtle_node)
-                    subplot=True
-                    lst_params[:, i] = solutions[i]
-                    # Joints.disable_torque()
-                    # Joints.enable_torque()
-                    fitness, total_actions = cpg.set_params_and_run(env=turtle_node, policy_parameters=solutions[i], max_episode_length=max_episode_length)
-                    timesteps = total_actions.shape[1] - 1
-                    dt = 0.05
-                    t = np.arange(0, timesteps*dt, dt)
-                    if fitness > best_reward:
-                        print(f"params with best fitness: {solutions[i]} with reward {fitness}\n")
-                        best_reward = fitness
-                        best_params = solutions[i]
-                    # if subplot:
-                    #     # Plotting each row as its own subplot
-                    #     fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
-                    #     for j, ax in enumerate(axs):
-                    #         ax.plot(t, total_actions[j, 1:])
-                    #         ax.set_title(f"CPG {j+1}")
-                    #         ax.set_xlabel("Time")
-                    #         ax.set_ylabel("Data")
-                    #         ax.grid(True)
-                    #     plt.tight_layout()
-                    #     # plt.show()
-                    #     os.makedirs(folder_name, exist_ok=True)
-                    #     plt.savefig(folder_name + f'/CPG_output_run{i}_reward_{fitness}.png')
-                    if fitness < 0:
-                        R[i] = 0
-                    else:
+                    if turtle_node.voltage < threshold:
+                        print("voltage too low--powering off...")
+                        turtle_node.Joints.disable_torque()
+                        print("saving data....")
+                        # save the best params
+                        torch.save(best_params, best_param_fname)
+                        # save data structs to matlab 
+                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data, 'param_data': param_data, 'reward_data': reward_data})
+                        break
+                    if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
+                        turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                        turtle_node.Joints.disable_torque()
+                        print("saving data...")
+                        # save the best params
+                        torch.save(best_params, best_param_fname)
+                        # save data structs to matlab 
+                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data, 'param_data': param_data, 'reward_data': reward_data})
+                        trial += 1
+                        break
+                    print(f"--------------------episode: {episode}------------------")
+                    lst_params = np.zeros((num_params, M))
+                    solutions = ephe.ask()          
+                    R = np.zeros(M)
+                    for i in range(M):
+                        rclpy.spin_once(turtle_node)
+                        subplot=True
+                        lst_params[:, i] = solutions[i]
+                        fitness, total_actions = cpg.set_params_and_run(env=turtle_node, policy_parameters=solutions[i], max_episode_length=max_episode_length)
+                        timesteps = total_actions.shape[1] - 1
+                        dt = 0.002
+                        t = np.arange(0, timesteps*dt, dt)
+                        if fitness > best_reward:
+                            print(f"params with best fitness: {solutions[i]} with reward {fitness}\n")
+                            best_reward = fitness
+                            best_params = solutions[i]
+                        if subplot:
+                            # Plotting each row as its own subplot
+                            fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
+                            for j, ax in enumerate(axs):
+                                ax.plot(t, total_actions[j, 1:])
+                                ax.set_title(f"CPG {j+1}")
+                                ax.set_xlabel("Time")
+                                ax.set_ylabel("Data")
+                                ax.grid(True)
+                            plt.tight_layout()
+                            # plt.show()
+                            os.makedirs(folder_name, exist_ok=True)
+                            plt.savefig(folder_name + f'/CPG_output_run{i}_reward_{fitness}.png')
+
                         R[i] = fitness
-                print("--------------------- Episode:", episode, "  median score:", np.median(R), "------------------")
-                print(f"all rewards: {R}\n")
-                # get indices of K best rewards
-                best_inds = np.argsort(-R)[:K]
-                k_params = lst_params[:, best_inds]
-                print(f"k params: {k_params}")
-                k_rewards = R[best_inds]
-                print(f"k rewards: {k_rewards}")
-                # We inform our ephe solver of the fitnesses we received,
-                # so that the population gets updated accordingly.
-                ephe.update(k_rewards=k_rewards, k_params=k_params)
-                print(f"new mu: {ephe.center()}\n")
-                print(f"new sigma: {ephe.sigma()}\n")
-                # save param data
-                param_data[:, :, episode] = lst_params
-                # save mus and sigmas 0.00639871]
-                mu_data[:, episode] = ephe.center()
-                sigma_data[:, episode] = ephe.sigma()
-                reward_data[:, episode] = R
-            best_mu = ephe.center()
-            best_sigma = ephe.sigma()
-            print(f"best mu: {best_mu}\n")
-            print(f"best sigma: {best_sigma}\n")
-            print(f"best params: {best_params} got reward of {best_reward}\n")
-            # save the best params
-            torch.save(best_params, best_param_fname)
-            # save data structs to matlab 
-            scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data, 'param_data': param_data, 'reward_data': reward_data})
-        else:
-            print("wrong command received....")
-    # except Exception as e:
-    #     print("some error occurred")
-    #     turtle_node.Joints.send_torque_cmd([0] * len(turtle_node.IDs))
-    #     turtle_node.Joints.disable_torque()
-    #     exec_type, obj, tb = sys.exc_info()
-    #     fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
-    #     print(exec_type, fname, tb.tb_lineno)
-    #     print(e)
+                    print("--------------------- Episode:", episode, "  median score:", np.median(R), "------------------")
+                    print(f"all rewards: {R}\n")
+                    # get indices of K best rewards
+                    best_inds = np.argsort(-R)[:K]
+                    k_params = lst_params[:, best_inds]
+                    print(f"k params: {k_params}")
+                    k_rewards = R[best_inds]
+                    print(f"k rewards: {k_rewards}")
+                    # We inform our ephe solver of the fitnesses we received,
+                    # so that the population gets updated accordingly.
+                    ephe.update(k_rewards=k_rewards, k_params=k_params)
+                    print(f"new mu: {ephe.center()}\n")
+                    print(f"new sigma: {ephe.sigma()}\n")
+                    # save param data
+                    param_data[:, :, episode] = lst_params
+                    # save mus and sigmas
+                    mu_data[:, episode] = ephe.center()
+                    sigma_data[:, episode] = ephe.sigma()
+                    reward_data[:, episode] = R
+                best_mu = ephe.center()
+                best_sigma = ephe.sigma()
+                print(f"best mu: {best_mu}\n")
+                print(f"best sigma: {best_sigma}\n")
+                print(f"best params: {best_params} got reward of {best_reward}\n")
+                # save the best params
+                torch.save(best_params, best_param_fname)
+                # save data structs to matlab 
+                scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data, 'param_data': param_data, 'reward_data': reward_data})
+            else:
+                print("wrong command received....")
+    except Exception as e:
+        print("some error occurred")
+        turtle_node.Joints.send_torque_cmd([0] * len(turtle_node.IDs))
+        turtle_node.Joints.disable_torque()
+        exec_type, obj, tb = sys.exc_info()
+        fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
+        print(exec_type, fname, tb.tb_lineno)
+        print(e)
     
     rclpy.shutdown()
 

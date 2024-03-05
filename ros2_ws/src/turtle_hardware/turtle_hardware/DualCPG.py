@@ -8,18 +8,18 @@ from copy import copy, deepcopy
 import numpy as np
 from typing import Optional, Union, Iterable, List, Dict, Tuple, Any
 from numbers import Real, Integral
-from pgpelib import PGPE
-from pgpelib.policies import LinearPolicy, MLPPolicy
-from pgpelib.restore import to_torch_module
+# from pgpelib import PGPE
+# from pgpelib.policies import LinearPolicy, MLPPolicy
+# from pgpelib.restore import to_torch_module
 import matplotlib.pyplot as plt
 
 import numpy as np
 import pickle
 import torch
 
-import gymnasium as gym
+# import gymnasium as gym
 
-submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_rl/turtle_rl"
+submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware"
 sys.path.append(submodule)
 ParamVector = Union[List[Real], np.ndarray]
 Action = Union[List[Real], np.ndarray, Integral]
@@ -89,7 +89,7 @@ class DualCPG:
         # scale the phase
         # scaled[1:self.num_mods + 1]= (scaled[1:self.num_mods + 1]) % (2*np.pi)
         self.params = scaled
-        # print(f"current params: {self.params}")
+        print(f"-----------------current params--------------------: {self.params}")
     
     def get_params(self):
         return self.params
@@ -194,7 +194,7 @@ class DualCPG:
 
         # TODO: look into whether you need to normalize the observation or not
         cumulative_reward = 0.0
-        # observation, __ = env.reset()
+        observation, __ = env.reset()
         t = 0
         first_time = True
         total_actions = np.zeros((self.num_mods, 1))
@@ -202,19 +202,16 @@ class DualCPG:
             dt = 0.002
             action = self.get_action(dt)
             # print(f"action shape: {action.shape}")
-            total_actions = np.append(total_actions, action.reshape((6,1)), axis=1)
+            total_actions = np.append(total_actions, action.reshape((10,1)), axis=1)
             # print(f"params: {self.params}\n")
             # print(f"action: {action}\n")
             
             observation, reward, terminated, truncated, info = env.step(action)
             done = truncated or terminated
             cumulative_reward += reward
-            # print(info)
-            # t = time.time()
-            # print(f"reward and cost: {(info['reward_run'], info['reward_ctrl'])}")
             t += 1
             if t > max_episode_length:
-                # print(f"we're donesies with {t}")
+                print(f"we're donesies with {t}")
                 break
             if done:
                 if truncated:
@@ -246,32 +243,4 @@ class DualCPG:
             max_episode_length=max_episode_length
         )
         return cumulative_reward, total_actions
-
-def main(args=None):
-    num_params = 13
-    num_mods = 6
-
-    cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=0.5, omega=0.5)
-#     [0.41636106 0.54100776 0.8239186  0.09834354 1.0712537  1.3914797
-#  0.63032436 0.6544222  0.13903572 1.6890489  1.2025025  0.66522574
-#  0.40193564] 
-    params = np.array(np.array([0.06, 
-                                0.54,
-                                6.69403839,
-                                4.49516201,
-                                5.73885918,
-                                2.94585299,
-                                9.42455578,
-                                8.24290943,
-                                5.60851192,
-                                1.96789336,
-                                9.54688644,
-                                1.10151005,
-                                6.63896418]))
-    cpg.set_parameters(params=params)
-    cpg.plot(dt=0.05, timesteps=60, subplot=True)
-
-    return 0
-
-if __name__ == "__main__":
-    main()
+    
