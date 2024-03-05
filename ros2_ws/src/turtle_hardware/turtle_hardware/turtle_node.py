@@ -293,7 +293,7 @@ def read_sensors(xiao, turtle_node):
     
     no_check = False
     sensors = xiao.readline()
-    print(sensors)
+    # print(sensors)
     # make sure it's a valid byte that's read
     if len(sensors) != 0:
         # this ensures the right json string format
@@ -409,12 +409,14 @@ def main(args=None):
                     print("THRESHOLD MET TURN OFFFF")
                     break
                 # print("rest mode....")
-                Joints.send_torque_cmd([0] *len(IDs))
-                Joints.disable_torque()
+                # Joints.send_torque_cmd([0] *len(IDs))
+                # Joints.disable_torque()
                 cmd_msg = String()
                 cmd_msg.data = 'rest_received'
                 turtle_node.cmd_received_pub.publish(cmd_msg)
                 print(f"current voltage: {turtle_node.voltage}\n")
+
+                print(Joints.get_position())
                 # print("sent rest received msg")
             elif turtle_node.mode == 'traj_input':
                 # NOTE: each trajectory starts with a two second offset period for turtle to properly 
@@ -442,8 +444,11 @@ def main(args=None):
                 Joints.disable_torque()
                 Joints.set_current_cntrl_mode()
                 Joints.enable_torque()
-                Kp = np.diag([0.5, 0.1, 0.05, 0.6, 0.2, 0.08, 0.07, 0.07, 0.5, 0.2])*4
-                KD = 0.35
+                Kp = np.diag([0.5, 0.1, 0.1, 0.6, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1])*4
+                # Kp = np.diag([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.07, 0.07, 0.5, 0.2])*4
+                # print(Kp)
+
+                KD = 0.1
                 t_begin = time.time()
                 # zero =  np.zeros((self.nq,1))
                 t_old = time.time()
@@ -466,6 +471,7 @@ def main(args=None):
                         first_time = True
                         break
                     q = np.array(Joints.get_position()).reshape(-1,1)
+                    # print(f"q: {q}\n")
                     # q = np.insert(q, 7, place_holder).reshape((10,1))
 
                     if first_loop:
@@ -490,7 +496,8 @@ def main(args=None):
                     # # At the first iteration velocity is 0  
                     
                     if first_time:
-                        dq = np.zeros((nq,1))
+                        # dq = np.zeros((nq,1))
+                        dq = np.array(Joints.get_velocity()).reshape(-1,1)
                         dq_data=np.append(dq_data, dq, axis = 1) 
                         q_old = q
                         first_time = False
@@ -499,9 +506,13 @@ def main(args=None):
                         dt = t - t_old
                     #     # print(f"[DEBUG] dt: {dt}\n")  
                         t_old = t
-                        dq = diff(q, q_old, dt)
+                        # dq = diff(q, q_old, dt)
+                        dq = np.array(Joints.get_velocity()).reshape(-1,1)
                         dq_data=np.append(dq_data, dq, axis = 1) 
                         q_old = q
+                    # print(f"dq from mod: {np.array(Joints.get_velocity()).reshape(-1,1)}\n")
+                    # print(f"calculated dq: {dq}")
+                    
                     timestamps = np.append(timestamps, (time.time()-t_begin)) 
                     tau = turtle_controller(q,dq,qd,dqd,ddqd,Kp,KD)
                     tau_data=np.append(tau_data, tau, axis=1) 
@@ -513,7 +524,7 @@ def main(args=None):
                     inputt = grab_arm_current(input_mean, min_torque, max_torque)
                     # del inputt[7]
                     # print(f"[DEBUG] inputt: {inputt}\n")
-                    print(f"voltage: {turtle_node.voltage}\n")
+                    # print(f"voltage: {turtle_node.voltage}\n")
                     # inputt = [0]*10
                     Joints.send_torque_cmd(inputt)
                     read_sensors(xiao=xiao, turtle_node=turtle_node)
