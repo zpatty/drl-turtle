@@ -71,6 +71,7 @@ void setup(void)
 
 
 void loop(void) 
+
 {
   printIMUData(&icm, &ina219);
 }
@@ -97,6 +98,7 @@ void printScaledAGMT(ICM_20948_I2C *sensor) {
   Serial.print(", ");
   printFormattedFloat(sensor->gyrZ(), 5, 2);
   Serial.print(" ],");
+  // Serial.println();
 }
 
 void printFormattedFloat(float val, uint8_t leading, uint8_t decimals) {
@@ -117,6 +119,12 @@ void printFormattedFloat(float val, uint8_t leading, uint8_t decimals) {
     for (uint8_t c = 0; c < (leading - 1 - indi); c++){
       tenpow *= 10;
     }
+    // if (aval < tenpow){
+    //   Serial.print("0");
+    // }
+    // else{
+    //   break;
+    // }
   }
 
   if (val < 0){
@@ -142,7 +150,6 @@ void printIMUData(ICM_20948_I2C *sensor, Adafruit_INA219 * volt_sensor){
       // In case of drift, the sum will not add to 1, therefore, quaternion data need to be corrected with right bias values.
       // The quaternion data is scaled by 2^30.  if (myICM.status != ICM_20948_Stat_FIFOMoreDataAvail) // If more data is available then we should read it right away - and not delay
 
-      // Scale to +/- 1
       q1 = ((double)data.Quat9.Data.Q1) / 1073741824.0; // Convert to double. Divide by 2^30
       q2 = ((double)data.Quat9.Data.Q2) / 1073741824.0; // Convert to double. Divide by 2^30
       q3 = ((double)data.Quat9.Data.Q3) / 1073741824.0; // Convert to double. Divide by 2^30
@@ -158,13 +165,16 @@ void printIMUData(ICM_20948_I2C *sensor, Adafruit_INA219 * volt_sensor){
       Serial.print(" ],");
       sensor->getAGMT();
       Serial.print("{\"Acc\":[ ");
-      Serial.print(sensor->accX());
+      // printFormattedFloat(sensor->accX(), 5, 2);
+      Serial.print(sensor->accX()/1000);
 
       Serial.print(", ");
-      Serial.print(sensor->accY());
+      // printFormattedFloat(sensor->accY(), 5, 2);
+      Serial.print(sensor->accY()/1000);
 
       Serial.print(", ");
-      Serial.print(sensor->accZ());
+      // printFormattedFloat(sensor->accZ(), 5, 2);
+      Serial.print(sensor->accZ()/1000);
 
       Serial.print(" ],");
 
