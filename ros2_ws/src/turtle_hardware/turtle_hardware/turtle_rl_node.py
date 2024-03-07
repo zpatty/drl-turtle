@@ -7,7 +7,7 @@ from EPHE import EPHE
 from DualCPG import DualCPG
 import sys
 import os
-
+import transforms3d.quaternions as quat
 import numpy as np
 import pickle
 import torch
@@ -88,7 +88,7 @@ class TurtleRobot(Node):
     TLDR; this is the node that handles all turtle hardware things
     """
 
-    def __init__(self, topic, rclpy):
+    def __init__(self, topic, weights=[1, 1, 1, 1, 1]):
         super().__init__('turtle_node')
         # subscribes to keyboard setting different turtle modes 
         self.mode_cmd_sub = self.create_subscription(
@@ -133,7 +133,7 @@ class TurtleRobot(Node):
         self.acc_data = np.zeros((self.n_axis,1))
         self.gyr_data = np.zeros((self.n_axis,1))
         self.quat_data = np.zeros((4,1))
-        self.tau_data = np.zeros((1,1))
+        self.tau_data = np.zeros((10,1))
         self.voltage_data = np.zeros((1,1))
         if portHandlerJoint.openPort():
             print("[MOTORS STATUS] Suceeded to open port")
@@ -155,11 +155,16 @@ class TurtleRobot(Node):
         self.input_history = np.zeros((self.nq,10))
         
         # set thresholds for motor angles 
-        self.epsilon = 0.3
-        self.min_threshold = np.array([1.50, 3.0, 2.4, 2.28, 0.8, 1.56, 1.45, 1.2, 3.0, 2.3])
-        self.max_threshold = np.array([3.53, 5.0, 4.8, 4.37, 4.15, 3.6, 3.2, 4.0, 4.0, 5.3])
-        self.rclpy = rclpy
+        self.epsilon = 0.2
 
+        # TODO: fix limits on turtle
+
+        self.min_threshold = np.array([1.50, 3.0, 2.4, 2.28, 0.8, 1.56, 1.45, 1.2, 3.0, 2.3])
+        self.max_threshold = np.array([3.53, 5.0, 4.8, 4.5, 4.15, 3.6, 3.2, 4.0, 4.0, 5.3])
+
+        # orientation at rest
+        self.orientation = [0.679, 0.0, -0.005, -0.733]
+        self.a_weight, self.x_weight, self.y_weight, self.z_weight, self.tau_weight = weights
     def turtle_mode_callback(self, msg):
         """
         Callback function that updates the mode the turtle should be in.
@@ -197,24 +202,35 @@ class TurtleRobot(Node):
         action is tau which we pass into the turtle
         """
         action = (action * 1000000) + 10
-        print(f"CPG output scaled: {action}\n")
+        # print(f"CPG output scaled: {action}\n")
 
         inputt = grab_arm_current(action, min_torque, max_torque)
-        q = self.Joints.get_position()
         # print(q)
         observation = np.array(self.Joints.get_position())
-        clipped = np.where(observation + self.epsilon < self.max_threshold, inputt, 0)
+        print(f"observation: {observation}\n")
+        clipped = np.where(observation + self.epsilon < self.max_threshold, inputt, np.minimum(np.zeros(len(inputt)), inputt))
         # print(f"clipped: {clipped}")
-        clipped = np.where(observation - self.epsilon > self.min_threshold, clipped, 0)
+        clipped = np.where(observation - self.epsilon > self.min_threshold, clipped, np.maximum(np.zeros(len(inputt)), clipped))
         print(f"clipped: {clipped}")
+        avg_tau = np.mean(abs(clipped))
         self.Joints.send_torque_cmd(clipped)
-        self.tau_data=np.append(self.tau_data, clipped, axis=1) 
+        # print(f"tau data shape: {self.tau_data.shape}")
+        # print(f"clipped shape: {clipped.shape}")
+        self.tau_data=np.append(self.tau_data, clipped.reshape((10,1)), axis=1) 
         self.read_sensors()
         # get latest acc data 
         acc = self.acc_data[:, -1]
-        print(f"acc: {acc}\n")
+        # print(f"acc: {acc}\n")
         terminated = False
-        reward = acc[0]
+        # grab current quat data
+        w, x, y, z = self.quat_data[:, -1]
+        # Convert quaternion to Euler angles
+        dx = abs(self.orientation[0]- x)
+        dy = abs(self.orientation[1]- y)
+        dz = abs(self.orientation[2]- z)
+        # print(f"dx, dy, dz: {[dx, dy, dz]}\n")
+        # forward thrust correlates to positive reading on the y-axis of the accelerometer
+        reward = acc[1] - dx - dy - dz - avg_tau
         if reward < 0:
             reward = 0
         # print(f"reward: {reward}\n")
@@ -259,7 +275,7 @@ class TurtleRobot(Node):
         squeezed = np.reshape(mat, (nq * mat.shape[1]))
         return squeezed.tolist()
     
-    def publish_turtle_data(self, q_data=[], dq_data=[], tau_data=[], timestamps=[], t_0=0, ddq_data=[]):
+    def publish_turtle_data(self, q_data=[], dq_data=[], tau_data=[], timestamps=[], t_0=0.0, ddq_data=[]):
         """
         At the end of a trajectory (i.e when we set the turtle into a rest state or stop state), turtle node needs to 
         package all the sensor and motor data collected during that trajectory and publish it to the turtle_sensors node
@@ -308,29 +324,31 @@ class TurtleRobot(Node):
         
         # print("volt msg")
         # # voltage
+        # print(f"voltage data: {self.voltage_data.tolist()}")
         volt_data = self.voltage_data.tolist()
         # print(f"voltage data: {volt_data}")
         turtle_msg.voltage = volt_data  
 
         # timestamps and t_0
-        turtle_msg.timestamps = timestamps.tolist()
+        if len(timestamps) > 0:
+            turtle_msg.timestamps = timestamps.tolist()
         turtle_msg.t_0 = t_0
 
         # motor positions, desired positions and tau data
-        turtle_msg.q = self.np2msg(q_data) 
-        turtle_msg.dq = self.np2msg(dq_data)
+        if len(q_data) > 0:
+            turtle_msg.q = self.np2msg(q_data) 
+        if len(q_data) > 0:
+            turtle_msg.dq = self.np2msg(dq_data)
         if len(ddq_data) > 0:
             turtle_msg.ddq = self.np2msg(ddq_data)
         qd_squeezed = self.np2msg(self.qds)
-        # print(f"checking type: {type(qd_squeezed)}")
-        # for i in qd_squeezed:
-        #     print(f"check element type: {type(i)}")
         turtle_msg.qd = qd_squeezed
-        turtle_msg.tau = self.np2msg(tau_data)
+        if len(tau_data) > 0:
+            turtle_msg.tau = self.np2msg(tau_data)
 
         # publish msg 
         self.sensors_pub.publish(turtle_msg)
-
+        print(f"published....")
         # reset the sensor variables for next trajectory recording
         self.qds = np.zeros((10,1))
         self.dqds = np.zeros((10,1))
@@ -366,14 +384,15 @@ class TurtleRobot(Node):
         def add_place_holder():
             acc = np.array([-100.0, -100.0, -100.0]).reshape((3,1))
             gyr = np.array([-100.0, -100.0, -100.0]).reshape((3,1))
-            quat = np.array([-100.0, -100.0, -100.0, -100.0]).reshape((4,1))
+            quat_vec = np.array([-100.0, -100.0, -100.0, -100.0]).reshape((4,1))
             volt = -1
             self.acc_data = np.append(self.acc_data, acc, axis=1)
             self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
-            self.quat_data = np.append(self.quat_data, quat, axis=1)
+            self.quat_data = np.append(self.quat_data, quat_vec, axis=1)
             self.voltage_data = np.append(self.voltage_data, volt)
         
         no_check = False
+        self.xiao.reset_input_buffer()
         sensors = self.xiao.readline()
         # print(sensors)
         # make sure it's a valid byte that's read
@@ -388,21 +407,31 @@ class TurtleRobot(Node):
                 if no_check == False:
                     sensor_keys = ('Acc', 'Gyr', 'Quat', 'Voltage')
                     if set(sensor_keys).issubset(sensor_dict):
-                        acc = np.array(sensor_dict['Acc']).reshape((3,1))
+                        a = np.array(sensor_dict['Acc']).reshape((3,1)) * 9.81
                         gyr = np.array(sensor_dict['Gyr']).reshape((3,1))
-                        quat = np.array(sensor_dict['Quat']).reshape((4,1))
+                        q = np.array(sensor_dict["Quat"])
+                        R = quat.quat2mat(q)
+                        g_w = np.array([[0], [0], [9.81]])
+                        g_local = np.dot(R.T, g_w)
+                        acc = a - g_local           # acc without gravity 
+                        quat_vec = q.reshape((4,1))
                         volt = sensor_dict['Voltage'][0]
                         self.acc_data = np.append(self.acc_data, acc, axis=1)
                         self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
-                        self.quat_data = np.append(self.quat_data, quat, axis=1)
+                        self.quat_data = np.append(self.quat_data, quat_vec, axis=1)
                         self.voltage_data = np.append(self.voltage_data, volt)
                         self.voltage = volt
+
 # THIS IS TURTLE CODE
 def main(args=None):
+
+    # TODO: save q, dqs, ddqds, 
     rclpy.init(args=args)
     trial = 1
     threshold = 11.1
-    turtle_node = TurtleRobot('turtle_mode_cmd', rclpy=rclpy)
+    # the weights applied to reward function terms acc, dx, dy, dz, tau
+    weights = [1, 1, 1, 1, 1]
+    turtle_node = TurtleRobot('turtle_mode_cmd', weights=weights)
     q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
     print(f"Our initial q: " + str(q))
     try: 
@@ -417,26 +446,32 @@ def main(args=None):
                 print("disabling torques entirely...")
                 turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
                 turtle_node.Joints.disable_torque()
+                turtle_node.publish_turtle_data(t_0=0.0, q_data=[], dq_data=[], tau_data=[], timestamps=[]) 
+
                 cmd_msg = String()
                 cmd_msg.data = "stop_received"
                 turtle_node.cmd_received_pub.publish(cmd_msg)
                 print("sent stop received msg")
                 break
             elif turtle_node.mode == 'rest':
-                turtle_node.read_voltage()
+                # turtle_node.read_voltage()
                 if turtle_node.voltage < threshold:
                     turtle_node.Joints.disable_torque()
                     print("THRESHOLD MET TURN OFFFF")
                     break
-                turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-                turtle_node.Joints.disable_torque()
-                cmd_msg = String()
-                cmd_msg.data = 'rest_received'
-                turtle_node.cmd_received_pub.publish(cmd_msg)
-                print(f"current voltage: {turtle_node.voltage}\n\n\n\n")
+                print(turtle_node.Joints.get_position())
+                # turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                # turtle_node.Joints.disable_torque()
+                # cmd_msg = String()
+                # cmd_msg.data = 'rest_received'
+                # turtle_node.cmd_received_pub.publish(cmd_msg)
+                # print(f"current voltage: {turtle_node.voltage}\n")
+                # turtle_node.read_sensors()
+                # print(f"acc: {turtle_node.acc_data[:, -1]}\n")
+                # print(f"quat: {turtle_node.quat_data[:, -1]}\n")
             elif turtle_node.mode == 'train1':
                 print("Isjpeert")
-             
+            
             elif turtle_node.mode == 'train':
                 print("TRAIN MODE")
                 # for saving data
@@ -446,19 +481,19 @@ def main(args=None):
 
                 # initial params for training
                 num_params = 21
-                M = 1
-                K = 3
-                mu = np.random.rand((num_params)) * 20
-                params = np.random.rand((num_params)) * 20
+                M = 10
+                K = 2
+                mu = np.random.rand((num_params)) * 10
+                params = np.random.rand((num_params)) * 10
                 tau_shift = 0.2
                 B_shift = 0.5
                 E_shift = 0.5
                 sigma = np.random.rand((num_params)) 
-                shifty_shift = [tau_shift, 
-                                B_shift, B_shift, B_shift + 0.3,
-                                B_shift + 0.3, B_shift, B_shift,
-                                E_shift, E_shift, E_shift,
-                                E_shift, E_shift, E_shift]
+                # shifty_shift = [tau_shift, 
+                #                 B_shift, B_shift, B_shift + 0.3,
+                #                 B_shift + 0.3, B_shift, B_shift,
+                #                 E_shift, E_shift, E_shift,
+                #                 E_shift, E_shift, E_shift]
                 print(f"intial mu: {mu}\n")
                 print(f"initial sigma: {sigma}\n")
                 print(f"M: {M}\n")
@@ -493,7 +528,7 @@ def main(args=None):
 
                 # Bo Chen paper says robot converged in 20 episodes
                 max_episodes = 2
-                max_episode_length = 60     # 60 * 0.05 = ~3 seconds
+                max_episode_length = 80     # 60 * 0.05 = ~3 seconds
 
                 config_log = {
                     "mu_init": list(mu),
@@ -504,7 +539,8 @@ def main(args=None):
                     "num episodes": max_episodes,
                     "max_episode_length": max_episode_length,
                     "alpha": alpha,
-                    "omega": omega
+                    "omega": omega, 
+                    "weights": weights
                 }
 
                 # data structs for plotting
@@ -521,7 +557,10 @@ def main(args=None):
                 # Save the dictionary as a JSON file
                 with open(file_path, 'w') as json_file:
                     json.dump(config_log, json_file)
-        
+
+                t_0 = time.time()
+                timestamps = np.zeros((1,1))
+
                 # get to training
                 turtle_node.Joints.enable_torque()
                 for episode in range(max_episodes):
@@ -535,6 +574,7 @@ def main(args=None):
                         torch.save(best_params, best_param_fname)
                         # save data structs to matlab 
                         scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data, 'param_data': param_data, 'reward_data': reward_data})
+                        turtle_node.publish_turtle_data(t_0=t_0, q_data=turtle_node.qds, dq_data=turtle_node.dqds, tau_data=turtle_node.tau_data, timestamps=timestamps) 
                         break
                     if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
                         turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
@@ -544,6 +584,8 @@ def main(args=None):
                         torch.save(best_params, best_param_fname)
                         # save data structs to matlab 
                         scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data, 'param_data': param_data, 'reward_data': reward_data})
+                        turtle_node.publish_turtle_data(t_0=t_0, q_data=turtle_node.qds, dq_data=turtle_node.dqds, tau_data=turtle_node.tau_data, timestamps=timestamps) 
+
                         trial += 1
                         break
                     print(f"--------------------episode: {episode}------------------")
@@ -552,30 +594,60 @@ def main(args=None):
                     R = np.zeros(M)
                     for i in range(M):
                         rclpy.spin_once(turtle_node)
+                        if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
+                            print("breaking out of episode----------------------------------------------------------------------")
+                            turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                            turtle_node.Joints.disable_torque()
+                            trial += 1
+                            break
                         subplot=True
                         lst_params[:, i] = solutions[i]
-                        fitness, total_actions = cpg.set_params_and_run(env=turtle_node, policy_parameters=solutions[i], max_episode_length=max_episode_length)
+
+                        # need to just implement method here so that we can actually call stoof
+                        
+                        cpg.set_parameters(solutions[i])
+                        cumulative_reward = 0.0
+                        observation, __ = turtle_node.reset()
+                        t = 0
+                        first_time = True
+                        total_actions = np.zeros((num_mods, 1))
+                        while True:
+                            rclpy.spin_once(turtle_node)
+                            if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
+                                print("breaking out of trajectory----------------------------------------------------------------------")
+                                turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                                turtle_node.Joints.disable_torque()
+                                break
+                            dt = 0.002
+                            action = cpg.get_action(dt)
+                            # print(f"action shape: {action.shape}")
+                            total_actions = np.append(total_actions, action.reshape((10,1)), axis=1)
+                            # print(f"params: {self.params}\n")
+                            # print(f"action: {action}\n")
+                            timestamps = np.append(timestamps, (time.time()-t_0)) 
+                            observation, reward, terminated, truncated, info = turtle_node.step(action)
+                            done = truncated or terminated
+                            cumulative_reward += reward
+                            t += 1
+                            if t > max_episode_length:
+                                print(f"we're donesies with {t}")
+                                break
+                            if done:
+                                if truncated:
+                                    print("truncccc")
+                                if terminated:
+                                    print("terminator")
+                                break
+                        # replaces set_params_and_run function for now
+                        fitness = cumulative_reward
+                        # fitness, total_actions = cpg.set_params_and_run(env=turtle_node, policy_parameters=solutions[i], max_episode_length=max_episode_length)
                         timesteps = total_actions.shape[1] - 1
                         dt = 0.002
                         t = np.arange(0, timesteps*dt, dt)
                         if fitness > best_reward:
                             print(f"params with best fitness: {solutions[i]} with reward {fitness}\n")
                             best_reward = fitness
-                            best_params = solutions[i]
-                        if subplot:
-                            # Plotting each row as its own subplot
-                            fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
-                            for j, ax in enumerate(axs):
-                                ax.plot(t, total_actions[j, 1:])
-                                ax.set_title(f"CPG {j+1}")
-                                ax.set_xlabel("Time")
-                                ax.set_ylabel("Data")
-                                ax.grid(True)
-                            plt.tight_layout()
-                            # plt.show()
-                            os.makedirs(folder_name, exist_ok=True)
-                            plt.savefig(folder_name + f'/CPG_output_run{i}_reward_{fitness}.png')
-
+                            best_params = solutions[i]  
                         R[i] = fitness
                     print("--------------------- Episode:", episode, "  median score:", np.median(R), "------------------")
                     print(f"all rewards: {R}\n")
@@ -601,6 +673,7 @@ def main(args=None):
                 print(f"best mu: {best_mu}\n")
                 print(f"best sigma: {best_sigma}\n")
                 print(f"best params: {best_params} got reward of {best_reward}\n")
+                print("------------------------Saving data------------------------\n")
                 # save the best params
                 torch.save(best_params, best_param_fname)
                 # save data structs to matlab 
