@@ -20,7 +20,7 @@ sys.path.append(submodule)
 
 from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
-from dynamixel_sdk import *                    # Uses Dynamixel SDK library
+from dynamixel_sdk import *                                     # Uses Dynamixel SDK library
 from turtle_dynamixel.Dynamixel import *                        # Dynamixel motor class                                  
 from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
 from turtle_dynamixel.turtle_controller import *                # Controller 
@@ -155,7 +155,7 @@ class TurtleRobot(Node):
         self.input_history = np.zeros((self.nq,10))
         
         # set thresholds for motor angles 
-        self.epsilon = 0.2
+        self.epsilon = 0.1
 
         # TODO: fix limits on turtle
 #         observation: [2.0202527  4.07732093 3.7045636  4.37184525 2.87161203 3.66928204
@@ -223,8 +223,16 @@ class TurtleRobot(Node):
         action is tau which we pass into the turtle
         """
         keep_trying = True
-        action = (action * 1000000) + 10
-        # print(f"CPG output scaled: {action}\n")
+        action = action * 10000
+        for a in range(len(action)):
+            if action[a] < 0:
+                action[a] = action[a] - 50
+            elif action[a] > 0:
+                action[a] = action[a] + 50
+            else:
+                action[a] = action[a]
+        # action = (action * 1000000) + 10
+        print(f"CPG output scaled: {action}\n")
 
         inputt = grab_arm_current(action, min_torque, max_torque)
         # print(q)
@@ -235,9 +243,9 @@ class TurtleRobot(Node):
             except:
                 print("okie")
         print(f"observation: {observation}\n")
-        clipped = np.where(observation < self.max_threshold, inputt, np.minimum(np.zeros(len(inputt)), inputt))
+        clipped = np.where(observation > self.max_threshold - self.epsilon, inputt, np.minimum(np.zeros(len(inputt)), inputt))
         # print(f"clipped: {clipped}")
-        clipped = np.where(observation > self.min_threshold, clipped, np.maximum(np.zeros(len(inputt)), clipped)).astype('int')
+        clipped = np.where(observation < self.min_threshold + self.epsilon, clipped, np.maximum(np.zeros(len(inputt)), clipped)).astype('int')
         print(f"clipped: {clipped}")
         avg_tau = np.mean(abs(clipped))
         self.Joints.send_torque_cmd(clipped)
@@ -357,9 +365,9 @@ class TurtleRobot(Node):
         # print("volt msg")
         # # voltage
         # print(f"voltage data: {self.voltage_data.tolist()}")
-        volt_data = self.voltage_data.tolist()
+        # volt_data = self.voltage_data.tolist()
         # print(f"voltage data: {volt_data}")
-        turtle_msg.voltage = volt_data  
+        # turtle_msg.voltage = volt_data  
 
         # timestamps and t_0
         if len(timestamps) > 0:
@@ -460,7 +468,7 @@ def main(args=None):
 
     # TODO: save q, dqs, ddqds, 
     rclpy.init(args=args)
-    trial = 1
+    trial = 5
     threshold = 11.1
     # the weights applied to reward function terms acc, dx, dy, dz, tau
     weights = [1, 1, 1, 1, 1]
@@ -626,19 +634,19 @@ def main(args=None):
 
                 # initial params for training
                 num_params = 21
-                M = 40
-                K = 5
-                mu = np.random.rand((num_params)) * 10
-                params = np.random.rand((num_params)) * 10
+                M = 4
+                K = 3
+                mu = np.random.rand((num_params)) 
+                params = np.random.rand((num_params)) 
                 tau_shift = 0.2
                 B_shift = 0.5
                 E_shift = 0.5
-                sigma = np.random.rand((num_params)) 
-                # shifty_shift = [tau_shift, 
-                #                 B_shift, B_shift, B_shift + 0.3,
-                #                 B_shift + 0.3, B_shift, B_shift,
-                #                 E_shift, E_shift, E_shift,
-                #                 E_shift, E_shift, E_shift]
+                sigma = np.random.rand((num_params)) + 0.3
+                shifty_shift = [tau_shift, 
+                                B_shift, B_shift, B_shift + 0.3,
+                                B_shift + 0.3, B_shift, B_shift,
+                                E_shift, E_shift, E_shift,
+                                E_shift, E_shift, E_shift]
                 print(f"intial mu: {mu}\n")
                 print(f"initial sigma: {sigma}\n")
                 print(f"M: {M}\n")
@@ -804,20 +812,28 @@ def main(args=None):
                     print(f"k rewards: {k_rewards}")
                     # We inform our ephe solver of the fitnesses we received,
                     # so that the population gets updated accordingly.
-                    ephe.update(k_rewards=k_rewards, k_params=k_params)
-                    print(f"new mu: {ephe.center()}\n")
-                    print(f"new sigma: {ephe.sigma()}\n")
+                    update = True
+                    for g in k_rewards:
+                        print(g)
+                        if g <= 0:
+                            print("false")
+                            update = False
+
+                    if update:
+                        ephe.update(k_rewards=k_rewards, k_params=k_params)
+                        print(f"---------------------new mu: {ephe.center()}---------------------------\n")
+                        print(f"--------------------new sigma: {ephe.sigma()}--------------------------\n")
                     # save param data
-                    param_data[:, :, episode] = lst_params
-                    # save mus and sigmas
-                    mu_data[:, episode] = ephe.center()
-                    sigma_data[:, episode] = ephe.sigma()
-                    reward_data[:, episode] = R
-                best_mu = ephe.center()
-                best_sigma = ephe.sigma()
-                print(f"best mu: {best_mu}\n")
-                print(f"best sigma: {best_sigma}\n")
-                print(f"best params: {best_params} got reward of {best_reward}\n")
+                        param_data[:, :, episode] = lst_params
+                        # save mus and sigmas
+                        mu_data[:, episode] = ephe.center()
+                        sigma_data[:, episode] = ephe.sigma()
+                        reward_data[:, episode] = R
+                    # best_mu = ephe.center()
+                    # best_sigma = ephe.sigma()
+                # print(f"best mu: {best_mu}\n")
+                # print(f"best sigma: {best_sigma}\n")
+                # print(f"best params: {best_params} got reward of {best_reward}\n")
                 print("------------------------Saving data------------------------\n")
                 # save the best params
                 torch.save(best_params, best_param_fname)
@@ -833,6 +849,7 @@ def main(args=None):
         fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
         print(exec_type, fname, tb.tb_lineno)
         print(e)
+
     
     rclpy.shutdown()
 
