@@ -62,9 +62,6 @@ def positive_int_or_none(x) -> Union[int, None]:
         x = None
     return x
 
-
-
-
 class DualCPG:
     """
     Bo Chen implementation (the dual-neuron model)
@@ -80,10 +77,6 @@ class DualCPG:
                  observation_normalization=True,
                  fix_B=False,
                  seed=0.0):
-        # self._observation_space, self._action_space = (
-        #     get_env_spaces(self._env_name, self._env_config)
-        # )
-
         self._seed = seed                                   # seed to replicate 
         self.alpha = alpha                                  # mutual inhibition weight
         self.omega = omega                                  # inter-module connection weight of the neuron
@@ -215,6 +208,27 @@ class DualCPG:
             action[i] = y_out
         return action
 
+    
+    def reset(self):
+        """
+        Reset your CPGs?
+        """
+        # self.U = np.zeros((self.num_mods, 2)) * 10
+        # self.V = np.zeros((self.num_mods, 2)) * 10
+        sig_U = np.maximum(0.1 * self.U, 0.01)
+
+        sig_V = np.maximum(0.1 * self.V, 0.01)
+
+        dU = np.random.normal(0, sig_U, size=self.U.shape)
+        dV = np.random.normal(0, sig_V, size=self.V.shape)
+
+        # self.U = np.random.uniform(low=0.3, high=4, size=(self.num_mods, 2))
+        # self.V = np.random.uniform(low=0.3, high=4, size=(self.num_mods, 2))
+        self.U = self.U + dU
+        self.V = self.V + dV
+
+
+
     def run(self, 
             env,
             max_episode_length=60):
@@ -232,13 +246,18 @@ class DualCPG:
         # TODO: look into whether you need to normalize the observation or not
         cumulative_reward = 0.0
         observation, __ = env.reset()
+        self.reset()
+        # start_U = self.U.copy()
+        # start_V = self.V.copy()
+        # self.reset()
         t = 0
         first_time = True
         total_actions = np.zeros((self.num_mods, 1))
         while True:
             dt = 0.05
+            # dt = 0.001
             action = self.get_action(dt)
-            # print(f"action shape: {action.shape}")
+            # print(f"action: {action}\n")
             total_actions = np.append(total_actions, action.reshape((6,1)), axis=1)
             # print(f"params: {self.params}\n")
             # print(f"action: {action}\n")
@@ -259,6 +278,13 @@ class DualCPG:
                 if terminated:
                     print("terminator")
                 break
+            # if cumulative_reward > 10:
+            #     print("-----------------------------starting CPG states-----------------------------")
+            #     print(f"starting U: {start_U}")
+            #     print(f"starting V: {start_V}")
+            #     print("-----------------------------starting CPG states-----------------------------")
+            #     print(f"reward: {cumulative_reward}")
+
         return cumulative_reward, total_actions
     def set_params_and_run(self,
                            env,
@@ -294,7 +320,7 @@ def train(num_params=20, num_mods=10, M=20, K=3):
     We then choose the best K params that are selected from the sorted reward of R(v^m).
     
     """
-    trial = 65
+    trial = 68
     trial_folder = f'CPG_exp_{trial}'
     best_param_fname = trial_folder + f'/best_params_ephe_{trial}.pth'
 
@@ -498,9 +524,9 @@ def test(best_params):
 
 
 def main(args=None):
-    best_params = train(num_params=13, num_mods=6, M=40, K=5)
-    # best_params = torch.load('CPG_exp_57/best_params_ephe_57.pth')
-    # print(f"best params: {best_params}\n")
+    # best_params = train(num_params=13, num_mods=6, M=40, K=5)
+    best_params = torch.load('CPG_exp_68/best_params_ephe_68.pth')
+    print(f"best params: {best_params}\n")
     # best_params = np.array([0.05995898,
     # 0.3249511,  0.23618026, 1.1467696,
     # 1.601948,   1.7500631,  0.8504787,
