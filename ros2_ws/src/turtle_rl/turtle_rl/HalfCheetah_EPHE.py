@@ -215,17 +215,25 @@ class DualCPG:
         """
         # self.U = np.zeros((self.num_mods, 2)) * 10
         # self.V = np.zeros((self.num_mods, 2)) * 10
-        sig_U = np.maximum(0.1 * self.U, 0.01)
+        # print(f"prev Sig u: {self.U * 0.1}")
+        # print(f"prev sig V: {self.V  *0.1}")
+        # sig_U = np.where(self.U * 0.1 > 0, self.U, 0.01)
+        # sig_U = np.maximum(0.3 * self.U, 0.01)
+        # sig_V = np.where(self.V * 0.1 > 0, self.V, 0.01)
+        # sig_V = np.maximum(0.3 * self.V, 0.01)
 
-        sig_V = np.maximum(0.1 * self.V, 0.01)
+        # print(f"sig U: {sig_U}")
+        # print(f"sig v: {sig_V}")
+        # self.U = np.random.normal(self.U, sig_U, size=self.U.shape)
+        # self.V = np.random.normal(self.V, sig_V, size=self.V.shape)
 
-        dU = np.random.normal(0, sig_U, size=self.U.shape)
-        dV = np.random.normal(0, sig_V, size=self.V.shape)
+        # self.U = np.where(U > 0, U, np.maximum(np.zeros(len(U)), self.U))
+        # self.V = np.where(V > 0, V, np.maximum(np.zeros(len(U)), self.V))
 
-        # self.U = np.random.uniform(low=0.3, high=4, size=(self.num_mods, 2))
-        # self.V = np.random.uniform(low=0.3, high=4, size=(self.num_mods, 2))
-        self.U = self.U + dU
-        self.V = self.V + dV
+        self.U = np.random.uniform(low=0.1, high=10, size=(self.num_mods, 2))
+        self.V = np.random.uniform(low=0.1, high=10, size=(self.num_mods, 2))
+        # self.U = self.U + dU
+        # self.V = self.V + dV
 
 
 
@@ -320,7 +328,7 @@ def train(num_params=20, num_mods=10, M=20, K=3):
     We then choose the best K params that are selected from the sorted reward of R(v^m).
     
     """
-    trial = 68
+    trial = 69
     trial_folder = f'CPG_exp_{trial}'
     best_param_fname = trial_folder + f'/best_params_ephe_{trial}.pth'
 
@@ -524,16 +532,16 @@ def test(best_params):
 
 
 def main(args=None):
-    # best_params = train(num_params=13, num_mods=6, M=40, K=5)
-    best_params = torch.load('CPG_exp_68/best_params_ephe_68.pth')
-    print(f"best params: {best_params}\n")
+    best_params = train(num_params=13, num_mods=6, M=40, K=5)
+    # best_params = torch.load('CPG_exp_68/best_params_ephe_68.pth')
+    # print(f"best params: {best_params}\n")
     # best_params = np.array([0.05995898,
     # 0.3249511,  0.23618026, 1.1467696,
     # 1.601948,   1.7500631,  0.8504787,
     # 0.72862464, 0.39583203, 1.9946121,
     # 0.7511554,  0.9768969,  0.54476357])
-    reward= test(best_params=best_params)
-    print(f"total reward: {reward}")
+    # reward= test(best_params=best_params)
+    # print(f"total reward: {reward}")
 
 #     best params: [0.06600154 1.3065463  0.35091093 5.56598    1.0991176  0.7638497
 #  0.16066651 1.9449487  5.1943164  0.04553364 1.1190369  0.43531108
