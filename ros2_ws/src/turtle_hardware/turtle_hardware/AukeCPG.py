@@ -47,7 +47,7 @@ class AukeCPG:
         self.w = w                          # coupled weight bias
         self.phi = phi                      # coupled phase bias- this seems to always be 0 according to auke
         self.num_mods = num_mods            # number of CPG modules
-        self.theta = np.zeros((num_mods))   # output of oscillators (radians)
+        self.theta = np.zeros((num_mods))   # oscillating setpoint of oscillator i (in radians)
 
         self.params = np.random.rand((num_params)) * 0.1        # holds the params of the CPG [omega, R, X] = [freq, amplitude, offset]
         self.PHI = np.zeros((num_mods))                         # phase state variables (radians)
@@ -84,11 +84,11 @@ class AukeCPG:
         """
         Reset your CPGs?
         """
-        self.PHI = np.random.uniform(low=0.5, high=20, size=self.num_mods)
-        self.r = np.random.uniform(low=0.5, high=20, size=self.num_mods)
-        self.x = np.random.uniform(low=0.5, high=20, size=self.num_mods)
-        self.m = np.random.uniform(low=0.5, high=20, size=self.num_mods)
-        self.v = np.random.uniform(low=0.5, high=20, size=self.num_mods)
+        self.PHI = np.random.uniform(low=0.01, high=3, size=self.num_mods)
+        self.r = np.random.uniform(low=0.01, high=3, size=self.num_mods)
+        self.x = np.random.uniform(low=0.01, high=3, size=self.num_mods)
+        self.m = np.random.uniform(low=0.01, high=3, size=self.num_mods)
+        self.v = np.random.uniform(low=0.01, high=3, size=self.num_mods)
 
         
     def get_action(self, dt):
@@ -247,7 +247,7 @@ class AukeCPG:
                     except:
                         print("failed to solve ode with the following: \n")
                         print(f"state= {state}\n")
-                        print(f"dt= {dt}\n")
+                        print(f"dt= {self.dt}\n")
                         pass
                     # grab output of oscillator i
                     self.theta[idx] = self.x[idx] + self.r[idx] * np.cos(self.PHI[idx])
@@ -280,7 +280,7 @@ class AukeCPG:
                     except:
                         print("failed to solve ode with the following: \n")
                         print(f"state= {state}\n")
-                        print(f"dt= {dt}\n")
+                        print(f"dt= {self.dt}\n")
                         pass
                     # grab output of oscillator i
                     self.theta[idx] = self.x[idx] + self.r[idx] * np.cos(self.PHI[idx])
@@ -364,15 +364,15 @@ def main(args=None):
     num_params = 21
     num_mods = 10
     cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=0.0, w=0.5, a_r=20, a_x=20, dt=0.001)
-    params = np.random.uniform(low=0, high=10, size=num_params)
-    # params[0] = tau_init
-
+    params = np.random.uniform(low=0.01, high=3, size=num_params)
+    print(f"starting params: {params}\n")
     eps_len = 3000
     cpg.set_parameters(params=params)
     cpg.reset()
-    # cpg.plot(timesteps=60)
     total_actions = cpg.get_rollout(episode_length=eps_len)
-    print(f"action: {total_actions[:, 0:15]}")
+    print(total_actions.shape)
+    print(f"action: {total_actions[:, 500:1000]}\n")
+    # print(f"action: {total_actions[:, 50:90]}\n")
     # fitness, total_actions = cpg.set_params_and_run(epolicy_parameters=solutions[i], max_episode_length=max_episode_length)
     t = np.arange(0, eps_len*cpg.dt, cpg.dt)
 
