@@ -230,8 +230,8 @@ class DualCPG:
         # self.U = np.where(U > 0, U, np.maximum(np.zeros(len(U)), self.U))
         # self.V = np.where(V > 0, V, np.maximum(np.zeros(len(U)), self.V))
 
-        self.U = np.random.uniform(low=0.1, high=10, size=(self.num_mods, 2))
-        self.V = np.random.uniform(low=0.1, high=10, size=(self.num_mods, 2))
+        self.U = np.random.uniform(low=0.1, high=7, size=(self.num_mods, 2))
+        self.V = np.random.uniform(low=0.1, high=7, size=(self.num_mods, 2))
         # self.U = self.U + dU
         # self.V = self.V + dV
 
