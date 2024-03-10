@@ -213,7 +213,6 @@ class AukeCPG:
         back_fins = [[6, 7], [8, 9]]
         for i in range(episode_length):
             action = np.zeros((self.num_mods))
-
             # for every front fin
             for fin in front_fins:
                 num_coupled = 3
@@ -364,7 +363,7 @@ def main(args=None):
     num_params = 21
     num_mods = 10
     cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=0.0, w=0.5, a_r=20, a_x=20, dt=0.001)
-    params = np.random.uniform(low=0.01, high=3, size=num_params)
+    params = np.random.uniform(low=0.01, high=5, size=num_params)
     print(f"starting params: {params}\n")
     eps_len = 3000
     cpg.set_parameters(params=params)

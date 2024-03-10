@@ -57,10 +57,13 @@ class DualCPG:
 
         self.B1 = B1                                        # the first phase is fixed                             
         self.params = np.random.rand((num_params)) * 0.1    # holds the params of the CPG [tau, B, E] = [freq, phase, amplitude]
-        # self.U = np.random.rand(num_mods, 2) * 0.1          # the U state of the CPG
-        # self.V = np.random.rand(num_mods, 2) * 0.1          # the V state of the CPG
-        self.U = np.zeros((num_mods, 2))
-        self.V = np.zeros((num_mods, 2))
+        # self.U = np.random.rand(num_mods, 2) * 10          # the U state of the CPG
+        # self.V = np.random.rand(num_mods, 2) * 10          # the V state of the CPG
+        # self.U = np.random.uniform(low=10, high=50, size=(num_mods,2))
+        # self.V = np.random.uniform(low=10, high=50, size=(num_mods,2))
+
+        # self.U = np.zeros((num_mods, 2))
+        # self.V = np.zeros((num_mods, 2))
         self.fix_B = fix_B                                  # whether or not we fix the first B1 like in BoChen
         self.first_time = True
         self.dt = dt
@@ -85,13 +88,12 @@ class DualCPG:
         = En: amplitude for CPG mod n
         """
         # make sure phase is kept between 0 and 2pi
-        scaled = params.copy()
         # print(f"scale: {type(scaled)}")
         # scale the phase
         # scaled[1:self.num_mods + 1]= (scaled[1:self.num_mods + 1]) % (2*np.pi)
-        self.params = scaled
+        self.params = params
         print(f"-----------------current params--------------------: {self.params}")
-    
+        
     def get_params(self):
         return self.params
     def set_weights(self, weights):
@@ -326,49 +328,64 @@ class DualCPG:
 def main(args=None):
     num_params = 21
     num_mods = 10
+    # num_params = 13
+    # num_mods = 6
 
-    cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=0.5, omega=0.5, dt=0.002)
-    # params = np.array([0.1,
-    # 1.3914,
-    # 1.2027,
-    # 0.7980,
-    # 0.2457,
-    # 0.2887,
-    # 1.8910,
-    # 1.6131,
-    # 0.3408,
-    # 1.7137,
-    # 2.6679,
-    # 1.3090,
-    # 1.2164,
-    # 0.9966,
-    # 1.0596,
-    # 1.6618,
-    # 0.2860,
-    # 0.0958,
-    # 0.7045,
-    # 1.4313,
-    # 0.3387])
+    cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=0.5, omega=0.5, dt=0.03)
+    # params = np.array([0.8640624, 
+    #                 0.75593179,
+    #                 1.00992906,
+    #                 0.70579118,
+    #                 1.16415238,
+    #                 2.12477779,
+    #                 1.92771959,
+    #                 1.50089085,
+    #                 0.45425433,
+    #                 0.75726408,
+    #                 1.02702773,
+    #                 2514.7264 ,
+    #                 3045.1939,
+    #                 1373.0098 ,
+    #                 7261.349 ,
+    #                 1359.78985,
+    #                 5780.0198,
+    #                 1790.89868,
+    #                 7626.8578,
+    #                 1171.45836,
+    #                 4878.9567])
+
+    # params = np.array([0.05288525, 
+    #                    1.0506047 , 1.3421186,  0.5090118, 
+    #                    1.0506047 , 1.3421186,  0.5090118,
+    #                     1.3040454,  0.844415, 
+    #                     1.3040454,  0.844415, 
+    #                     3.1915715, 0.27153367, 0.96751857,
+    #                     3.1915715, 0.27153367, 0.96751857,
+    #                       0.5237518,  0.7672906,
+    #                       0.5237518,  0.7672906])
+
     tau_init = np.random.uniform(low=0.04, high=0.1, size=1)[0]
-    print(tau_init)
-    params = np.random.uniform(low=0.0, high=1, size=num_params)
-    params[0] = tau_init
+    # print(tau_init)
+    params = np.random.uniform(low=0, high=10, size=num_params)
+    # params[0] = tau_init
 
-
+    eps_len = 300
     cpg.set_parameters(params=params)
     # cpg.plot(timesteps=60)
-    action = cpg.get_action()
-    print(f"action: {action * 100000}")
+    total_actions = cpg.get_rollout(episode_length=eps_len)
+    print(f"action: {total_actions[:, 0:15]}")
     # fitness, total_actions = cpg.set_params_and_run(epolicy_parameters=solutions[i], max_episode_length=max_episode_length)
-    # fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
-    # for j, ax in enumerate(axs):
-    #     ax.plot(t, total_actions[j, 1:])
-    #     ax.set_title(f"CPG {j+1}")
-    #     ax.set_xlabel("Time")
-    #     ax.set_ylabel("Data")
-    #     ax.grid(True)
-    # plt.tight_layout()
-    # plt.show()
+    t = np.arange(0, eps_len*cpg.dt, cpg.dt)
+
+    fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
+    for j, ax in enumerate(axs):
+        ax.plot(t, total_actions[j, :])
+        ax.set_title(f"CPG {j+1}")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Data")
+        ax.grid(True)
+    plt.tight_layout()
+    plt.show()
     # return 0
 
 if __name__ == "__main__":
