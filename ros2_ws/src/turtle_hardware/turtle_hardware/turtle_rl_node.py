@@ -180,6 +180,8 @@ class TurtleRobot(Node):
             self.mode = 'stop'
         elif msg.data == 'teacher':
             self.mode = 'teacher'
+        elif msg.data == 'Auke':
+            self.mode = 'Auke'
         else:
             self.mode = 'rest'
     def reset(self):
@@ -233,7 +235,10 @@ class TurtleRobot(Node):
             # TODO: figure out dq and ddq
             dqd = np.zeros((self.nq,1))
             ddqd = np.zeros((self.nq,1))
-            tau = turtle_controller(observation,v,qd,dqd,ddqd,self.Kp,self.KD)
+            # print(f"observation shape: {observation.shape}")
+            # print(f"v shape: {v.shape}")
+            # print(f"qd: {qd.shape}")
+            tau = turtle_controller(observation.reshape((10,1)),v.reshape((10,1)),qd.reshape((10,1)),dqd,ddqd,self.Kp,self.KD)
             avg_tau = np.mean(abs(tau))
             clipped = grab_arm_current(tau, min_torque, max_torque)
         else:
@@ -525,392 +530,392 @@ def main(args=None):
 
 
 
-    try: 
-        while rclpy.ok():
-            rclpy.spin_once(turtle_node)
+    # try: 
+    while rclpy.ok():
+        rclpy.spin_once(turtle_node)
+        if turtle_node.voltage < threshold:
+            print("[WARNING] volt reading too low--closing program....")
+            turtle_node.Joints.disable_torque()
+            break
+        if turtle_node.mode == 'stop':
+            print("ending entire program...")
+            print("disabling torques entirely...")
+            turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+            turtle_node.Joints.disable_torque()
+            cmd_msg = String()
+            cmd_msg.data = "stop_received"
+            turtle_node.cmd_received_pub.publish(cmd_msg)
+            print("sent stop received msg")
+            break
+        elif turtle_node.mode == 'rest':
+            turtle_node.read_voltage()
             if turtle_node.voltage < threshold:
-                print("[WARNING] volt reading too low--closing program....")
                 turtle_node.Joints.disable_torque()
+                print("THRESHOLD MET TURN OFFFF")
                 break
-            if turtle_node.mode == 'stop':
-                print("ending entire program...")
-                print("disabling torques entirely...")
-                turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-                turtle_node.Joints.disable_torque()
-                cmd_msg = String()
-                cmd_msg.data = "stop_received"
-                turtle_node.cmd_received_pub.publish(cmd_msg)
-                print("sent stop received msg")
-                break
-            elif turtle_node.mode == 'rest':
-                turtle_node.read_voltage()
-                if turtle_node.voltage < threshold:
-                    turtle_node.Joints.disable_torque()
-                    print("THRESHOLD MET TURN OFFFF")
-                    break
-                # print(turtle_node.Joints.get_position())
-                # time.sleep(0.5)
-                turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-                turtle_node.Joints.disable_torque()
-                print(turtle_node.Joints.get_position())
-                cmd_msg = String()
-                cmd_msg.data = 'rest_received'
-                turtle_node.cmd_received_pub.publish(cmd_msg)
-                print(f"current voltage: {turtle_node.voltage}\n")
-                # turtle_node.read_sensors()
-                # print(f"acc: {turtle_node.acc_data[:, -1]}\n")
-                # print(f"quat: {turtle_node.quat_data[:, -1]}\n")
-            elif turtle_node.mode == 'Auke':
-                # Auke CPG model that outputs position in radians
-                phi=0.0
-                w=0.5
-                a_r=20
-                a_x=20
+            # print(turtle_node.Joints.get_position())
+            # time.sleep(0.5)
+            turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+            turtle_node.Joints.disable_torque()
+            print(turtle_node.Joints.get_position())
+            cmd_msg = String()
+            cmd_msg.data = 'rest_received'
+            turtle_node.cmd_received_pub.publish(cmd_msg)
+            print(f"current voltage: {turtle_node.voltage}\n")
+            # turtle_node.read_sensors()
+            # print(f"acc: {turtle_node.acc_data[:, -1]}\n")
+            # print(f"quat: {turtle_node.quat_data[:, -1]}\n")
+        elif turtle_node.mode == 'Auke':
+            # Auke CPG model that outputs position in radians
+            phi=0.0
+            w=0.5
+            a_r=20
+            a_x=20
 
-                config_log = {
-                    "mu_init": list(mu),
-                    "sigma_init": list(sigma),
-                    "M": M,
-                    "K": K,
-                    "num episodes": max_episodes,
-                    "max_episode_length": max_episode_length,
-                    "phi": phi,
-                    "w": w, 
-                    "a_r": a_r,
-                    "a_x": a_x,
-                    "weights": weights,
-                    "dt": dt
-                }
+            config_log = {
+                "mu_init": list(mu),
+                "sigma_init": list(sigma),
+                "M": M,
+                "K": K,
+                "num episodes": max_episodes,
+                "max_episode_length": max_episode_length,
+                "phi": phi,
+                "w": w, 
+                "a_r": a_r,
+                "a_x": a_x,
+                "weights": weights,
+                "dt": dt
+            }
 
-                # Save the dictionary as a JSON file
-                with open(file_path, 'w') as json_file:
-                    json.dump(config_log, json_file)
+            # Save the dictionary as a JSON file
+            with open(file_path, 'w') as json_file:
+                json.dump(config_log, json_file)
 
-                print("Auke CPG training time\n")
-                cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
-                ephe = EPHE(
-                    
-                    # We are looking for solutions whose lengths are equal
-                    # to the number of parameters required by the policy:
-                    solution_length=mu.shape[0],
-                    
-                    # Population size: the number of trajectories we run with given mu and sigma 
-                    popsize=M,
-                    
-                    # Initial mean of the search distribution:
-                    center_init=mu,
-                    
-                    # Initial standard deviation of the search distribution:
-                    stdev_init=sigma,
-
-                    # dtype is expected as float32 when using the policy objects
-                    dtype='float32', 
-
-                    K=K
-                )
-                # get to training
-                turtle_node.Joints.enable_torque()
-    ############################ EPISODE #################################################
-                for episode in range(max_episodes):
-                    # data folder for this episode
-                    rclpy.spin_once(turtle_node)
-                    if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
-                        turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-                        turtle_node.Joints.disable_torque()
-                        print("saving data...")
-                        # save the best params
-                        torch.save(best_params, best_param_fname)
-                        # save data structs to matlab 
-                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
-                                            'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
-                                            'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
-                                            'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
-                        break
-                    print(f"--------------------episode: {episode} of {max_episodes}------------------")
-                    lst_params = np.zeros((num_params, M))
-                    solutions = ephe.ask()     
-                    param_data[:, :, episode] = solutions.T
-                    # rewards from M rollouts   
-                    R = np.zeros(M)
-    ###################### run your M rollouts########################################################################3
-                    for m in range(M):
-                        print(f"--------------------rollout: {m} of {M}--------------------")
-                        rclpy.spin_once(turtle_node)
-                        if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
-                            print("breaking out of episode----------------------------------------------------------------------")
-                            turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-                            turtle_node.Joints.disable_torque()
-                            break
-                        lst_params[:, m] = solutions[m]
-                        cpg.set_parameters(solutions[m])
-                        cumulative_reward = 0.0
-
-                        # reset the environment after every rollout
-                        observation, __ = turtle_node.reset()
-                        timestamps = np.zeros(max_episode_length)
-                        t = 0                       # to ensure we only go max_episode length
-                        cpg_actions = cpg.get_rollout(max_episode_length)
-                        cpg_data[:, :, m, episode] = cpg_actions
-                        t_0 = time.time()
-    ############################ ROLL OUT ###############################################################################
-                        while True:
-                            rclpy.spin_once(turtle_node)
-                            if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
-                                print("breaking out of rollout----------------------------------------------------------------------")
-                                turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-                                turtle_node.Joints.disable_torque()
-                                break
-                            action = cpg_actions[:, t]
-                            # save the raw cpg output
-                            timestamps[t] = time.time()-t_0 
-                            observation, reward, terminated, truncated, info = turtle_node.step(action, PD=True)
-                            v, clipped = info
-                            done = truncated or terminated
-                            # TODO: check if control loop runs faster if we just take this out 
-                            # and just have data update after every rollout instead
-                            reward_data[t, m, episode] = reward
-                            acc_data[:, t, m, episode] = turtle_node.acc_data[:, 1 + t]
-                            gyr_data[:, t, m, episode] = turtle_node.gyr_data[:, 1 + t]
-                            quat_data[:, t, m, episode] = turtle_node.quat_data[:, 1 + t]
-                            tau_data[:, t, m, episode] = clipped
-                            q_data[:, t, m, episode] = observation
-                            dq_data[:, t, m, episode] = v
-                            voltage_data[t, m, episode] = turtle_node.voltage_data[1 + t]
-                            cumulative_reward += reward
-                            t += 1
-                            if t >= max_episode_length:
-                                break
-                        # replaces set_params_and_run function for now
-                        if cumulative_reward < 0:
-                            fitness = 0
-                        else:
-                            fitness = cumulative_reward
-                        if fitness > best_reward:
-                            print(f"params with best fitness: {solutions[m]} with reward {fitness}\n")
-                            best_reward = fitness
-                            best_params = solutions[m]  
-                        
-                        # update the data structs for this rollout
-                        R[m] = fitness
-                        time_data[:, m, episode] = timestamps
-                    print("--------------------- Episode:", episode, "  median score:", np.median(R), "------------------")
-                    print(f"all rewards: {R}\n")
-                    # get indices of K best rewards
-                    best_inds = np.argsort(-R)[:K]
-                    k_params = lst_params[:, best_inds]
-                    print(f"k params: {k_params}")
-                    k_rewards = R[best_inds]
-                    print(f"k rewards: {k_rewards}")
-                    # We inform our ephe solver of the fitnesses we received, so that the population gets updated accordingly.
-                    # BUT we only update if all k rewards are positive
-                    update = True
-                    for g in k_rewards:
-                        if g <= 0:
-                            update = False
-                    if update:
-                        ephe.update(k_rewards=k_rewards, k_params=k_params)
-                        print(f"---------------------new mu: {ephe.center()}---------------------------\n")
-                        print(f"--------------------new sigma: {ephe.sigma()}--------------------------\n")
-                    # save mus and sigmas
-                    mu_data[:, episode] = ephe.center()
-                    sigma_data[:, episode] = ephe.sigma()
-                    best_mu = ephe.center()
-                    best_sigma = ephe.sigma()
-                turtle_node.Joints.disable_torque()
-                print(f"best mu: {best_mu}\n")
-                print(f"best sigma: {best_sigma}\n")
-                print(f"best params: {best_params} got reward of {best_reward}\n")
-                print("------------------------Saving data------------------------\n")
-                print("saving data....")
-                # save the best params from this episode
-                torch.save(best_params, best_param_fname)
-                # save data structs to matlab for this episode
-                scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
-                                            'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
-                                            'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
-                                            'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
-                break
-
-            elif turtle_node.mode == 'train':
-                alpha = 0.5
-                omega = 0.5
-                config_log = {
-                    "mu_init": list(mu),
-                    "sigma_init": list(sigma),
-                    "M": M,
-                    "K": K,
-                    "num episodes": max_episodes,
-                    "max_episode_length": max_episode_length,
-                    "alpha": alpha,
-                    "omega": omega, 
-                    "weights": weights,
-                    "dt": dt
-                }
-
-                # Save the dictionary as a JSON file
-                with open(file_path, 'w') as json_file:
-                    json.dump(config_log, json_file)
+            print("Auke CPG training time\n")
+            cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
+            ephe = EPHE(
                 
-                print("TRAIN MODE")
-                cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=alpha, omega=omega, dt=dt)
-                cpg.set_parameters(params=params)
-                print(f"--------------starting params: {cpg.get_params()}-----------")
-                ephe = EPHE(
-                    
-                    # We are looking for solutions whose lengths are equal
-                    # to the number of parameters required by the policy:
-                    solution_length=mu.shape[0],
-                    
-                    # Population size: the number of trajectories we run with given mu and sigma 
-                    popsize=M,
-                    
-                    # Initial mean of the search distribution:
-                    center_init=mu,
-                    
-                    # Initial standard deviation of the search distribution:
-                    stdev_init=sigma,
+                # We are looking for solutions whose lengths are equal
+                # to the number of parameters required by the policy:
+                solution_length=mu.shape[0],
+                
+                # Population size: the number of trajectories we run with given mu and sigma 
+                popsize=M,
+                
+                # Initial mean of the search distribution:
+                center_init=mu,
+                
+                # Initial standard deviation of the search distribution:
+                stdev_init=sigma,
 
-                    # dtype is expected as float32 when using the policy objects
-                    dtype='float32', 
+                # dtype is expected as float32 when using the policy objects
+                dtype='float32', 
 
-                    K=K
-                )
-                # get to training
-                turtle_node.Joints.enable_torque()
-    ############################ EPISODE #################################################
-                for episode in range(max_episodes):
-                    # data folder for this episode
+                K=K
+            )
+            # get to training
+            turtle_node.Joints.enable_torque()
+############################ EPISODE #################################################
+            for episode in range(max_episodes):
+                # data folder for this episode
+                rclpy.spin_once(turtle_node)
+                if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
+                    turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                    turtle_node.Joints.disable_torque()
+                    print("saving data...")
+                    # save the best params
+                    torch.save(best_params, best_param_fname)
+                    # save data structs to matlab 
+                    scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                                        'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
+                                        'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
+                                        'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
+                    break
+                print(f"--------------------episode: {episode} of {max_episodes}------------------")
+                lst_params = np.zeros((num_params, M))
+                solutions = ephe.ask()     
+                param_data[:, :, episode] = solutions.T
+                # rewards from M rollouts   
+                R = np.zeros(M)
+###################### run your M rollouts########################################################################3
+                for m in range(M):
+                    print(f"--------------------rollout: {m} of {M}--------------------")
                     rclpy.spin_once(turtle_node)
                     if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
+                        print("breaking out of episode----------------------------------------------------------------------")
                         turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
                         turtle_node.Joints.disable_torque()
-                        print("saving data...")
-                        # save the best params
-                        torch.save(best_params, best_param_fname)
-                        # save data structs to matlab 
-                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
-                                            'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
-                                            'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
-                                            'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
                         break
-                    print(f"--------------------episode: {episode} of {max_episodes}------------------")
-                    lst_params = np.zeros((num_params, M))
-                    solutions = ephe.ask()     
-                    param_data[:, :, episode] = solutions.T
-                    # rewards from M rollouts   
-                    R = np.zeros(M)
-    ###################### run your M rollouts########################################################################3
-                    for m in range(M):
-                        print(f"--------------------rollout: {m} of {M}--------------------")
+                    lst_params[:, m] = solutions[m]
+                    cpg.set_parameters(solutions[m])
+                    cumulative_reward = 0.0
+
+                    # reset the environment after every rollout
+                    observation, __ = turtle_node.reset()
+                    timestamps = np.zeros(max_episode_length)
+                    t = 0                       # to ensure we only go max_episode length
+                    cpg_actions = cpg.get_rollout(max_episode_length)
+                    cpg_data[:, :, m, episode] = cpg_actions
+                    t_0 = time.time()
+############################ ROLL OUT ###############################################################################
+                    while True:
                         rclpy.spin_once(turtle_node)
                         if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
-                            print("breaking out of episode----------------------------------------------------------------------")
+                            print("breaking out of rollout----------------------------------------------------------------------")
                             turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
                             turtle_node.Joints.disable_torque()
                             break
-                        lst_params[:, m] = solutions[m]
-                        cpg.set_parameters(solutions[m])
-                        cumulative_reward = 0.0
+                        action = cpg_actions[:, t]
+                        # save the raw cpg output
+                        timestamps[t] = time.time()-t_0 
+                        observation, reward, terminated, truncated, info = turtle_node.step(action, PD=True)
+                        v, clipped = info
+                        done = truncated or terminated
+                        # TODO: check if control loop runs faster if we just take this out 
+                        # and just have data update after every rollout instead
+                        reward_data[t, m, episode] = reward
+                        acc_data[:, t, m, episode] = turtle_node.acc_data[:, 1 + t]
+                        gyr_data[:, t, m, episode] = turtle_node.gyr_data[:, 1 + t]
+                        quat_data[:, t, m, episode] = turtle_node.quat_data[:, 1 + t]
+                        tau_data[:, t, m, episode] = clipped
+                        q_data[:, t, m, episode] = observation
+                        dq_data[:, t, m, episode] = v
+                        voltage_data[t, m, episode] = turtle_node.voltage_data[1 + t]
+                        cumulative_reward += reward
+                        t += 1
+                        if t >= max_episode_length:
+                            break
+                    # replaces set_params_and_run function for now
+                    if cumulative_reward < 0:
+                        fitness = 0
+                    else:
+                        fitness = cumulative_reward
+                    if fitness > best_reward:
+                        print(f"params with best fitness: {solutions[m]} with reward {fitness}\n")
+                        best_reward = fitness
+                        best_params = solutions[m]  
+                    
+                    # update the data structs for this rollout
+                    R[m] = fitness
+                    time_data[:, m, episode] = timestamps
+                print("--------------------- Episode:", episode, "  median score:", np.median(R), "------------------")
+                print(f"all rewards: {R}\n")
+                # get indices of K best rewards
+                best_inds = np.argsort(-R)[:K]
+                k_params = lst_params[:, best_inds]
+                print(f"k params: {k_params}")
+                k_rewards = R[best_inds]
+                print(f"k rewards: {k_rewards}")
+                # We inform our ephe solver of the fitnesses we received, so that the population gets updated accordingly.
+                # BUT we only update if all k rewards are positive
+                update = True
+                for g in k_rewards:
+                    if g <= 0:
+                        update = False
+                if update:
+                    ephe.update(k_rewards=k_rewards, k_params=k_params)
+                    print(f"---------------------new mu: {ephe.center()}---------------------------\n")
+                    print(f"--------------------new sigma: {ephe.sigma()}--------------------------\n")
+                # save mus and sigmas
+                mu_data[:, episode] = ephe.center()
+                sigma_data[:, episode] = ephe.sigma()
+                best_mu = ephe.center()
+                best_sigma = ephe.sigma()
+            turtle_node.Joints.disable_torque()
+            print(f"best mu: {best_mu}\n")
+            print(f"best sigma: {best_sigma}\n")
+            print(f"best params: {best_params} got reward of {best_reward}\n")
+            print("------------------------Saving data------------------------\n")
+            print("saving data....")
+            # save the best params from this episode
+            torch.save(best_params, best_param_fname)
+            # save data structs to matlab for this episode
+            scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                                        'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
+                                        'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
+                                        'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
+            break
 
-                        # reset the environment after every rollout
-                        observation, __ = turtle_node.reset()
-                        timestamps = np.zeros(max_episode_length)
-                        t = 0                       # to ensure we only go max_episode length
-                        cpg_actions = cpg.get_rollout(max_episode_length)
-                        cpg_data[:, :, m, episode] = cpg_actions
-                        t_0 = time.time()
-    ############################ ROLL OUT ###############################################################################
-                        while True:
-                            rclpy.spin_once(turtle_node)
-                            if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
-                                print("breaking out of rollout----------------------------------------------------------------------")
-                                turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-                                turtle_node.Joints.disable_torque()
-                                break
-                            action = cpg_actions[:, t]
-                            # save the raw cpg output
-                            timestamps[t] = time.time()-t_0 
-                            observation, reward, terminated, truncated, info = turtle_node.step(action)
-                            v, clipped = info
-                            done = truncated or terminated
-                            # TODO: check if this appending stuff is considerably slowing things down
-                            reward_data[t, m, episode] = reward
-                            acc_data[:, t, m, episode] = turtle_node.acc_data[:, 1 + t]
-                            gyr_data[:, t, m, episode] = turtle_node.gyr_data[:, 1 + t]
-                            quat_data[:, t, m, episode] = turtle_node.quat_data[:, 1 + t]
-                            tau_data[:, t, m, episode] = clipped
-                            q_data[:, t, m, episode] = observation
-                            dq_data[:, t, m, episode] = v
-                            voltage_data[t, m, episode] = turtle_node.voltage_data[1 + t]
-                            cumulative_reward += reward
-                            t += 1
-                            if t >= max_episode_length:
-                                break
-                            if done:
-                                if truncated:
-                                    print("truncccc")
-                                if terminated:
-                                    print("terminator")
-                                break
-                        # replaces set_params_and_run function for now
-                        if cumulative_reward < 0:
-                            fitness = 0
-                        else:
-                            fitness = cumulative_reward
-                        if fitness > best_reward:
-                            print(f"params with best fitness: {solutions[m]} with reward {fitness}\n")
-                            best_reward = fitness
-                            best_params = solutions[m]  
-                        
-                        # update the data structs for this rollout
-                        R[m] = fitness
-                        time_data[:, m, episode] = timestamps
-                    print("--------------------- Episode:", episode, "  median score:", np.median(R), "------------------")
-                    print(f"all rewards: {R}\n")
-                    # get indices of K best rewards
-                    best_inds = np.argsort(-R)[:K]
-                    k_params = lst_params[:, best_inds]
-                    print(f"k params: {k_params}")
-                    k_rewards = R[best_inds]
-                    print(f"k rewards: {k_rewards}")
-                    # We inform our ephe solver of the fitnesses we received, so that the population gets updated accordingly.
-                    update = True
-                    for g in k_rewards:
-                        if g <= 0:
-                            update = False
-                    if update:
-                        ephe.update(k_rewards=k_rewards, k_params=k_params)
-                        print(f"---------------------new mu: {ephe.center()}---------------------------\n")
-                        print(f"--------------------new sigma: {ephe.sigma()}--------------------------\n")
-                    # save mus and sigmas
-                    mu_data[:, episode] = ephe.center()
-                    sigma_data[:, episode] = ephe.sigma()
-                    best_mu = ephe.center()
-                    best_sigma = ephe.sigma()
-                turtle_node.Joints.disable_torque()
-                print(f"best mu: {best_mu}\n")
-                print(f"best sigma: {best_sigma}\n")
-                print(f"best params: {best_params} got reward of {best_reward}\n")
-                print("------------------------Saving data------------------------\n")
-                print("saving data....")
-                # save the best params from this episode
-                torch.save(best_params, best_param_fname)
-                # save data structs to matlab for this episode
-                scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
-                                            'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
-                                            'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
-                                            'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
-                break
-            else:
-                print("wrong command received....")
-    except Exception as e:
-        print("some error occurred")
-        turtle_node.Joints.send_torque_cmd([0] * len(turtle_node.IDs))
-        turtle_node.Joints.disable_torque()
-        exec_type, obj, tb = sys.exc_info()
-        fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
-        print(exec_type, fname, tb.tb_lineno)
-        print(e)
+        elif turtle_node.mode == 'train':
+            alpha = 0.5
+            omega = 0.5
+            config_log = {
+                "mu_init": list(mu),
+                "sigma_init": list(sigma),
+                "M": M,
+                "K": K,
+                "num episodes": max_episodes,
+                "max_episode_length": max_episode_length,
+                "alpha": alpha,
+                "omega": omega, 
+                "weights": weights,
+                "dt": dt
+            }
+
+            # Save the dictionary as a JSON file
+            with open(file_path, 'w') as json_file:
+                json.dump(config_log, json_file)
+            
+            print("TRAIN MODE")
+            cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=alpha, omega=omega, dt=dt)
+            cpg.set_parameters(params=params)
+            print(f"--------------starting params: {cpg.get_params()}-----------")
+            ephe = EPHE(
+                
+                # We are looking for solutions whose lengths are equal
+                # to the number of parameters required by the policy:
+                solution_length=mu.shape[0],
+                
+                # Population size: the number of trajectories we run with given mu and sigma 
+                popsize=M,
+                
+                # Initial mean of the search distribution:
+                center_init=mu,
+                
+                # Initial standard deviation of the search distribution:
+                stdev_init=sigma,
+
+                # dtype is expected as float32 when using the policy objects
+                dtype='float32', 
+
+                K=K
+            )
+            # get to training
+            turtle_node.Joints.enable_torque()
+############################ EPISODE #################################################
+            for episode in range(max_episodes):
+                # data folder for this episode
+                rclpy.spin_once(turtle_node)
+                if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
+                    turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                    turtle_node.Joints.disable_torque()
+                    print("saving data...")
+                    # save the best params
+                    torch.save(best_params, best_param_fname)
+                    # save data structs to matlab 
+                    scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                                        'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
+                                        'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
+                                        'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
+                    break
+                print(f"--------------------episode: {episode} of {max_episodes}------------------")
+                lst_params = np.zeros((num_params, M))
+                solutions = ephe.ask()     
+                param_data[:, :, episode] = solutions.T
+                # rewards from M rollouts   
+                R = np.zeros(M)
+###################### run your M rollouts########################################################################3
+                for m in range(M):
+                    print(f"--------------------rollout: {m} of {M}--------------------")
+                    rclpy.spin_once(turtle_node)
+                    if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
+                        print("breaking out of episode----------------------------------------------------------------------")
+                        turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                        turtle_node.Joints.disable_torque()
+                        break
+                    lst_params[:, m] = solutions[m]
+                    cpg.set_parameters(solutions[m])
+                    cumulative_reward = 0.0
+
+                    # reset the environment after every rollout
+                    observation, __ = turtle_node.reset()
+                    timestamps = np.zeros(max_episode_length)
+                    t = 0                       # to ensure we only go max_episode length
+                    cpg_actions = cpg.get_rollout(max_episode_length)
+                    cpg_data[:, :, m, episode] = cpg_actions
+                    t_0 = time.time()
+############################ ROLL OUT ###############################################################################
+                    while True:
+                        rclpy.spin_once(turtle_node)
+                        if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
+                            print("breaking out of rollout----------------------------------------------------------------------")
+                            turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                            turtle_node.Joints.disable_torque()
+                            break
+                        action = cpg_actions[:, t]
+                        # save the raw cpg output
+                        timestamps[t] = time.time()-t_0 
+                        observation, reward, terminated, truncated, info = turtle_node.step(action)
+                        v, clipped = info
+                        done = truncated or terminated
+                        # TODO: check if this appending stuff is considerably slowing things down
+                        reward_data[t, m, episode] = reward
+                        acc_data[:, t, m, episode] = turtle_node.acc_data[:, 1 + t]
+                        gyr_data[:, t, m, episode] = turtle_node.gyr_data[:, 1 + t]
+                        quat_data[:, t, m, episode] = turtle_node.quat_data[:, 1 + t]
+                        tau_data[:, t, m, episode] = clipped
+                        q_data[:, t, m, episode] = observation
+                        dq_data[:, t, m, episode] = v
+                        voltage_data[t, m, episode] = turtle_node.voltage_data[1 + t]
+                        cumulative_reward += reward
+                        t += 1
+                        if t >= max_episode_length:
+                            break
+                        if done:
+                            if truncated:
+                                print("truncccc")
+                            if terminated:
+                                print("terminator")
+                            break
+                    # replaces set_params_and_run function for now
+                    if cumulative_reward < 0:
+                        fitness = 0
+                    else:
+                        fitness = cumulative_reward
+                    if fitness > best_reward:
+                        print(f"params with best fitness: {solutions[m]} with reward {fitness}\n")
+                        best_reward = fitness
+                        best_params = solutions[m]  
+                    
+                    # update the data structs for this rollout
+                    R[m] = fitness
+                    time_data[:, m, episode] = timestamps
+                print("--------------------- Episode:", episode, "  median score:", np.median(R), "------------------")
+                print(f"all rewards: {R}\n")
+                # get indices of K best rewards
+                best_inds = np.argsort(-R)[:K]
+                k_params = lst_params[:, best_inds]
+                print(f"k params: {k_params}")
+                k_rewards = R[best_inds]
+                print(f"k rewards: {k_rewards}")
+                # We inform our ephe solver of the fitnesses we received, so that the population gets updated accordingly.
+                update = True
+                for g in k_rewards:
+                    if g <= 0:
+                        update = False
+                if update:
+                    ephe.update(k_rewards=k_rewards, k_params=k_params)
+                    print(f"---------------------new mu: {ephe.center()}---------------------------\n")
+                    print(f"--------------------new sigma: {ephe.sigma()}--------------------------\n")
+                # save mus and sigmas
+                mu_data[:, episode] = ephe.center()
+                sigma_data[:, episode] = ephe.sigma()
+                best_mu = ephe.center()
+                best_sigma = ephe.sigma()
+            turtle_node.Joints.disable_torque()
+            print(f"best mu: {best_mu}\n")
+            print(f"best sigma: {best_sigma}\n")
+            print(f"best params: {best_params} got reward of {best_reward}\n")
+            print("------------------------Saving data------------------------\n")
+            print("saving data....")
+            # save the best params from this episode
+            torch.save(best_params, best_param_fname)
+            # save data structs to matlab for this episode
+            scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                                        'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
+                                        'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
+                                        'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
+            break
+        else:
+            print("wrong command received....")
+    # except Exception as e:
+    #     print("some error occurred")
+    #     turtle_node.Joints.send_torque_cmd([0] * len(turtle_node.IDs))
+    #     turtle_node.Joints.disable_torque()
+    #     exec_type, obj, tb = sys.exc_info()
+    #     fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
+    #     print(exec_type, fname, tb.tb_lineno)
+    #     print(e)
 
     
     rclpy.shutdown()

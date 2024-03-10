@@ -222,6 +222,17 @@ def main(args=None):
                 node.get_logger().info(msg.data)
             log = "Rest command was sucessfully sent!"
             node.get_logger().info(log)
+        
+        elif key_input == chr(AKEY_ASCII_VALUE):
+            msg.data='train'
+            tomotors.publish(msg)
+            log = "Entering Training mode!"
+            node.get_logger().info(log)
+        elif key_input == chr(IKEY_ASCII_VALUE):
+            msg.data = 'Auke'
+            tomotors.publish(msg)
+            log = "Entering Auke CPG Training Mode!"
+            node.get_logger().info(log)
             
         elif key_input == chr(WKEY_ASCII_VALUE):
             """
