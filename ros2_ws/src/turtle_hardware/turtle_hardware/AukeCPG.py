@@ -6,11 +6,12 @@ import scipy
 from torch import nn
 from copy import copy, deepcopy
 import numpy as np
+from EPHE import EPHE
 from typing import Optional, Union, Iterable, List, Dict, Tuple, Any
 from numbers import Real, Integral
-from pgpelib import PGPE
-from pgpelib.policies import LinearPolicy, MLPPolicy
-from pgpelib.restore import to_torch_module
+# from pgpelib import PGPE
+# from pgpelib.policies import LinearPolicy, MLPPolicy
+# from pgpelib.restore import to_torch_module
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -362,12 +363,38 @@ class AukeCPG:
 def main(args=None):
     num_params = 21
     num_mods = 10
-    cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=0.0, w=0.5, a_r=20, a_x=20, dt=0.001)
+    cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=0.0, w=0.5, a_r=20, a_x=20, dt=0.01)
+    
     params = np.random.uniform(low=0.01, high=5, size=num_params)
-    print(f"starting params: {params}\n")
-    eps_len = 3000
-    cpg.set_parameters(params=params)
-    cpg.reset()
+    mu = np.random.rand((num_params)) *5
+    sigma = np.random.rand((num_params)) + 0.3
+
+    ephe = EPHE(
+                
+                # We are looking for solutions whose lengths are equal
+                # to the number of parameters required by the policy:
+                solution_length=mu.shape[0],
+                
+                # Population size: the number of trajectories we run with given mu and sigma 
+                popsize=20,
+                
+                # Initial mean of the search distribution:
+                center_init=mu,
+                
+                # Initial standard deviation of the search distribution:
+                stdev_init=sigma,
+
+                # dtype is expected as float32 when using the policy objects
+                dtype='float32', 
+
+                K=2
+            )
+    solutions = ephe.ask()     
+
+    print(f"starting params: {solutions[0]}\n")
+    eps_len = 200
+    cpg.set_parameters(params=solutions[3])
+    # cpg.reset()
     total_actions = cpg.get_rollout(episode_length=eps_len)
     print(total_actions.shape)
     print(f"action: {total_actions[:, 500:1000]}\n")

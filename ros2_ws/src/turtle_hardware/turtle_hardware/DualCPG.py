@@ -6,6 +6,7 @@ import scipy
 from torch import nn
 from copy import copy, deepcopy
 import numpy as np
+from EPHE import EPHE
 from typing import Optional, Union, Iterable, List, Dict, Tuple, Any
 from numbers import Real, Integral
 # from pgpelib import PGPE
@@ -62,8 +63,8 @@ class DualCPG:
         # self.U = np.random.uniform(low=10, high=50, size=(num_mods,2))
         # self.V = np.random.uniform(low=10, high=50, size=(num_mods,2))
 
-        # self.U = np.zeros((num_mods, 2))
-        # self.V = np.zeros((num_mods, 2))
+        self.U = np.zeros((num_mods, 2))
+        self.V = np.zeros((num_mods, 2))
         self.fix_B = fix_B                                  # whether or not we fix the first B1 like in BoChen
         self.first_time = True
         self.dt = dt
@@ -93,9 +94,17 @@ class DualCPG:
         # scaled[1:self.num_mods + 1]= (scaled[1:self.num_mods + 1]) % (2*np.pi)
         self.params = params
         print(f"-----------------current params--------------------: {self.params}")
-        
+        print(f"starting state: {[self.U, self.V]}")
     def get_params(self):
         return self.params
+    
+    def reset(self):
+        """
+        Reset the initial states of the CPG to enable exploration
+        """
+        self.U = np.random.uniform(low=1, high=10, size=(self.num_mods,2))
+        self.V = np.random.uniform(low=1, high=10, size=(self.num_mods,2))
+
     def set_weights(self, weights):
         """
         Change the intrinsic weights of the CPG modules. 
@@ -328,52 +337,70 @@ class DualCPG:
 def main(args=None):
     num_params = 21
     num_mods = 10
-    # num_params = 13
-    # num_mods = 6
 
-    cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=0.5, omega=0.5, dt=0.03)
-    # params = np.array([0.8640624, 
-    #                 0.75593179,
-    #                 1.00992906,
-    #                 0.70579118,
-    #                 1.16415238,
-    #                 2.12477779,
-    #                 1.92771959,
-    #                 1.50089085,
-    #                 0.45425433,
-    #                 0.75726408,
-    #                 1.02702773,
-    #                 2514.7264 ,
-    #                 3045.1939,
-    #                 1373.0098 ,
-    #                 7261.349 ,
-    #                 1359.78985,
-    #                 5780.0198,
-    #                 1790.89868,
-    #                 7626.8578,
-    #                 1171.45836,
-    #                 4878.9567])
+    cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=0.5, omega=0.5, dt=0.01)
 
-    # params = np.array([0.05288525, 
-    #                    1.0506047 , 1.3421186,  0.5090118, 
-    #                    1.0506047 , 1.3421186,  0.5090118,
-    #                     1.3040454,  0.844415, 
-    #                     1.3040454,  0.844415, 
-    #                     3.1915715, 0.27153367, 0.96751857,
-    #                     3.1915715, 0.27153367, 0.96751857,
-    #                       0.5237518,  0.7672906,
-    #                       0.5237518,  0.7672906])
+    mu = np.random.rand((num_params)) * 5
+    mu[0] = np.random.random(1) * 0.5
+    mu[num_mods + 1:] = mu[num_mods + 1] + 9000
+    print(f"init mu: {mu}")
+    sigma = np.random.rand((num_params)) + 0.3
 
-    tau_init = np.random.uniform(low=0.04, high=0.1, size=1)[0]
-    # print(tau_init)
-    params = np.random.uniform(low=0, high=10, size=num_params)
-    # params[0] = tau_init
+    ephe = EPHE(
+                
+                # We are looking for solutions whose lengths are equal
+                # to the number of parameters required by the policy:
+                solution_length=mu.shape[0],
+                
+                # Population size: the number of trajectories we run with given mu and sigma 
+                popsize=10,
+                
+                # Initial mean of the search distribution:
+                center_init=mu,
+                
+                # Initial standard deviation of the search distribution:
+                stdev_init=sigma,
 
-    eps_len = 300
-    cpg.set_parameters(params=params)
+                # dtype is expected as float32 when using the policy objects
+                dtype='float32', 
+
+                K=2
+            )
+    solutions = ephe.ask()     
+    # for solution in solutions:
+    #     eps_len = 1000
+    #     cpg.set_parameters(params=solution)
+    #     # cpg.reset()
+    #     # cpg.plot(timesteps=60)
+    #     total_actions = cpg.get_rollout(episode_length=eps_len)
+    #     # print(f"action: {total_actions[:, 0:15]}")
+    #     # fitness, total_actions = cpg.set_params_and_run(epolicy_parameters=solutions[i], max_episode_length=max_episode_length)
+    #     t = np.arange(0, eps_len*cpg.dt, cpg.dt)
+
+    #     fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
+    #     for j, ax in enumerate(axs):
+    #         ax.plot(t, total_actions[j, :])
+    #         ax.set_title(f"CPG {j+1}")
+    #         ax.set_xlabel("Time")
+    #         ax.set_ylabel("Data")
+    #         ax.grid(True)
+    #     plt.tight_layout()
+
+    ps = [6.4333670e-02, 
+          4.0481272e+00, 4.1443191e+00, 2.6797774e+00, 
+          1.9581868e-01, 3.4114313e+00, 4.5388846e+00, 
+          4.4444680e+00, 3.7272689e-01,
+        4.8481183e+00, 2.9969893e+00, 
+        9.0043145e+03, 9.0045352e+03, 9.0035449e+03,
+        9.0041064e+03, 9.0047783e+03, 9.0030430e+03, 
+        9.0046689e+03, 9.0047539e+03,
+        9.0055791e+03, 9.0029482e+03]
+    eps_len = 1000
+    cpg.set_parameters(params=ps)
+    # cpg.reset()
     # cpg.plot(timesteps=60)
     total_actions = cpg.get_rollout(episode_length=eps_len)
-    print(f"action: {total_actions[:, 0:15]}")
+    # print(f"action: {total_actions[:, 0:15]}")
     # fitness, total_actions = cpg.set_params_and_run(epolicy_parameters=solutions[i], max_episode_length=max_episode_length)
     t = np.arange(0, eps_len*cpg.dt, cpg.dt)
 
@@ -385,6 +412,7 @@ def main(args=None):
         ax.set_ylabel("Data")
         ax.grid(True)
     plt.tight_layout()
+
     plt.show()
     # return 0
 
