@@ -89,7 +89,7 @@ class TurtleRobot(Node):
     TLDR; this is the node that handles all turtle hardware things
     """
 
-    def __init__(self, topic, max_episode_length=60, M=40, max_episodes=20, weights=[1, 1, 1, 1, 1]):
+    def __init__(self, topic, max_episode_length=60, M=40, max_episodes=20, weights=[1, 1, 1, 1, 0.001]):
         super().__init__('turtle_node')
         # subscribes to keyboard setting different turtle modes 
         self.mode_cmd_sub = self.create_subscription(
@@ -159,7 +159,7 @@ class TurtleRobot(Node):
         self.min_threshold = np.array([1.60, 3.0, 2.4, 2.43, 1.2, 1.7, 1.45, 1.2, 3.0, 2.3])
         self.max_threshold = np.array([3.45, 5.0, 4.2, 4.5, 4.15, 3.8, 3.2, 4.0, 4.0, 4.7])
         # orientation at rest
-        self.orientation = [0.679, 0.0, -0.005, -0.733]
+        self.orientation = np.array([0.679, 0.0, 0.0, -0.733])      # w, x, y, z
         self.a_weight, self.x_weight, self.y_weight, self.z_weight, self.tau_weight = weights
 
         # for PD control
@@ -200,6 +200,23 @@ class TurtleRobot(Node):
         self.tau_data = np.zeros((10,1))
         self.voltage_data = np.zeros((1,1))
         return observation, "reset"
+    
+    def _get_reward(self, tau):
+        reward = 0
+        acc = self.acc_data[:, -1]
+        reward = np.linalg.norm(acc)
+        if acc[1] >0:
+            reward += acc[1]/reward
+        orientation_cost = -np.linalg.norm(self.quat_data[1:, -1] - self.orientation[1:])
+        tau_cost = -self.tau_weight* np.linalg.norm(tau)**2
+        # forward thrust correlates to positive reading on the y-axis of the accelerometer
+        reward += orientation_cost
+        reward += tau_cost
+        return reward
+    
+    def _get_reward_weighted(self, tau):
+        reward = 0
+        return reward
     
     def step(self, action, PD=False):
         """
@@ -242,7 +259,8 @@ class TurtleRobot(Node):
             avg_tau = np.mean(abs(tau))
             clipped = grab_arm_current(tau, min_torque, max_torque)
         else:
-
+            print(f"action: {action}")
+            # action = 10e4 * action
             inputt = grab_arm_current(action, min_torque, max_torque)
             # print(f"observation: {observation}\n")
             clipped = np.where(observation < self.max_threshold - self.epsilon, inputt, np.minimum(np.zeros(len(inputt)), inputt))
@@ -251,21 +269,9 @@ class TurtleRobot(Node):
             # print(f"clipped: {clipped}")
             avg_tau = np.mean(abs(clipped))
         print(f"torque: {clipped}")
-        self.Joints.send_torque_cmd(clipped)
+        # self.Joints.send_torque_cmd(clipped)
         self.read_sensors()
-        # get latest acc data 
-        acc = self.acc_data[:, -1]
-        # print(f"acc: {acc}\n")
-        # grab current quat data
-        w, x, y, z = self.quat_data[:, -1]
-        # Convert quaternion to Euler angles
-        dx = abs(self.orientation[0]- x)
-        dy = abs(self.orientation[1]- y)
-        dz = abs(self.orientation[2]- z)
-        # print(f"dx, dy, dz: {[dx, dy, dz]}\n")
-        # forward thrust correlates to positive reading on the y-axis of the accelerometer
-        reward = self.a_weight* acc[1] - self.x_weight*dx - self.y_weight*dy - self.z_weight*dz - self.tau_weight*avg_tau
-        # print(f"reward: {reward}\n")
+        reward = self._get_reward(avg_tau)
         terminated = False
         truncated = False
         # return velocity and clipped tau (or radians) passed into motors
@@ -464,10 +470,10 @@ class TurtleRobot(Node):
 def main(args=None):
     rclpy.init(args=args)
     # trial 4 auke
-    trial = 7
+    trial = 10
     threshold = 11.5
     # the weights applied to reward function terms acc, dx, dy, dz, tau
-    weights = [100, 1, 1, 1, 1]
+    weights = [10, 1, 1, 1, 0.001]
     turtle_node = TurtleRobot('turtle_mode_cmd', weights=weights)
     q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
     print(f"Our initial q: " + str(q))
@@ -582,7 +588,7 @@ def main(args=None):
                 # Save the dictionary as a JSON file
                 with open(file_path, 'w') as json_file:
                     json.dump(config_log, json_file)
-                    
+
                 print(f"intial mu: {mu}\n")
                 print(f"initial sigma: {sigma}\n")
                 print(f"M: {M}\n")
@@ -636,7 +642,7 @@ def main(args=None):
                     R = np.zeros(M)
     ###################### run your M rollouts########################################################################3
                     for m in range(M):
-                        print(f"--------------------rollout: {m} of {M}--------------------")
+                        print(f"--------------------episode {episode} of {max_episodes}, rollout: {m} of {M}--------------------")
                         rclpy.spin_once(turtle_node)
                         if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
                             print("breaking out of episode----------------------------------------------------------------------")
@@ -688,6 +694,7 @@ def main(args=None):
                             cumulative_reward += reward
                             t += 1
                             if t >= max_episode_length:
+                                print("\n\n")
                                 print(f"---------------rollout reward: {cumulative_reward}\n\n\n\n")
                                 break
 
@@ -743,6 +750,11 @@ def main(args=None):
                 break
 
             elif turtle_node.mode == 'train':
+                mu = np.random.uniform(low=0, high=2*np.pi, size=num_params)
+                mu[1 + num_mods:] = np.random.uniform(low=10, high=20)
+                mu[0] = 1.5
+                sigma = np.random.rand((num_params)) + 0.3
+
                 alpha = 0.5
                 omega = 0.5
                 config_log = {
@@ -812,7 +824,7 @@ def main(args=None):
                     R = np.zeros(M)
     ###################### run your M rollouts########################################################################3
                     for m in range(M):
-                        print(f"--------------------rollout: {m} of {M}--------------------")
+                        print(f"--------------------episode {episode} of {max_episodes}, rollout: {m} of {M}--------------------")
                         rclpy.spin_once(turtle_node)
                         if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
                             print("breaking out of episode----------------------------------------------------------------------")
@@ -827,8 +839,10 @@ def main(args=None):
                         observation, __ = turtle_node.reset()
                         timestamps = np.zeros(max_episode_length)
                         t = 0                       # to ensure we only go max_episode length
+                        print("getting rollout...\n")
                         cpg_actions = cpg.get_rollout(max_episode_length)
                         cpg_data[:, :, m, episode] = cpg_actions
+                        print(f"starting rollout...\n")
                         t_0 = time.time()
     ############################ ROLL OUT ###############################################################################
                         while True:
@@ -856,6 +870,7 @@ def main(args=None):
                             cumulative_reward += reward
                             t += 1
                             if t >= max_episode_length:
+                                print(f"---------------rollout reward: {cumulative_reward}\n\n\n\n")
                                 break
                             if done:
                                 if truncated:

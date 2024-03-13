@@ -468,27 +468,43 @@ def main(args=None):
     #     9.0041064e+03, 9.0047783e+03, 9.0030430e+03, 
     #     9.0046689e+03, 9.0047539e+03,
     #     9.0055791e+03, 9.0029482e+03]
-    eps_len = 700
-    for solution in solutions:
-        print(f"sol: {100 * solution}")
-        cpg.set_parameters(params=solution)
-        # cpg.reset()
-        # cpg.plot(timesteps=60)
-        total_actions = cpg.get_coupled_rollout(episode_length=eps_len)
-        # print(f"action: {total_actions[:, 0:15]}")
-        # fitness, total_actions = cpg.set_params_and_run(epolicy_parameters=solutions[i], max_episode_length=max_episode_length)
-        t = np.arange(0, eps_len*cpg.dt, cpg.dt)
+    # eps_len = 700
+    # for solution in solutions:
+    #     print(f"sol: {100 * solution}")
+    #     cpg.set_parameters(params=solution)
+    #     # cpg.reset()
+    #     # cpg.plot(timesteps=60)
+    #     total_actions = cpg.get_coupled_rollout(episode_length=eps_len)
+    #     # print(f"action: {total_actions[:, 0:15]}")
+    #     # fitness, total_actions = cpg.set_params_and_run(epolicy_parameters=solutions[i], max_episode_length=max_episode_length)
+    #     t = np.arange(0, eps_len*cpg.dt, cpg.dt)
 
-        fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
-        for j, ax in enumerate(axs):
-            ax.plot(t, total_actions[j, :]*10e4)
-            ax.set_title(f"CPG {j+1}")
-            ax.set_xlabel("Time")
-            ax.set_ylabel("Data")
-            ax.grid(True)
-        plt.tight_layout()
+    #     fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
+    #     for j, ax in enumerate(axs):
+    #         ax.plot(t, total_actions[j, :]*10e4)
+    #         ax.set_title(f"CPG {j+1}")
+    #         ax.set_xlabel("Time")
+    #         ax.set_ylabel("Data")
+    #         ax.grid(True)
+    #     plt.tight_layout()
 
-    plt.show()
+    # plt.show()
+    orientation = np.array([679, 0.0, 0.0, -0.733])
+    obs = np.array([-0.5, 0.5, -0.733])
+    cost = np.linalg.norm(obs - orientation[1:])
+    tau = np.array([10, -20, 0, 0, -50, 0])
+    tau_cost = 0.001*np.linalg.norm(tau)**2
+    # tau_cost = tau
+    print(f"tau cost: {tau_cost}")
+    # acc = np.array([-0.1, 0.5, -0.1])
+    # reward = np.linalg.norm(acc)
+    # print(f"reward normalized: {reward}")
+    # if acc[1] >0:
+    #     reward = acc[1]/reward
+    # else:
+    #     reward = 0
+    # print(f"reward: {reward}")
+    # print(f"cost: {cost}")
     # return 0
 
 if __name__ == "__main__":
