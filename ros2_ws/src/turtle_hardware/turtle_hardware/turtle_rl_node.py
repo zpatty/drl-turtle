@@ -249,12 +249,8 @@ class TurtleRobot(Node):
             # position control 
             qd = np.where(action < self.max_threshold - self.epsilon, action, self.max_threshold - self.epsilon)
             qd = np.where(qd > self.min_threshold + self.epsilon, qd, self.min_threshold + self.epsilon)
-            # TODO: figure out dq and ddq
             dqd = np.zeros((self.nq,1))
             ddqd = np.zeros((self.nq,1))
-            # print(f"observation shape: {observation.shape}")
-            # print(f"v shape: {v.shape}")
-            # print(f"qd: {qd.shape}")
             tau = turtle_controller(observation.reshape((10,1)),v.reshape((10,1)),qd.reshape((10,1)),dqd,ddqd,self.Kp,self.KD)
             avg_tau = np.mean(abs(tau))
             clipped = grab_arm_current(tau, min_torque, max_torque)
@@ -684,19 +680,28 @@ def main(args=None):
                             # TODO: check if control loop runs faster if we just take this out 
                             # and just have data update after every rollout instead
                             reward_data[t, m, episode] = reward
-                            acc_data[:, t, m, episode] = turtle_node.acc_data[:, 1 + t]
-                            gyr_data[:, t, m, episode] = turtle_node.gyr_data[:, 1 + t]
-                            quat_data[:, t, m, episode] = turtle_node.quat_data[:, 1 + t]
                             tau_data[:, t, m, episode] = clipped
                             q_data[:, t, m, episode] = observation
                             dq_data[:, t, m, episode] = v
-                            voltage_data[t, m, episode] = turtle_node.voltage_data[1 + t]
                             cumulative_reward += reward
                             t += 1
                             if t >= max_episode_length:
                                 print("\n\n")
                                 print(f"---------------rollout reward: {cumulative_reward}\n\n\n\n")
                                 break
+                        
+                        # record data from rollout
+                        time_data[:, m, episode] = timestamps
+                        acc_data[:, :, m, episode] = turtle_node.acc_data[:, 1:]
+                        gyr_data[:, :, m, episode] = turtle_node.gyr_data[:, 1:]
+                        quat_data[:, :, m, episode] = turtle_node.quat_data[:, 1:]
+                        voltage_data[:, m, episode] = turtle_node.voltage_data[1:]
+
+                        # save to folder after each rollout
+                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                            'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
+                            'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
+                            'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
 
                         # replaces set_params_and_run function for now
                         if cumulative_reward < 0:
@@ -708,9 +713,8 @@ def main(args=None):
                             best_reward = fitness
                             best_params = solutions[m]  
                         
-                        # update the data structs for this rollout
+                        # update reward array for updating mu and sigma
                         R[m] = fitness
-                        time_data[:, m, episode] = timestamps
                     print("--------------------- Episode:", episode, "  median score:", np.median(R), "------------------")
                     print(f"all rewards: {R}\n")
                     # get indices of K best rewards
@@ -750,11 +754,15 @@ def main(args=None):
                 break
 
             elif turtle_node.mode == 'train':
+                # Bo Cheng CPG implementation
+
+                # priors
                 mu = np.random.uniform(low=0, high=2*np.pi, size=num_params)
                 mu[1 + num_mods:] = np.random.uniform(low=10, high=20)
                 mu[0] = 1.5
                 sigma = np.random.rand((num_params)) + 0.3
 
+                # CPG intrinsic weights
                 alpha = 0.5
                 omega = 0.5
                 config_log = {
@@ -853,31 +861,32 @@ def main(args=None):
                                 turtle_node.Joints.disable_torque()
                                 break
                             action = cpg_actions[:, t]
-                            # save the raw cpg output
                             timestamps[t] = time.time()-t_0 
                             observation, reward, terminated, truncated, info = turtle_node.step(action)
                             v, clipped = info
                             done = truncated or terminated
-                            # TODO: check if this appending stuff is considerably slowing things down
                             reward_data[t, m, episode] = reward
-                            acc_data[:, t, m, episode] = turtle_node.acc_data[:, 1 + t]
-                            gyr_data[:, t, m, episode] = turtle_node.gyr_data[:, 1 + t]
-                            quat_data[:, t, m, episode] = turtle_node.quat_data[:, 1 + t]
                             tau_data[:, t, m, episode] = clipped
                             q_data[:, t, m, episode] = observation
                             dq_data[:, t, m, episode] = v
-                            voltage_data[t, m, episode] = turtle_node.voltage_data[1 + t]
                             cumulative_reward += reward
                             t += 1
                             if t >= max_episode_length:
                                 print(f"---------------rollout reward: {cumulative_reward}\n\n\n\n")
                                 break
-                            if done:
-                                if truncated:
-                                    print("truncccc")
-                                if terminated:
-                                    print("terminator")
-                                break
+                        # record data from rollout
+                        time_data[:, m, episode] = timestamps
+                        acc_data[:, :, m, episode] = turtle_node.acc_data[:, 1:]
+                        gyr_data[:, :, m, episode] = turtle_node.gyr_data[:, 1:]
+                        quat_data[:, :, m, episode] = turtle_node.quat_data[:, 1:]
+                        voltage_data[:, m, episode] = turtle_node.voltage_data[1:]
+
+                        # save to folder after each rollout
+                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                            'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
+                            'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
+                            'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
+
                         # replaces set_params_and_run function for now
                         if cumulative_reward < 0:
                             fitness = 0
@@ -890,7 +899,6 @@ def main(args=None):
                         
                         # update the data structs for this rollout
                         R[m] = fitness
-                        time_data[:, m, episode] = timestamps
                     print("--------------------- Episode:", episode, "  median score:", np.median(R), "------------------")
                     print(f"all rewards: {R}\n")
                     # get indices of K best rewards
@@ -918,7 +926,6 @@ def main(args=None):
                 print(f"best sigma: {best_sigma}\n")
                 print(f"best params: {best_params} got reward of {best_reward}\n")
                 print("------------------------Saving data------------------------\n")
-                print("saving data....")
                 # save the best params from this episode
                 torch.save(best_params, best_param_fname)
                 # save data structs to matlab for this episode
