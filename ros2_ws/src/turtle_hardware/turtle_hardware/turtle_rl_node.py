@@ -489,7 +489,6 @@ def main(args=None):
     num_mods = 10
 
     # mu = np.random.rand((num_params))
-    mu = np.random.rand((num_params)) * 5
     # mu[num_mods + 1:] = mu[num_mods + 1] + 5000
     # mu[0] = np.random.random(1) * 0.5
 
@@ -499,21 +498,6 @@ def main(args=None):
     # params = np.random.uniform(low=0.05, high=1, size=num_params)
     # params[0] = tau_init
     params = np.random.rand((num_params)) 
-
-    tau_shift = 0.2
-    B_shift = 0.5
-    E_shift = 0.5
-    sigma = np.random.rand((num_params)) + 0.3
-    shifty_shift = [tau_shift, 
-                    B_shift, B_shift, B_shift + 0.3,
-                    B_shift + 0.3, B_shift, B_shift,
-                    E_shift, E_shift, E_shift,
-                    E_shift, E_shift, E_shift]
-    print(f"intial mu: {mu}\n")
-    print(f"initial sigma: {sigma}\n")
-    print(f"M: {M}\n")
-    print(f"K: {K}\n")
-
     # data structs for plotting
     param_data = np.zeros((num_params, M, max_episodes))
     mu_data = np.zeros((num_params, max_episodes))
@@ -576,6 +560,9 @@ def main(args=None):
                 w=0.5
                 a_r=20
                 a_x=20
+                mu = np.random.rand((num_params)) * 5
+                sigma = np.random.rand((num_params)) + 0.3
+
 
                 config_log = {
                     "mu_init": list(mu),
@@ -595,6 +582,11 @@ def main(args=None):
                 # Save the dictionary as a JSON file
                 with open(file_path, 'w') as json_file:
                     json.dump(config_log, json_file)
+                    
+                print(f"intial mu: {mu}\n")
+                print(f"initial sigma: {sigma}\n")
+                print(f"M: {M}\n")
+                print(f"K: {K}\n")
 
                 print("Auke CPG training time\n")
                 cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
@@ -657,6 +649,11 @@ def main(args=None):
 
                         # reset the environment after every rollout
                         observation, __ = turtle_node.reset()
+                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                        'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
+                        'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
+                        'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
+
                         timestamps = np.zeros(max_episode_length)
                         t = 0                       # to ensure we only go max_episode length
                         print("getting rollout")
@@ -693,13 +690,7 @@ def main(args=None):
                             if t >= max_episode_length:
                                 print(f"---------------rollout reward: {cumulative_reward}\n\n\n\n")
                                 break
-                        
 
-
-                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
-                                            'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
-                                            'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
-                                            'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
                         # replaces set_params_and_run function for now
                         if cumulative_reward < 0:
                             fitness = 0
