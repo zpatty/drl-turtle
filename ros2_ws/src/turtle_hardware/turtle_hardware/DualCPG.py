@@ -201,7 +201,7 @@ class DualCPG:
             dUdt = (E - B * V - alpha * y_other_neuron + omega * y_prev_mod - U)/tau
             dVdt = (y - V)/tau
             return [dUdt, dVdt]
-    # calculate y_out, which in this case we are using as the tau we pass into the turtle
+        # calculate y_out, which in this case we are using as the tau we pass into the turtle
         actions = np.zeros((self.num_mods, episode_length))
         tau = self.params[0]
         Bs = self.params[1:self.num_mods + 1]
@@ -209,11 +209,8 @@ class DualCPG:
         for e in range(episode_length):
             action = np.zeros((self.num_mods))
             for i in range(self.num_mods):
-                # print(i)
                 E = Es[i]
                 B = Bs[i]
-                if self.fix_B:
-                    Bs[0] = self.B1
                 for j in range(num_neurons):
                     if i != 0: 
                         y_prev_mod = self.y[i-1, j]
@@ -266,6 +263,79 @@ class DualCPG:
             actions[:, e] = action
         return actions
 
+    def get_coupled_rollout(self, episode_length=60):
+        """
+        Return action based off of observation and current CPG params
+        
+        """
+        num_neurons = 2
+        def ode_to_solve(state, tau, E, B, alpha, omega, y_other_neuron, y_prev_mod):
+            U, V= state
+            y = max(0, U)
+            dUdt = (E - B * V - alpha * y_other_neuron + omega * y_prev_mod - U)/tau
+            dVdt = (y - V)/tau
+            return [dUdt, dVdt]
+        # calculate y_out, which in this case we are using as the tau we pass into the turtle
+        actions = np.zeros((self.num_mods, episode_length))
+        tau = self.params[0]
+        Bs = self.params[1:self.num_mods + 1]
+        Es = self.params[self.num_mods + 1:]
+        for e in range(episode_length):
+            action = np.zeros((self.num_mods))
+            for i in range(self.num_mods):
+                E = Es[i]
+                B = Bs[i]
+                for j in range(num_neurons):
+                    if i != 0: 
+                        y_prev_mod = self.y[i-1, j]
+                    else:
+                        y_prev_mod = 0.0
+                    if i == 6 or i==8 or i==3:
+                        y_prev_mod = 0
+                    y_other_neuron = self.y[i, 1-j]
+                    state = [self.U[i,j], self.V[i,j]]
+                    t_points = [0,self.dt]
+                    solution = scipy.integrate.solve_ivp(
+                        fun = lambda t, y: ode_to_solve(state, tau, E, B, self.alpha, self.omega, y_other_neuron, y_prev_mod),
+                        t_span=t_points, 
+                        y0=state,
+                        method='RK45',
+                        t_eval = t_points
+                    )
+                    try:
+                        self.U[i,j] = solution.y[0, 1]
+                        self.V[i,j] = solution.y[1, 1]
+                    except:
+                        print("failed to solve ode with the following: \n")
+                        print(f"state= {state}\n")
+                        print(f"y_other_neuron= {y_other_neuron}\n")
+                        print(f"y_prev_mod= {y_prev_mod}")
+                        print(f"tau= {tau}\n")
+                        print(f"E= {E}\n")
+                        print(f"B= {B}\n")
+                        print(f"dt= {self.dt}\n")
+                        print(f"alpha={self.alpha}\n")
+                        print(f"omega={self.omega}\n")
+                        pass
+                    if self.first_time:
+                        if self.U[i, j] > 30 or self.V[i, j] > 30:
+                            print("PAST A THRESHOLD\n")
+                            print(f"state= {state}\n")
+                            print(f"y_other_neuron= {y_other_neuron}\n")
+                            print(f"y_prev_mod= {y_prev_mod}")
+                            print(f"tau= {tau}\n")
+                            print(f"E= {E}\n")
+                            print(f"B= {B}\n")
+                            print(f"dt= {self.dt}\n")
+                            print(f"alpha={self.alpha}\n")
+                            print(f"omega={self.omega}\n")
+                            self.first_time=False
+                        # self.first_time=False
+                    self.y[i, j] = max(0, self.U[i,j])
+                y_out = self.y[i, 0] - self.y[i, 1]
+                action[i] = y_out
+            actions[:, e] = action
+        return actions
 
     def run(self, 
             env,
@@ -338,11 +408,14 @@ def main(args=None):
     num_params = 21
     num_mods = 10
 
-    cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=0.5, omega=0.5, dt=0.01)
+    cpg = DualCPG(num_params=num_params, num_mods=num_mods, alpha=0.3, omega=0.3, dt=0.01)
 
-    mu = np.random.rand((num_params)) * 5
-    mu[0] = np.random.random(1) * 0.5
-    mu[num_mods + 1:] = mu[num_mods + 1] + 9000
+    # mu = np.random.rand((num_params)) * 5000
+    mu = np.random.uniform(low=0, high=2*np.pi, size=num_params)
+    mu[1 + num_mods:] = np.random.uniform(low=10, high=20)
+    # mu[0] = np.random.random(1) * 0.001
+    mu[0] = 1.5
+    # mu[num_mods + 1:] = mu[num_mods + 1] + 1000
     print(f"init mu: {mu}")
     sigma = np.random.rand((num_params)) + 0.3
 
@@ -386,32 +459,34 @@ def main(args=None):
     #         ax.grid(True)
     #     plt.tight_layout()
 
-    ps = [6.4333670e-02, 
-          4.0481272e+00, 4.1443191e+00, 2.6797774e+00, 
-          1.9581868e-01, 3.4114313e+00, 4.5388846e+00, 
-          4.4444680e+00, 3.7272689e-01,
-        4.8481183e+00, 2.9969893e+00, 
-        9.0043145e+03, 9.0045352e+03, 9.0035449e+03,
-        9.0041064e+03, 9.0047783e+03, 9.0030430e+03, 
-        9.0046689e+03, 9.0047539e+03,
-        9.0055791e+03, 9.0029482e+03]
-    eps_len = 1000
-    cpg.set_parameters(params=ps)
-    # cpg.reset()
-    # cpg.plot(timesteps=60)
-    total_actions = cpg.get_rollout(episode_length=eps_len)
-    # print(f"action: {total_actions[:, 0:15]}")
-    # fitness, total_actions = cpg.set_params_and_run(epolicy_parameters=solutions[i], max_episode_length=max_episode_length)
-    t = np.arange(0, eps_len*cpg.dt, cpg.dt)
+    # ps = [6.4333670e-02, 
+    #       4.0481272e+00, 4.1443191e+00, 2.6797774e+00, 
+    #       1.9581868e-01, 3.4114313e+00, 4.5388846e+00, 
+    #       4.4444680e+00, 3.7272689e-01,
+    #     4.8481183e+00, 2.9969893e+00, 
+    #     9.0043145e+03, 9.0045352e+03, 9.0035449e+03,
+    #     9.0041064e+03, 9.0047783e+03, 9.0030430e+03, 
+    #     9.0046689e+03, 9.0047539e+03,
+    #     9.0055791e+03, 9.0029482e+03]
+    eps_len = 700
+    for solution in solutions:
+        print(f"sol: {100 * solution}")
+        cpg.set_parameters(params=solution)
+        # cpg.reset()
+        # cpg.plot(timesteps=60)
+        total_actions = cpg.get_coupled_rollout(episode_length=eps_len)
+        # print(f"action: {total_actions[:, 0:15]}")
+        # fitness, total_actions = cpg.set_params_and_run(epolicy_parameters=solutions[i], max_episode_length=max_episode_length)
+        t = np.arange(0, eps_len*cpg.dt, cpg.dt)
 
-    fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
-    for j, ax in enumerate(axs):
-        ax.plot(t, total_actions[j, :])
-        ax.set_title(f"CPG {j+1}")
-        ax.set_xlabel("Time")
-        ax.set_ylabel("Data")
-        ax.grid(True)
-    plt.tight_layout()
+        fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
+        for j, ax in enumerate(axs):
+            ax.plot(t, total_actions[j, :]*10e4)
+            ax.set_title(f"CPG {j+1}")
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Data")
+            ax.grid(True)
+        plt.tight_layout()
 
     plt.show()
     # return 0
