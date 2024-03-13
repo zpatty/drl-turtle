@@ -290,6 +290,84 @@ class AukeCPG:
             total_actions[:, i] = action
 
         return total_actions
+    
+    def get_coupled_rollout(self, episode_length=60):
+        """
+        Calculate the entire rollout. This has all 10 motors coupled together
+        Inspired by Auke Isjpeert's 2007 Model of Salamander
+        """
+        oscillator = {1: [2, 4], 
+                      2: [1, 3, 5],
+                      3: [2, 6, 8],
+                      4: [1, 5],
+                      5: [2, 4, 6],
+                      6: [3, 5, 10],
+                      7: [8, 9],
+                      8: [3, 7, 10],
+                      9: [7, 10],
+                      10: [6, 8, 9]}
+        def ode_fin(state, omega, R, X, rs, phis):
+            PHI, r, x, v, m= state
+            dPhidt = omega
+            for i in range(len(rs)):
+                r_other = rs[i]
+                phi_other = phis[i]
+                dPhidt += self.w*r_other*np.sin(phi_other - PHI - self.phi)
+            dRdt = v
+            dVdt = self.a_r * ((self.a_r/4) * (R-r) - dRdt)
+            dXdt = m
+            dMdt = self.a_x * ((self.a_x/4) * (X-x) - dXdt)
+            return [dPhidt, dRdt, dXdt, dVdt, dMdt]
+        # calculate y_out, which in this case we are using as the tau we pass into the turtle
+        total_actions = np.zeros((self.num_mods, episode_length))
+        omega = self.params[0]
+        Rs = self.params[1:self.num_mods + 1]
+        Xs = self.params[self.num_mods + 1:]
+        for e in range(episode_length):
+            action = np.zeros((self.num_mods))
+            for i in range(self.num_mods):
+                # ex 1: [2, 4], 
+                #    2: [1, 3, 5]
+                R = Rs[i]
+                X = Xs[i]
+                fin = oscillator[i + 1]         # for one-indexing
+                num_coupled = len(fin)
+                fin = [f - 1 for f in fin]
+                rs = []
+                phis = []
+                for c in range(num_coupled):
+                    idx = fin[c]
+                    rs.append(self.r[idx])
+                    phis.append(self.PHI[idx])
+                
+                state = [self.PHI[i], self.r[i], self.x[i], self.v[i], self.m[i]]
+                t_points = [0,self.dt]
+                solution = scipy.integrate.solve_ivp(
+                    fun = lambda t, y: ode_fin(state, omega, R, X, rs, phis),
+                    t_span=t_points, 
+                    y0=state,
+                    method='RK45',
+                    t_eval = t_points
+                )
+                try:
+                    self.PHI[i] = solution.y[0, 1]
+                    self.r[i] = solution.y[1, 1]
+                    self.x[i] = solution.y[2, 1]
+                    self.v[i] = solution.y[3, 1]
+                    self.m[i] = solution.y[4, 1]
+                except:
+                    print("failed to solve ode with the following: \n")
+                    print(f"state= {state}\n")
+                    print(f"dt= {self.dt}\n")
+                    pass
+                # grab output of oscillator i
+                self.theta[i] = self.x[i] + self.r[i] * np.cos(self.PHI[i])
+                action[i] = self.theta[i]
+
+            # record action for time step into total_actions struct
+            total_actions[:, e] = action
+
+        return total_actions
 
     def run(self, 
             env,
@@ -365,8 +443,7 @@ def main(args=None):
     num_mods = 10
     cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=0.0, w=0.5, a_r=20, a_x=20, dt=0.01)
     
-    params = np.random.uniform(low=0.01, high=5, size=num_params)
-    mu = np.random.rand((num_params)) *5
+    mu = np.random.rand((num_params)) * 5
     sigma = np.random.rand((num_params)) + 0.3
 
     ephe = EPHE(
@@ -390,26 +467,24 @@ def main(args=None):
                 K=2
             )
     solutions = ephe.ask()     
+    for solution in solutions:
+        print(f"starting params: {solution}\n")
+        eps_len = 800
+        cpg.set_parameters(params=solution)
+        # cpg.reset()
+        # total_actions = cpg.get_rollout(episode_length=eps_len)
+        total_actions = cpg.get_coupled_rollout(episode_length=eps_len)
+        print(total_actions.shape)
+        t = np.arange(0, eps_len*cpg.dt, cpg.dt)
 
-    print(f"starting params: {solutions[0]}\n")
-    eps_len = 200
-    cpg.set_parameters(params=solutions[3])
-    # cpg.reset()
-    total_actions = cpg.get_rollout(episode_length=eps_len)
-    print(total_actions.shape)
-    print(f"action: {total_actions[:, 500:1000]}\n")
-    # print(f"action: {total_actions[:, 50:90]}\n")
-    # fitness, total_actions = cpg.set_params_and_run(epolicy_parameters=solutions[i], max_episode_length=max_episode_length)
-    t = np.arange(0, eps_len*cpg.dt, cpg.dt)
-
-    fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
-    for j, ax in enumerate(axs):
-        ax.plot(t, total_actions[j, :])
-        ax.set_title(f"CPG {j+1}")
-        ax.set_xlabel("Time")
-        ax.set_ylabel("Data")
-        ax.grid(True)
-    plt.tight_layout()
+        fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
+        for j, ax in enumerate(axs):
+            ax.plot(t, total_actions[j, :])
+            ax.set_title(f"CPG {j+1}")
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Data")
+            ax.grid(True)
+        plt.tight_layout()
     plt.show()
 
     return 0
