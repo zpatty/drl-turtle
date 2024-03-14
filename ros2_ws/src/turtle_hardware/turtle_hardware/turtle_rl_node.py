@@ -13,7 +13,6 @@ import numpy as np
 import pickle
 import torch
 
-import gymnasium as gym
 
 submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware"
 sys.path.append(submodule)
@@ -159,6 +158,7 @@ class TurtleRobot(Node):
         self.min_threshold = np.array([1.60, 3.0, 2.4, 2.43, 1.2, 1.7, 1.45, 1.2, 3.0, 2.3])
         self.max_threshold = np.array([3.45, 5.0, 4.2, 4.5, 4.15, 3.8, 3.2, 4.0, 4.0, 4.7])
         # orientation at rest
+        self.quat_data[:, -1] = [1, 1, 1, 1]
         self.orientation = np.array([0.679, 0.0, 0.0, -0.733])      # w, x, y, z
         self.a_weight, self.x_weight, self.y_weight, self.z_weight, self.tau_weight = weights
 
@@ -172,6 +172,7 @@ class TurtleRobot(Node):
         This method is what enables us to set "emergency stops" mid-trajectory. 
         """
         # global mode
+        # print("\n\n\n\n\n\ CALLLLBACKKKKKKKKK \n\n\n\n\n")
         if msg.data == 'traj1':
             self.mode = 'traj1'
         elif msg.data == 'train':
@@ -200,16 +201,56 @@ class TurtleRobot(Node):
         self.tau_data = np.zeros((10,1))
         self.voltage_data = np.zeros((1,1))
         return observation, "reset"
+    def quatL(self,q):
+        qs = q[0]
+        if qs == 0:
+            print("f QS: {qs}\n\n\n\n\n")
+        qv = q[1:]
+        o = qs*np.identity(3) + self.skew(qv)
+        # qv = qv.reshape((3,1))
+        first_row = np.hstack((qs, -qv.T)).reshape(((1,4)))
+        second_row = np.hstack((qv.reshape((3,1)), qs*np.identity(3) + self.skew(qv)))
+        # return np.array([[qs, -qv.T],[qv, qs*np.identity(3) + self.skew(qv)]])
+        return np.vstack((first_row, second_row))
+
+    def inv_q(self,q):
+        return np.diag([1, -1, -1, -1]) @ q
+
+    def inv_cayley(self,q):
+        return q[1:]/q[0]
+
+    def skew(self,x):
+        return np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]])
     
+    # def _get_reward(self, tau):
+
+    #     acc = self.acc_data[:, -1]
+    #     del_q = self.inv_cayley(self.quatL(self.inv_q(self.quat_data[:, -1])) @ self.quat_data[:, -2])
+    #     R = self.a_weight*acc[1]**2 - self.a_weight*acc[0]**2 - self.a_weight*acc[2]**2 - del_q.T @ del_q -self.tau_weight* np.linalg.norm(tau)**2
+
+    #     # reward = 0
+    #     # acc = self.acc_data[:, -1]
+    #     # reward = np.linalg.norm(acc)
+    #     # if acc[1] >0:
+    #     #     reward += self.a_weight* acc[1]/reward
+    #     # print(f"acc reward: {reward}")
+    #     # orientation_cost = -np.linalg.norm(self.quat_data[1:, -1] - self.orientation[1:])
+    #     # print(f"o cost: {orientation_cost}")
+    #     # tau_cost = -self.tau_weight* np.linalg.norm(tau)**2
+    #     # # forward thrust correlates to positive reading on the y-axis of the accelerometer
+    #     # reward += orientation_cost
+    #     # reward += tau_cost
+    #     # print(R)
+    #     return R
     def _get_reward(self, tau):
         reward = 0
         acc = self.acc_data[:, -1]
         reward = np.linalg.norm(acc)
         if acc[1] >0:
             reward += self.a_weight* acc[1]/reward
-        print(f"acc reward: {reward}")
+        # print(f"acc reward: {reward}")
         orientation_cost = -np.linalg.norm(self.quat_data[1:, -1] - self.orientation[1:])
-        print(f"o cost: {orientation_cost}")
+        # print(f"o cost: {orientation_cost}")
         tau_cost = -self.tau_weight* np.linalg.norm(tau)**2
         # forward thrust correlates to positive reading on the y-axis of the accelerometer
         reward += orientation_cost
@@ -248,11 +289,13 @@ class TurtleRobot(Node):
             except:
                 print("failed to read from motors")
         if PD:
+            # print(f"action shape: {action.shape}")
             # position control 
             qd = np.where(action < self.max_threshold - self.epsilon, action, self.max_threshold - self.epsilon)
             qd = np.where(qd > self.min_threshold + self.epsilon, qd, self.min_threshold + self.epsilon)
             dqd = np.zeros((self.nq,1))
             ddqd = np.zeros((self.nq,1))
+            # print(f"dqd shape: {dqd.shape}")
             tau = turtle_controller(observation.reshape((10,1)),v.reshape((10,1)),qd.reshape((10,1)),dqd,ddqd,self.Kp,self.KD)
             avg_tau = np.mean(abs(tau))
             clipped = grab_arm_current(tau, min_torque, max_torque)
@@ -469,8 +512,7 @@ class TurtleRobot(Node):
 # THIS IS TURTLE CODE
 def main(args=None):
     rclpy.init(args=args)
-    # trial 4 auke
-    trial = 10
+    trial = 6
     threshold = 11.5
     # the weights applied to reward function terms acc, dx, dy, dz, tau
     weights = [10, 1, 1, 1, 0.001]
@@ -479,18 +521,18 @@ def main(args=None):
     print(f"Our initial q: " + str(q))
 
     # create folders 
-    trial_folder = f'CPG_exp_{trial}'
+    trial_folder = f'Auke_CPG_exp_{trial}'
     best_param_fname = trial_folder + f'/best_params_ephe_{trial}.pth'
     os.makedirs(trial_folder, exist_ok=True)
 
     # Bo Chen paper says robot converged in 20 episodes
     max_episodes = 20
     dt = 0.01
-    max_episode_length = 1000    # 200 * 0.01 = 2 seconds
+    max_episode_length = 800    # 200 * 0.01 = 2 seconds
 
     # initial params for training
     num_params = 21
-    M = 40
+    M = 10
     K = 3
     num_mods = 10
 
@@ -528,6 +570,7 @@ def main(args=None):
     try: 
         while rclpy.ok():
             rclpy.spin_once(turtle_node)
+            print(f"turtle mode: {turtle_node.mode}\n")
             if turtle_node.voltage < threshold:
                 print("[WARNING] volt reading too low--closing program....")
                 turtle_node.Joints.disable_torque()
@@ -543,6 +586,7 @@ def main(args=None):
                 print("sent stop received msg")
                 break
             elif turtle_node.mode == 'rest':
+                rclpy.spin_once(turtle_node)
                 turtle_node.read_voltage()
                 if turtle_node.voltage < threshold:
                     turtle_node.Joints.disable_torque()
@@ -550,7 +594,7 @@ def main(args=None):
                     break
                 # print(turtle_node.Joints.get_position())
                 # time.sleep(0.5)
-                turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                # turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
                 turtle_node.Joints.disable_torque()
                 print(turtle_node.Joints.get_position())
                 cmd_msg = String()
@@ -653,6 +697,7 @@ def main(args=None):
                         t = 0                       # to ensure we only go max_episode length
                         print("getting rollout")
                         cpg_actions = cpg.get_rollout(max_episode_length)
+                        # cpg_actions = cpg.get_coupled_rollout(max_episode_length)
                         print("got rollout")
                         cpg_data[:, :, m, episode] = cpg_actions
                         observation, __ = turtle_node.reset()
