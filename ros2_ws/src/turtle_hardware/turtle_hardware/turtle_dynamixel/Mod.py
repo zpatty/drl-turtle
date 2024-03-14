@@ -32,7 +32,6 @@ from dynamixel_sdk import *                     # Uses Dynamixel SDK library
 import math
 
 def twos_comp(bit_s):
-    
     # print(f"our first bit: {bit_s[0]}")
     if bit_s[0] == '1':
         inverse_s = ''.join(['1' if i == '0' else '0'
@@ -53,16 +52,19 @@ def to_radians(steps):
 
 class Mod:
     def __init__(self, packetHandler, portHandler, IDS):
-        self.packetHandler = packetHandler
-        self.portHandler = portHandler
+        self.packetHandler  = packetHandler
+        self.portHandler    = portHandler
         self.IDS            = IDS
-        # Initialize GroupSyncRead instace for Present Position
+        # Initialize GroupSyncRead instance for Present Position
         self.groupSyncRead = GroupSyncRead(portHandler, packetHandler, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
+        # Initialize GroupSyncRead instance for Present Velocity
+        self.groupSyncReadVel = GroupSyncRead(portHandler, packetHandler, ADDR_PRESENT_VELOCITY, 4)
         # Initialize GroupSyncWrite instance
         self.groupSyncWrite = GroupSyncWrite(portHandler, packetHandler, ADDR_GOAL_CURRENT, LEN_GOAL_CURRENT)
         for ID in self.IDS:
             # Add parameter storage for Dynamixel present position value
             dxl_addparam_result = self.groupSyncRead.addParam(ID)
+            dxl_addparam_result = self.groupSyncReadVel.addParam(ID)
             if dxl_addparam_result != True:
                 print("[ERROR] [ID:%03d] groupSyncRead addparam failed" %ID)
                 quit()
@@ -87,8 +89,7 @@ class Mod:
                 print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
             elif dxl_error != 0:
                 print("%s" % self.packetHandler.getRxPacketError(dxl_error))
-            else:
-                print(f"[STATUS] Torque Disabled for motor {ID}\n")
+        
     def get_position(self):
         '''
         Returns position in radians
@@ -100,7 +101,9 @@ class Mod:
         dxl_comm_result = self.groupSyncRead.txRxPacket()
         # print(f"[DEBUG] dt: {time.time() - t}\n") 
         address = ADDR_PRESENT_POSITION
+        # print(f"address: {address}\n")
         pos = []
+        # print(f"pos dict: {self.groupSyncRead.data_dict}")
         for ID in self.IDS:
             # print(f"ID pos: {ID}\n")
             data = self.groupSyncRead.data_dict[ID]
@@ -124,6 +127,45 @@ class Mod:
                         comb += bin(data[i])[2:]
                 p = twos_comp(comb)
                 pos.append(to_radians(p))
+        return pos
+    def get_velocity(self):
+        '''
+        Returns current velocity in radians
+        '''
+        # Syncread present position
+        # note about line below- though dxl_comm_result isn't used, you still need to call txRxPacket()
+        # otherwise dynamixel won't read out its position 
+        t = time.time()
+        dxl_comm_result = self.groupSyncReadVel.txRxPacket()
+        # print(f"[DEBUG] dt: {time.time() - t}\n") 
+        # address = ADDR_PRESENT_VELOCITY
+        address = ADDR_PRESENT_VELOCITY
+        # print(f"address: {address}")
+        pos = []
+        # print(f"dict: {self.groupSyncReadVel.data_dict}")
+        for ID in self.IDS:
+            # print(f"ID pos: {ID}\n")
+            data = self.groupSyncReadVel.data_dict[ID]
+            # print(f"data: {data}\n")
+            d3 = bin(data[3])[2:]
+            # print(f"byte: {d3}\n")
+            if d3[0] == '0':
+                p = DXL_MAKEDWORD(DXL_MAKEWORD(self.groupSyncReadVel.data_dict[ID][address - self.groupSyncReadVel.start_address + 0],
+                                              self.groupSyncReadVel.data_dict[ID][address - self.groupSyncReadVel.start_address + 1]),
+                                 DXL_MAKEWORD(self.groupSyncReadVel.data_dict[ID][address - self.groupSyncReadVel.start_address + 2],
+                                              self.groupSyncReadVel.data_dict[ID][address - self.groupSyncReadVel.start_address + 3])) 
+                pos.append(((p * 0.229)/60) * 2 * math.pi)
+            else:
+                # TODO: test for loop
+                comb = d3
+                for i in range(2,-1, -1):
+                    if data[i] < 128:
+                        d = (8 - len(bin(data[i])[2:])) * '0' + bin(data[i])[2:]
+                        comb += d
+                    else:
+                        comb += bin(data[i])[2:]
+                p = twos_comp(comb)
+                pos.append(((p * 0.229)/60) * 2 * math.pi)
         return pos
     # TODO: try implementing speed sync
     def set_current_cntrl_mode(self):
