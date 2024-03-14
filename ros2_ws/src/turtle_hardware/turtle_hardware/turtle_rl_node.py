@@ -206,8 +206,10 @@ class TurtleRobot(Node):
         acc = self.acc_data[:, -1]
         reward = np.linalg.norm(acc)
         if acc[1] >0:
-            reward += acc[1]/reward
+            reward += self.a_weight* acc[1]/reward
+        print(f"acc reward: {reward}")
         orientation_cost = -np.linalg.norm(self.quat_data[1:, -1] - self.orientation[1:])
+        print(f"o cost: {orientation_cost}")
         tau_cost = -self.tau_weight* np.linalg.norm(tau)**2
         # forward thrust correlates to positive reading on the y-axis of the accelerometer
         reward += orientation_cost
@@ -255,8 +257,10 @@ class TurtleRobot(Node):
             avg_tau = np.mean(abs(tau))
             clipped = grab_arm_current(tau, min_torque, max_torque)
         else:
+            # print(f"action: {action}")
+            action = 10e3 * action
             print(f"action: {action}")
-            # action = 10e4 * action
+
             inputt = grab_arm_current(action, min_torque, max_torque)
             # print(f"observation: {observation}\n")
             clipped = np.where(observation < self.max_threshold - self.epsilon, inputt, np.minimum(np.zeros(len(inputt)), inputt))
@@ -265,7 +269,7 @@ class TurtleRobot(Node):
             # print(f"clipped: {clipped}")
             avg_tau = np.mean(abs(clipped))
         print(f"torque: {clipped}")
-        # self.Joints.send_torque_cmd(clipped)
+        self.Joints.send_torque_cmd(clipped)
         self.read_sensors()
         reward = self._get_reward(avg_tau)
         terminated = False
@@ -553,9 +557,6 @@ def main(args=None):
                 cmd_msg.data = 'rest_received'
                 turtle_node.cmd_received_pub.publish(cmd_msg)
                 print(f"current voltage: {turtle_node.voltage}\n")
-                # turtle_node.read_sensors()
-                # print(f"acc: {turtle_node.acc_data[:, -1]}\n")
-                # print(f"quat: {turtle_node.quat_data[:, -1]}\n")
             elif turtle_node.mode == 'Auke':
                 # Auke CPG model that outputs position in radians
                 phi=0.0
@@ -564,7 +565,6 @@ def main(args=None):
                 a_x=20
                 mu = np.random.rand((num_params)) * 5
                 sigma = np.random.rand((num_params)) + 0.3
-
 
                 config_log = {
                     "mu_init": list(mu),
@@ -580,7 +580,6 @@ def main(args=None):
                     "weights": weights,
                     "dt": dt
                 }
-
                 # Save the dictionary as a JSON file
                 with open(file_path, 'w') as json_file:
                     json.dump(config_log, json_file)
@@ -650,18 +649,13 @@ def main(args=None):
                         cumulative_reward = 0.0
 
                         # reset the environment after every rollout
-                        observation, __ = turtle_node.reset()
-                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
-                        'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
-                        'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
-                        'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
-
                         timestamps = np.zeros(max_episode_length)
                         t = 0                       # to ensure we only go max_episode length
                         print("getting rollout")
                         cpg_actions = cpg.get_rollout(max_episode_length)
                         print("got rollout")
                         cpg_data[:, :, m, episode] = cpg_actions
+                        observation, __ = turtle_node.reset()
                         t_0 = time.time()
     ############################ ROLL OUT ###############################################################################
                         while True:
@@ -677,8 +671,6 @@ def main(args=None):
                             observation, reward, terminated, truncated, info = turtle_node.step(action, PD=True)
                             v, clipped = info
                             done = truncated or terminated
-                            # TODO: check if control loop runs faster if we just take this out 
-                            # and just have data update after every rollout instead
                             reward_data[t, m, episode] = reward
                             tau_data[:, t, m, episode] = clipped
                             q_data[:, t, m, episode] = observation
@@ -686,17 +678,19 @@ def main(args=None):
                             cumulative_reward += reward
                             t += 1
                             if t >= max_episode_length:
+                                turtle_node.Joints.disable_torque()
                                 print("\n\n")
                                 print(f"---------------rollout reward: {cumulative_reward}\n\n\n\n")
                                 break
-                        
-                        # record data from rollout
-                        time_data[:, m, episode] = timestamps
-                        acc_data[:, :, m, episode] = turtle_node.acc_data[:, 1:]
-                        gyr_data[:, :, m, episode] = turtle_node.gyr_data[:, 1:]
-                        quat_data[:, :, m, episode] = turtle_node.quat_data[:, 1:]
-                        voltage_data[:, m, episode] = turtle_node.voltage_data[1:]
-
+                        try:
+                            # record data from rollout
+                            time_data[:, m, episode] = timestamps
+                            acc_data[:, :, m, episode] = turtle_node.acc_data[:, 1:]
+                            gyr_data[:, :, m, episode] = turtle_node.gyr_data[:, 1:]
+                            quat_data[:, :, m, episode] = turtle_node.quat_data[:, 1:]
+                            voltage_data[:, m, episode] = turtle_node.voltage_data[1:]
+                        except:
+                            print(f"stopped mid rollout-- saving everything but this rollout data")
                         # save to folder after each rollout
                         scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
                             'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
@@ -752,11 +746,8 @@ def main(args=None):
                                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
                 break
-
             elif turtle_node.mode == 'train':
                 # Bo Cheng CPG implementation
-
-                # priors
                 mu = np.random.uniform(low=0, high=2*np.pi, size=num_params)
                 mu[1 + num_mods:] = np.random.uniform(low=10, high=20)
                 mu[0] = 1.5
@@ -787,7 +778,6 @@ def main(args=None):
                 cpg.set_parameters(params=params)
                 print(f"--------------starting params: {cpg.get_params()}-----------")
                 ephe = EPHE(
-                    
                     # We are looking for solutions whose lengths are equal
                     # to the number of parameters required by the policy:
                     solution_length=mu.shape[0],
@@ -842,15 +832,14 @@ def main(args=None):
                         lst_params[:, m] = solutions[m]
                         cpg.set_parameters(solutions[m])
                         cumulative_reward = 0.0
-
-                        # reset the environment after every rollout
-                        observation, __ = turtle_node.reset()
                         timestamps = np.zeros(max_episode_length)
                         t = 0                       # to ensure we only go max_episode length
                         print("getting rollout...\n")
                         cpg_actions = cpg.get_rollout(max_episode_length)
                         cpg_data[:, :, m, episode] = cpg_actions
                         print(f"starting rollout...\n")
+                        # reset the environment after every rollout
+                        observation, __ = turtle_node.reset()
                         t_0 = time.time()
     ############################ ROLL OUT ###############################################################################
                         while True:
@@ -872,14 +861,18 @@ def main(args=None):
                             cumulative_reward += reward
                             t += 1
                             if t >= max_episode_length:
+                                turtle_node.Joints.disable_torque()
                                 print(f"---------------rollout reward: {cumulative_reward}\n\n\n\n")
                                 break
-                        # record data from rollout
-                        time_data[:, m, episode] = timestamps
-                        acc_data[:, :, m, episode] = turtle_node.acc_data[:, 1:]
-                        gyr_data[:, :, m, episode] = turtle_node.gyr_data[:, 1:]
-                        quat_data[:, :, m, episode] = turtle_node.quat_data[:, 1:]
-                        voltage_data[:, m, episode] = turtle_node.voltage_data[1:]
+                        try:
+                            # record data from rollout
+                            time_data[:, m, episode] = timestamps
+                            acc_data[:, :, m, episode] = turtle_node.acc_data[:, 1:]
+                            gyr_data[:, :, m, episode] = turtle_node.gyr_data[:, 1:]
+                            quat_data[:, :, m, episode] = turtle_node.quat_data[:, 1:]
+                            voltage_data[:, m, episode] = turtle_node.voltage_data[1:]
+                        except:
+                            print(f"stopped mid rollout--saving everything but this rollout")
 
                         # save to folder after each rollout
                         scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
