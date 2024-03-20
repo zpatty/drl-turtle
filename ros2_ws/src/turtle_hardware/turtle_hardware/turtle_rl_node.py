@@ -1,25 +1,22 @@
+import time
+# tic = time.time()
 import rclpy
 from rclpy.node import Node
-from rclpy.executors import Executor, MultiThreadedExecutor
-from rcl_interfaces.msg import SetParametersResult
-from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleMotorPos
+from turtle_interfaces.msg import TurtleTraj, TurtleSensors
+import transforms3d.quaternions as quat
+import sys
+import os
 from EPHE import EPHE
 from DualCPG import DualCPG
 from AukeCPG import AukeCPG
-import sys
-import os
-import transforms3d.quaternions as quat
-import numpy as np
-import pickle
-import torch
+# print(f"toc: {time.time() - tic}")
 
+# tic = time.time()
+# submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware"
+# sys.path.append(submodule)
 
-submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware"
-sys.path.append(submodule)
-
-
+# tic = time.time()
 from std_msgs.msg import String
-from std_msgs.msg import Float64MultiArray
 from dynamixel_sdk import *                                     # Uses Dynamixel SDK library
 from turtle_dynamixel.Dynamixel import *                        # Dynamixel motor class                                  
 from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
@@ -27,17 +24,13 @@ from turtle_dynamixel.turtle_controller import *                # Controller
 from turtle_dynamixel.Constants import *                        # File of constant variables
 from turtle_dynamixel.Mod import *
 from turtle_dynamixel.utilities import *
-import math
-from math import cos, sin
-from datetime import datetime
 import numpy as np
-from matplotlib import pyplot as plt
 from turtle_dynamixel.utilities import *
 import json
-import traceback
-from queue import Queue
 import serial
+# print(f"sec import toc: {time.time()-tic}")
 
+# tic = time.time()
 if os.name == 'nt':
     import msvcrt
     def getch():
@@ -45,7 +38,7 @@ if os.name == 'nt':
     def kbhit():
         return msvcrt.kbhit()
 else:
-    import termios, fcntl, sys, os
+    import termios
     from select import select
     fd = sys.stdin.fileno()
     old_term = termios.tcgetattr(fd)
@@ -72,13 +65,13 @@ else:
             sys.stdout.flush()
 
         return 0
-
 os.system('sudo /home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/latency_write.sh')
 
 # global variable was set in the callback function directly
 global mode
 mode = 'rest'
 
+# print(f"toc: {time.time()-tic}\n")
 class TurtleRobot(Node):
     """
     This node is responsible for continously reading sensor data and receiving commands from the keyboard node
@@ -89,7 +82,7 @@ class TurtleRobot(Node):
     """
 
     def __init__(self, topic, max_episode_length=60, M=40, max_episodes=20, weights=[1, 1, 1, 1, 0.001]):
-        super().__init__('turtle_node')
+        super().__init__('turtle_rl_node')
         # subscribes to keyboard setting different turtle modes 
         self.mode_cmd_sub = self.create_subscription(
             String,
@@ -312,7 +305,7 @@ class TurtleRobot(Node):
             # print(f"clipped: {clipped}")
             avg_tau = np.mean(abs(clipped))
         print(f"torque: {clipped}")
-        self.Joints.send_torque_cmd(clipped)
+        # self.Joints.send_torque_cmd(clipped)
         self.read_sensors()
         reward = self._get_reward(avg_tau)
         terminated = False
@@ -443,6 +436,7 @@ class TurtleRobot(Node):
 # { "Quat": [ 0.008, 0.015, -0.766, 0.642 ],"Acc": [-264.00, -118.00, 8414.00 ],"Gyr": [-17.00, 10.00, 1.00 ],"Voltage": [ 11.77 ]}
     def read_voltage(self):
         no_check = False
+        self.xiao.reset_input_buffer()
         sensors = self.xiao.readline()
         # print(sensors)
         if len(sensors) != 0:
@@ -521,7 +515,7 @@ def main(args=None):
     print(f"Our initial q: " + str(q))
 
     # create folders 
-    trial_folder = f'Auke_CPG_exp_{trial}'
+    trial_folder = f'test_{trial}'
     best_param_fname = trial_folder + f'/best_params_ephe_{trial}.pth'
     os.makedirs(trial_folder, exist_ok=True)
 
@@ -590,6 +584,7 @@ def main(args=None):
                 turtle_node.read_voltage()
                 if turtle_node.voltage < threshold:
                     turtle_node.Joints.disable_torque()
+                    print(f"VOLTAGE: {turtle_node.voltage}")
                     print("THRESHOLD MET TURN OFFFF")
                     break
                 # print(turtle_node.Joints.get_position())
@@ -695,10 +690,10 @@ def main(args=None):
                         # reset the environment after every rollout
                         timestamps = np.zeros(max_episode_length)
                         t = 0                       # to ensure we only go max_episode length
-                        print("getting rollout")
-                        cpg_actions = cpg.get_rollout(max_episode_length)
-                        # cpg_actions = cpg.get_coupled_rollout(max_episode_length)
-                        print("got rollout")
+                        tic = time.time()
+                        # cpg_actions = cpg.get_rollout(max_episode_length)
+                        cpg_actions = cpg.get_coupled_rollout(max_episode_length)
+                        print(f"toc: {time.time()-tic}")
                         cpg_data[:, :, m, episode] = cpg_actions
                         observation, __ = turtle_node.reset()
                         t_0 = time.time()

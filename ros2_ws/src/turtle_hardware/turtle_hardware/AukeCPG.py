@@ -1,26 +1,15 @@
 import os
 import sys
-import torch
-import time
 import scipy
-from torch import nn
-from copy import copy, deepcopy
 import numpy as np
 from EPHE import EPHE
-from typing import Optional, Union, Iterable, List, Dict, Tuple, Any
-from numbers import Real, Integral
 # from pgpelib import PGPE
 # from pgpelib.policies import LinearPolicy, MLPPolicy
 # from pgpelib.restore import to_torch_module
 import matplotlib.pyplot as plt
 
-import numpy as np
-import pickle
-
 submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_rl/turtle_rl"
 sys.path.append(submodule)
-ParamVector = Union[List[Real], np.ndarray]
-Action = Union[List[Real], np.ndarray, Integral]
 
 class AukeCPG:
     """
@@ -416,7 +405,7 @@ class AukeCPG:
         return cumulative_reward, total_actions
     def set_params_and_run(self,
                            env,
-                           policy_parameters: ParamVector,
+                           policy_parameters,
                            max_episode_length=60,
                            ):
         """Set the the parameters of the policy by copying them
@@ -474,7 +463,6 @@ def main(args=None):
         # cpg.reset()
         # total_actions = cpg.get_rollout(episode_length=eps_len)
         total_actions = cpg.get_coupled_rollout(episode_length=eps_len)
-        print(total_actions.shape)
         t = np.arange(0, eps_len*cpg.dt, cpg.dt)
 
         fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))

@@ -1,8 +1,7 @@
 from scipy.stats import truncnorm
 import numpy as np
-import torch
 
-import gym
+# import gym
 
 ENV_NAME = 'CartPole-v1'
 
@@ -160,11 +159,11 @@ def train(num_params=20, num_mods=10, M=20, K=3):
     return best_params
 
 
-def main(args=None):
-    """
-    Basic EPHE example using the Cartpole-v1 environment. This is to double check that the general algorithm works. 
-    """
-    return 0
+# def main(args=None):
+#     """
+#     Basic EPHE example using the Cartpole-v1 environment. This is to double check that the general algorithm works. 
+#     """
+#     return 0
     
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
