@@ -2,11 +2,11 @@ import os
 import sys
 import scipy
 import numpy as np
-from EPHE import EPHE
+# from EPHE import EPHE
 # from pgpelib import PGPE
 # from pgpelib.policies import LinearPolicy, MLPPolicy
 # from pgpelib.restore import to_torch_module
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_rl/turtle_rl"
 sys.path.append(submodule)
@@ -81,7 +81,7 @@ class AukeCPG:
         self.v = np.random.uniform(low=0.01, high=3, size=self.num_mods)
 
         
-    def get_action(self, dt):
+    def get_coupled_action(self, dt):
         """
         Return action based off of observation and current CPG params
         
@@ -178,7 +178,110 @@ class AukeCPG:
                 action[idx] = self.theta[idx]
         return action
 
+    def get_action(self):
+        """
+        Get single time step action from CPGs
+        """
+        omega = self.params[0]
+        Rs = self.params[1:self.num_mods + 1]
+        Xs = self.params[self.num_mods + 1:]
+
+        action = np.zeros((self.num_mods))
+        # for every front fin
+        for m in range(self.num_mods):
+            # print(f"mod {m + 1}")
+            # for every CPG module calculate output for each oscillator
+            R = Rs[m]
+            X = Xs[m]
+            # find indices of the other two oscillators coupled to current oscillator state of current oscillator
+            state = [self.PHI[m], self.r[m], self.x[m], self.v[m], self.m[m]]
+            t_points = [0, self.dt]
+            solution = scipy.integrate.solve_ivp(
+                fun = lambda t, y: self.ode_fin(state, omega, R, X),
+                t_span=t_points, 
+                y0=state,
+                method='RK45',
+                t_eval = t_points
+            )
+            try:
+                self.PHI[m] = solution.y[0, 1]
+                self.r[m] = solution.y[1, 1]
+                self.x[m] = solution.y[2, 1]
+                self.v[m] = solution.y[3, 1]
+                self.m[m] = solution.y[4, 1]
+            except:
+                print("failed to solve ode with the following: \n")
+                print(f"state= {state}\n")
+                print(f"dt= {self.dt}\n")
+                pass
+            self.theta[m] = self.x[m] + self.r[m] * np.cos(self.PHI[m])
+            # grab output of oscillator i
+            if m in [3, 4, 5, 8, 9]:
+                self.theta[m] = -1 * self.theta[m]
+            self.theta[m] += np.pi/4
+            action[m] = self.theta[m]  
+        return action          
+    def ode_fin(self, state, omega, R, X):
+        PHI, r, x, v, m= state
+        dPhidt = omega
+        dRdt = v
+        dVdt = self.a_r * ((self.a_r/4) * (R-r) - dRdt)
+        dXdt = m
+        dMdt = self.a_x * ((self.a_x/4) * (X-x) - dXdt)
+        return [dPhidt, dRdt, dXdt, dVdt, dMdt]
+
     def get_rollout(self, episode_length=60):
+        """
+        Calculate the rollout for an uncoupled oscillator framework
+        """
+        print("GETTING ROLLOUT")
+        # calculate y_out, which in this case we are using as the tau we pass into the turtle
+        total_actions = np.zeros((self.num_mods, episode_length))
+        omega = self.params[0]
+        Rs = self.params[1:self.num_mods + 1]
+        Xs = self.params[self.num_mods + 1:]
+        for i in range(episode_length):
+            print(f"time step: {i}")
+            action = np.zeros((self.num_mods))
+            # for every front fin
+            for m in range(self.num_mods):
+                # print(f"mod {m + 1}")
+                # for every CPG module calculate output for each oscillator
+                R = Rs[m]
+                X = Xs[m]
+                # find indices of the other two oscillators coupled to current oscillator state of current oscillator
+                state = [self.PHI[m], self.r[m], self.x[m], self.v[m], self.m[m]]
+                t_points = [0, self.dt]
+                solution = scipy.integrate.solve_ivp(
+                    fun = lambda t, y: self.ode_fin(state, omega, R, X),
+                    t_span=t_points, 
+                    y0=state,
+                    method='RK45',
+                    t_eval = t_points
+                )
+                try:
+                    self.PHI[m] = solution.y[0, 1]
+                    self.r[m] = solution.y[1, 1]
+                    self.x[m] = solution.y[2, 1]
+                    self.v[m] = solution.y[3, 1]
+                    self.m[m] = solution.y[4, 1]
+                except:
+                    print("failed to solve ode with the following: \n")
+                    print(f"state= {state}\n")
+                    print(f"dt= {self.dt}\n")
+                    pass
+                self.theta[m] = self.x[m] + self.r[m] * np.cos(self.PHI[m])
+                # grab output of oscillator i
+                if m in [3, 4, 5, 8, 9]:
+                    self.theta[m] = -1 * self.theta[m]
+                self.theta[m] += np.pi/2
+                action[m] = self.theta[m]            
+            # record action for time step into total_actions struct
+            total_actions[:, i] = action
+
+        return total_actions
+
+    def get_coupled_rollout(self, episode_length=60):
         """
         Calculate the entire rollout
         """
@@ -280,7 +383,7 @@ class AukeCPG:
 
         return total_actions
     
-    def get_coupled_rollout(self, episode_length=60):
+    def get_other_rollout(self, episode_length=60):
         """
         Calculate the entire rollout. This has all 10 motors coupled together
         Inspired by Auke Isjpeert's 2007 Model of Salamander
@@ -427,55 +530,55 @@ class AukeCPG:
         )
         return cumulative_reward, total_actions
 
-def main(args=None):
-    num_params = 21
-    num_mods = 10
-    cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=0.0, w=0.5, a_r=20, a_x=20, dt=0.01)
+# def main(args=None):
+#     num_params = 21
+#     num_mods = 10
+#     cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=0.0, w=0.5, a_r=20, a_x=20, dt=0.01)
     
-    mu = np.random.rand((num_params)) * 5
-    sigma = np.random.rand((num_params)) + 0.3
+#     mu = np.random.rand((num_params)) 
+#     sigma = np.random.rand((num_params)) + 0.3
 
-    ephe = EPHE(
+#     ephe = EPHE(
                 
-                # We are looking for solutions whose lengths are equal
-                # to the number of parameters required by the policy:
-                solution_length=mu.shape[0],
+#                 # We are looking for solutions whose lengths are equal
+#                 # to the number of parameters required by the policy:
+#                 solution_length=mu.shape[0],
                 
-                # Population size: the number of trajectories we run with given mu and sigma 
-                popsize=20,
+#                 # Population size: the number of trajectories we run with given mu and sigma 
+#                 popsize=20,
                 
-                # Initial mean of the search distribution:
-                center_init=mu,
+#                 # Initial mean of the search distribution:
+#                 center_init=mu,
                 
-                # Initial standard deviation of the search distribution:
-                stdev_init=sigma,
+#                 # Initial standard deviation of the search distribution:
+#                 stdev_init=sigma,
 
-                # dtype is expected as float32 when using the policy objects
-                dtype='float32', 
+#                 # dtype is expected as float32 when using the policy objects
+#                 dtype='float32', 
 
-                K=2
-            )
-    solutions = ephe.ask()     
-    for solution in solutions:
-        print(f"starting params: {solution}\n")
-        eps_len = 800
-        cpg.set_parameters(params=solution)
-        # cpg.reset()
-        # total_actions = cpg.get_rollout(episode_length=eps_len)
-        total_actions = cpg.get_coupled_rollout(episode_length=eps_len)
-        t = np.arange(0, eps_len*cpg.dt, cpg.dt)
+#                 K=2
+#             )
+#     solutions = ephe.ask()     
+#     for solution in solutions:
+#         print(f"starting params: {solution}\n")
+#         eps_len = 800
+#         cpg.set_parameters(params=solution)
+#         # cpg.reset()
+#         total_actions = cpg.get_rollout(episode_length=eps_len)
+#         # total_actions = cpg.get_coupled_rollout(episode_length=eps_len)
+#         t = np.arange(0, eps_len*cpg.dt, cpg.dt)
 
-        fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
-        for j, ax in enumerate(axs):
-            ax.plot(t, total_actions[j, :])
-            ax.set_title(f"CPG {j+1}")
-            ax.set_xlabel("Time")
-            ax.set_ylabel("Data")
-            ax.grid(True)
-        plt.tight_layout()
-    plt.show()
+#         fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
+#         for j, ax in enumerate(axs):
+#             ax.plot(t, total_actions[j, :])
+#             ax.set_title(f"CPG {j+1}")
+#             ax.set_xlabel("Time")
+#             ax.set_ylabel("Data")
+#             ax.grid(True)
+#         plt.tight_layout()
+#     plt.show()
 
-    return 0
+#     return 0
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()

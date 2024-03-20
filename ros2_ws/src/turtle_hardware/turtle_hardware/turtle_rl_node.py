@@ -6,6 +6,7 @@ from turtle_interfaces.msg import TurtleTraj, TurtleSensors
 import transforms3d.quaternions as quat
 import sys
 import os
+import torch
 from EPHE import EPHE
 from DualCPG import DualCPG
 from AukeCPG import AukeCPG
@@ -295,7 +296,7 @@ class TurtleRobot(Node):
         else:
             # print(f"action: {action}")
             action = 10e3 * action
-            print(f"action: {action}")
+            # print(f"action: {action}")
 
             inputt = grab_arm_current(action, min_torque, max_torque)
             # print(f"observation: {observation}\n")
@@ -304,8 +305,8 @@ class TurtleRobot(Node):
             clipped = np.where(observation > self.min_threshold + self.epsilon, clipped, np.maximum(np.zeros(len(inputt)), clipped)).astype('int')
             # print(f"clipped: {clipped}")
             avg_tau = np.mean(abs(clipped))
-        print(f"torque: {clipped}")
-        # self.Joints.send_torque_cmd(clipped)
+        # print(f"torque: {clipped}")
+        self.Joints.send_torque_cmd(clipped)
         self.read_sensors()
         reward = self._get_reward(avg_tau)
         terminated = False
@@ -506,8 +507,8 @@ class TurtleRobot(Node):
 # THIS IS TURTLE CODE
 def main(args=None):
     rclpy.init(args=args)
-    trial = 6
-    threshold = 11.5
+    trial = 4
+    threshold = 11.3
     # the weights applied to reward function terms acc, dx, dy, dz, tau
     weights = [10, 1, 1, 1, 0.001]
     turtle_node = TurtleRobot('turtle_mode_cmd', weights=weights)
@@ -600,10 +601,12 @@ def main(args=None):
                 # Auke CPG model that outputs position in radians
                 phi=0.0
                 w=0.5
-                a_r=20
-                a_x=20
-                mu = np.random.rand((num_params)) * 5
+                a_r=12
+                a_x=12
+                mu = np.random.rand((num_params)) 
+                mu[0] = 2.5
                 sigma = np.random.rand((num_params)) + 0.3
+                sigma[0] = 0.1
 
                 config_log = {
                     "mu_init": list(mu),
@@ -690,11 +693,11 @@ def main(args=None):
                         # reset the environment after every rollout
                         timestamps = np.zeros(max_episode_length)
                         t = 0                       # to ensure we only go max_episode length
-                        tic = time.time()
+                        # tic = time.time()
                         # cpg_actions = cpg.get_rollout(max_episode_length)
-                        cpg_actions = cpg.get_coupled_rollout(max_episode_length)
-                        print(f"toc: {time.time()-tic}")
-                        cpg_data[:, :, m, episode] = cpg_actions
+                        # cpg_actions = cpg.get_rollout(max_episode_length)
+                        # print(f"cpg calc toc: {time.time()-tic}")
+                        # cpg_data[:, :, m, episode] = cpg_actions
                         observation, __ = turtle_node.reset()
                         t_0 = time.time()
     ############################ ROLL OUT ###############################################################################
@@ -705,7 +708,9 @@ def main(args=None):
                                 turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
                                 turtle_node.Joints.disable_torque()
                                 break
-                            action = cpg_actions[:, t]
+                            # action = cpg_actions[:, t]
+                            action = cpg.get_action()
+                            cpg_data[:, t, m, episode] = action
                             # save the raw cpg output
                             timestamps[t] = time.time()-t_0 
                             observation, reward, terminated, truncated, info = turtle_node.step(action, PD=True)
@@ -790,7 +795,7 @@ def main(args=None):
                 # Bo Cheng CPG implementation
                 mu = np.random.uniform(low=0, high=2*np.pi, size=num_params)
                 mu[1 + num_mods:] = np.random.uniform(low=10, high=20)
-                mu[0] = 1.5
+                mu[0] = 2.5
                 sigma = np.random.rand((num_params)) + 0.3
 
                 # CPG intrinsic weights
