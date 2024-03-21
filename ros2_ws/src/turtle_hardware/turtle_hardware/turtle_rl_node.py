@@ -29,6 +29,7 @@ import numpy as np
 from turtle_dynamixel.utilities import *
 import json
 import serial
+import random
 # print(f"sec import toc: {time.time()-tic}")
 
 # tic = time.time()
@@ -155,7 +156,7 @@ class TurtleRobot(Node):
         self.quat_data[:, -1] = [1, 1, 1, 1]
         self.orientation = np.array([0.679, 0.0, 0.0, -0.733])      # w, x, y, z
         self.a_weight, self.x_weight, self.y_weight, self.z_weight, self.tau_weight = weights
-
+        self.quat_weight = 10
         # for PD control
         self.Kp = np.diag([0.5, 0.1, 0.1, 0.6, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1])*4
         self.KD = 0.1
@@ -177,13 +178,20 @@ class TurtleRobot(Node):
             self.mode = 'teacher'
         elif msg.data == 'Auke':
             self.mode = 'Auke'
+        elif msg.data == 'planner':
+            self.mode = 'planner'
         else:
             self.mode = 'rest'
     def reset(self):
         print("resetting turtle...\n")
         self.Joints.disable_torque()
         self.Joints.enable_torque()
-        observation = "hi"
+        
+        q = self.Joints.get_position()
+        v = self.Joints.get_velocity()
+        acc = self.acc_data[:, -1]
+        quat = self.quat_data[:, -1]
+        observation = np.concatenate((q, v), axis=0)
         # reset the sensor variables for next trajectory recording
 
         self.qs = np.zeros((10,1))
@@ -216,64 +224,52 @@ class TurtleRobot(Node):
     def skew(self,x):
         return np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]])
     
-    # def _get_reward(self, tau):
+    def _get_reward(self, tau, observation):
 
-    #     acc = self.acc_data[:, -1]
-    #     del_q = self.inv_cayley(self.quatL(self.inv_q(self.quat_data[:, -1])) @ self.quat_data[:, -2])
-    #     R = self.a_weight*acc[1]**2 - self.a_weight*acc[0]**2 - self.a_weight*acc[2]**2 - del_q.T @ del_q -self.tau_weight* np.linalg.norm(tau)**2
-
-    #     # reward = 0
-    #     # acc = self.acc_data[:, -1]
-    #     # reward = np.linalg.norm(acc)
-    #     # if acc[1] >0:
-    #     #     reward += self.a_weight* acc[1]/reward
-    #     # print(f"acc reward: {reward}")
-    #     # orientation_cost = -np.linalg.norm(self.quat_data[1:, -1] - self.orientation[1:])
-    #     # print(f"o cost: {orientation_cost}")
-    #     # tau_cost = -self.tau_weight* np.linalg.norm(tau)**2
-    #     # # forward thrust correlates to positive reading on the y-axis of the accelerometer
-    #     # reward += orientation_cost
-    #     # reward += tau_cost
-    #     # print(R)
-    #     return R
-    def _get_reward(self, tau):
+        acc = self.acc_data[:, -1]
+        del_q = self.inv_cayley(self.quatL(self.inv_q(self.quat_data[:, -1])) @ self.quat_data[:, -2])
+        R = self.a_weight*acc[1]**2 - self.a_weight*acc[0]**2 - self.a_weight*acc[2]**2 - del_q.T @ del_q -self.tau_weight* np.linalg.norm(tau)**2
+        q = observation
         reward = 0
         acc = self.acc_data[:, -1]
         reward = np.linalg.norm(acc)
         if acc[1] >0:
             reward += self.a_weight* acc[1]/reward
         # print(f"acc reward: {reward}")
-        orientation_cost = -np.linalg.norm(self.quat_data[1:, -1] - self.orientation[1:])
+        # orientation_cost = -np.linalg.norm(self.quat_data[1:, -1] - self.orientation[1:])
         # print(f"o cost: {orientation_cost}")
         tau_cost = -self.tau_weight* np.linalg.norm(tau)**2
+        reward_quat = - self.quat_weight * (1 - np.linalg.norm(self.orientation.T @ q))
         # forward thrust correlates to positive reading on the y-axis of the accelerometer
-        reward += orientation_cost
+        # reward += orientation_cost
         reward += tau_cost
-        return reward
+        reward += reward_quat
+        print(R)
+        return R
+    # def _get_reward(self, tau):
+    #     reward = 0
+    #     acc = self.acc_data[:, -1]
+    #     reward = np.linalg.norm(acc)
+    #     if acc[1] >0:
+    #         reward += self.a_weight* acc[1]/reward
+    #     # print(f"acc reward: {reward}")
+    #     orientation_cost = -np.linalg.norm(self.quat_data[1:, -1] - self.orientation[1:])
+    #     # print(f"o cost: {orientation_cost}")
+    #     tau_cost = -self.tau_weight* np.linalg.norm(tau)**2
+    #     # forward thrust correlates to positive reading on the y-axis of the accelerometer
+    #     reward += orientation_cost
+    #     reward += tau_cost
+    #     return reward
     
     def _get_reward_weighted(self, tau):
         reward = 0
         return reward
     
-    def step(self, action, PD=False):
+    def step(self, action, PD=False, mode='None'):
         """
         action is tau which we pass into the turtle
         OR its position in radians when PD flag is set to True
         """
-        # action = np.zeros((10,1))
-        # action[7] = 1000
-        # inputt = grab_arm_current(action, min_torque, max_torque)
-
-        # action = action * 100000
-        # print(f"act: {action}")
-        # for a in range(len(action)):
-        #     if action[a] < 0:
-        #         action[a] = action[a] - 50
-        #     elif action[a] > 0:
-        #         action[a] = action[a] + 50
-        #     else:
-        #         action[a] = action[a]
-        # print(f"CPG output scaled: {action}\n")
         keep_trying = True
         while keep_trying:
             try:
@@ -282,6 +278,22 @@ class TurtleRobot(Node):
                 keep_trying = False
             except:
                 print("failed to read from motors")
+        if mode == 'SAC':
+            qd = np.where(action < self.max_threshold - self.epsilon, action, self.max_threshold - self.epsilon)
+            qd = np.where(qd > self.min_threshold + self.epsilon, qd, self.min_threshold + self.epsilon)
+            dqd = np.zeros((self.nq,1))
+            ddqd = np.zeros((self.nq,1))
+            # print(f"dqd shape: {dqd.shape}")
+            tau = turtle_controller(observation.reshape((10,1)),v.reshape((10,1)),qd.reshape((10,1)),dqd,ddqd,self.Kp,self.KD)
+            clipped = grab_arm_current(tau, min_torque, max_torque)
+
+            terminated = False
+            truncated = False
+            info = [v, clipped]
+            self.read_sensors()
+            reward = self._get_reward(tau, observation)
+            obs = self.acc_data[:, -1]
+            return [obs, reward, terminated, truncated, info]
         if PD:
             # print(f"action shape: {action.shape}")
             # position control 
@@ -308,7 +320,7 @@ class TurtleRobot(Node):
         # print(f"torque: {clipped}")
         self.Joints.send_torque_cmd(clipped)
         self.read_sensors()
-        reward = self._get_reward(avg_tau)
+        reward = self._get_reward(avg_tau, observation)
         terminated = False
         truncated = False
         # return velocity and clipped tau (or radians) passed into motors
@@ -972,6 +984,174 @@ def main(args=None):
                                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
                 break
+            elif turtle_node.mode == 'PGPE':
+                print("Grabbing PGPE imports...")
+                from pgpelib import PGPE
+                from pgpelib.policies import LinearPolicy, MLPPolicy
+                from pgpelib.restore import to_torch_module
+                print("initializing stoof...\n")
+            elif turtle_node.mode == 'SAC':
+                print(f"Soft Actor Critc....\n")
+                from sbx import DroQ
+                print(f"starting...")
+                phi=0.0
+                w=0.5
+                a_r=12
+                a_x=12
+                cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
+
+                env = turtle_node
+                model = DroQ(
+                    "MlpPolicy",
+                    env,
+                    learning_starts=50,
+                    learning_rate=1e-3,
+                    tau=0.02,
+                    gamma=0.98,
+                    verbose=1,
+                    buffer_size=5000,
+                    gradient_steps=2,
+                    ent_coef="auto_1.0",
+                    seed=1,
+                    dropout_rate=0.001,
+                    layer_norm=True,
+                    # action_noise=NormalActionNoise(np.zeros(1), np.zeros(1)),
+                )
+                # obs is the CPG parameters, or joint positions, or acceleration data, etc.
+                obs, info = env.reset()
+                for i in range(max_episodes):
+                    rclpy.spin_once(turtle_node)
+                    if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
+                        print("breaking out of rollout----------------------------------------------------------------------")
+                        turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                        turtle_node.Joints.disable_torque()
+                        break
+                    # grab new cpg parameters
+                    action, _states = model.predict(obs, deterministic=True)
+                    # carray out a rollout with these params
+                    
+                    obs, reward, terminated, truncated, info = env.step(action, mode='SAC')
+                    if terminated or truncated:
+                        obs, info = env.reset()
+            elif turtle_node.mode == 'planner':
+                """
+                Randomly pick a motion primitive and run it 4-5 times
+                """
+                primitives = ['surface', 'dive', 'turnrf', 'turnrr', 'straight']
+                num_cycles = 4
+                turtle_node.Joints.disable_torque()
+                turtle_node.Joints.set_current_cntrl_mode()
+                turtle_node.Joints.enable_torque()
+
+                while True:
+                    rclpy.spin_once(turtle_node)
+                    if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
+                        print("breaking out of rollout----------------------------------------------------------------------")
+                        turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                        turtle_node.Joints.disable_torque()
+                        break
+                    primitive = random.choice(primitives)
+                    print(f"---------------------------------------PRIMITIVE: {primitive}\n\n\n\n\n\n\n\n")
+                    qd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
+                    dqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
+                    ddqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
+                    tvec = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
+                    # print(f"qd mat first elemetn: {qd_mat[:, 1]}\n")
+                    print(f"full thing is: {tvec.shape}\n")
+                    print(f"shape qd_mat: {qd_mat.shape}\n")
+                    # print(f"shape of tvec: {tvec.sh}")
+                    first_time = True
+                    first_loop = True
+                    input_history = np.zeros((turtle_node.nq,10))
+                    q_data = np.zeros((turtle_node.nq,1))
+                    tau_data = np.zeros((turtle_node.nq,1))
+                    timestamps = np.zeros((1,1))
+                    dt_loop = np.zeros((1,1))       # hold dt data 
+                    print(f"[MODE] TRAJECTORY\n")
+                    dq_data = np.zeros((turtle_node.nq,1))
+                    tau_data = np.zeros((turtle_node.nq,1))
+                    timestamps = np.zeros((1,1))
+                    dt_loop = np.zeros((1,1))       # hold dt data 
+                    cycle = 0
+
+                    # zero =  np.zeros((self.nq,1))
+                    t_old = time.time()
+                    # our loop's "starting" time
+                    t_0 = time.time()
+                    while cycle < num_cycles:
+                        if turtle_node.voltage < threshold:
+                            print("voltage too low--powering off...")
+                            turtle_node.Joints.disable_torque()
+                            break
+                        rclpy.spin_once(turtle_node)
+                        # print("traj 1...")
+                        if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
+                            turtle_node.Joints.send_torque_cmd(turtle_node.nq * [0])
+                            turtle_node.Joints.disable_torque()
+                            first_time = True
+                            break
+                        
+                        q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
+                        if first_loop:
+                            n = get_qindex((time.time() - t_0), tvec)
+                        else:
+                            # print("done with first loop")
+                            offset = t_0 - 2
+                            n = get_qindex((time.time() - offset), tvec)
+
+                        # print(f"n: {n}\n")
+                        if n == len(tvec[0]) - 1:
+                            first_loop = False
+                            t_0 = time.time()
+                            cycle += 1
+                            print(f"-----------------cycle: {cycle}\n\n\n")
+                        
+                        qd = np.array(qd_mat[:, n]).reshape(-1,1)
+                        dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
+                        ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
+                        # # print(f"[DEBUG] qdata: {q_data}\n")
+                        # print(f"[DEBUG] qd: {qd}\n")
+                        q_data=np.append(q_data, q, axis = 1) 
+                        # # At the first iteration velocity is 0  
+                        
+                        if first_time:
+                            # dq = np.zeros((nq,1))
+                            dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
+                            print(f"dq shape: {dq.shape}")
+                            print(f"dq data shape: {dq_data.shape}")
+                            dq_data=np.append(dq_data, dq, axis = 1) 
+                            q_old = q
+                            first_time = False
+                        else:
+                            t = time.time()
+                            dt = t - t_old
+                        #     # print(f"[DEBUG] dt: {dt}\n")  
+                            t_old = t
+                            # dq = diff(q, q_old, dt)
+                            dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
+                            dq_data=np.append(dq_data, dq, axis = 1) 
+                            q_old = q
+                            # # calculate errors
+                        err = q - qd
+                        # # print(f"[DEBUG] e: {err}\n")
+                        # # print(f"[DEBUG] q: {q * 180/3.14}\n")
+                        # # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
+                        err_dot = dq
+
+                        tau = turtle_controller(q,dq,qd,dqd,ddqd,turtle_node.Kp,turtle_node.KD)
+
+                        # publish motor data, tau data, 
+                        
+                        input_history = np.append(input_history[:,1:], tau,axis=1)
+
+                        input_mean = np.mean(input_history, axis = 1)
+
+                        input = grab_arm_current(input_mean, min_torque, max_torque)
+                        # print(f"[DEBUG] tau: {tau}\n")
+                        turtle_node.Joints.send_torque_cmd(input)
+
+                turtle_node.Joints.disable_torque()
+
             else:
                 print("wrong command received....")
     except Exception as e:
