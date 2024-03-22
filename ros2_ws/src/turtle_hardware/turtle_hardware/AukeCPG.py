@@ -2,11 +2,11 @@ import os
 import sys
 import scipy
 import numpy as np
-# from EPHE import EPHE
+from EPHE import EPHE
 # from pgpelib import PGPE
 # from pgpelib.policies import LinearPolicy, MLPPolicy
 # from pgpelib.restore import to_torch_module
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_rl/turtle_rl"
 sys.path.append(submodule)
@@ -530,55 +530,55 @@ class AukeCPG:
         )
         return cumulative_reward, total_actions
 
-# def main(args=None):
-#     num_params = 21
-#     num_mods = 10
-#     cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=0.0, w=0.5, a_r=20, a_x=20, dt=0.01)
+def main(args=None):
+    num_params = 21
+    num_mods = 10
+    cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=0.0, w=0.5, a_r=20, a_x=20, dt=0.01)
     
-#     mu = np.random.rand((num_params)) 
-#     sigma = np.random.rand((num_params)) + 0.3
+    mu = np.random.rand((num_params)) 
+    sigma = np.random.rand((num_params)) + 0.3
 
-#     ephe = EPHE(
+    ephe = EPHE(
                 
-#                 # We are looking for solutions whose lengths are equal
-#                 # to the number of parameters required by the policy:
-#                 solution_length=mu.shape[0],
+                # We are looking for solutions whose lengths are equal
+                # to the number of parameters required by the policy:
+                solution_length=mu.shape[0],
                 
-#                 # Population size: the number of trajectories we run with given mu and sigma 
-#                 popsize=20,
+                # Population size: the number of trajectories we run with given mu and sigma 
+                popsize=20,
                 
-#                 # Initial mean of the search distribution:
-#                 center_init=mu,
+                # Initial mean of the search distribution:
+                center_init=mu,
                 
-#                 # Initial standard deviation of the search distribution:
-#                 stdev_init=sigma,
+                # Initial standard deviation of the search distribution:
+                stdev_init=sigma,
 
-#                 # dtype is expected as float32 when using the policy objects
-#                 dtype='float32', 
+                # dtype is expected as float32 when using the policy objects
+                dtype='float32', 
 
-#                 K=2
-#             )
-#     solutions = ephe.ask()     
-#     for solution in solutions:
-#         print(f"starting params: {solution}\n")
-#         eps_len = 800
-#         cpg.set_parameters(params=solution)
-#         # cpg.reset()
-#         total_actions = cpg.get_rollout(episode_length=eps_len)
-#         # total_actions = cpg.get_coupled_rollout(episode_length=eps_len)
-#         t = np.arange(0, eps_len*cpg.dt, cpg.dt)
+                K=2
+            )
+    solutions = ephe.ask()     
+    for solution in solutions:
+        print(f"starting params: {solution}\n")
+        eps_len = 800
+        cpg.set_parameters(params=solution)
+        # cpg.reset()
+        total_actions = cpg.get_rollout(episode_length=eps_len)
+        # total_actions = cpg.get_coupled_rollout(episode_length=eps_len)
+        t = np.arange(0, eps_len*cpg.dt, cpg.dt)
 
-#         fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
-#         for j, ax in enumerate(axs):
-#             ax.plot(t, total_actions[j, :])
-#             ax.set_title(f"CPG {j+1}")
-#             ax.set_xlabel("Time")
-#             ax.set_ylabel("Data")
-#             ax.grid(True)
-#         plt.tight_layout()
-#     plt.show()
+        fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
+        for j, ax in enumerate(axs):
+            ax.plot(t, total_actions[j, :])
+            ax.set_title(f"CPG {j+1}")
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Data")
+            ax.grid(True)
+        plt.tight_layout()
+    plt.show()
 
-#     return 0
+    return 0
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
