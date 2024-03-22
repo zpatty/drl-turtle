@@ -34,7 +34,8 @@ IKEY_ASCII_VALUE            = 0x69
 PKEY_ASCII_VALUE            = 0x70  
 QKEY_ASCII_VALUE            = 0x71 
 TKEY_ASCII_VALUE            = 0x74   
-RKEY_ASCII_VALUE            = 0x72     
+RKEY_ASCII_VALUE            = 0x72    
+ZKEY_ASCII_VALUE            = 0x80
 MOD1_VALUE                  = 0x31      # pressing 1 on keyboard
 MOD2_VALUE                  = 0x32
 MOD3_VALUE                  = 0x33
@@ -228,6 +229,21 @@ def main(args=None):
             tomotors.publish(msg)
             log = "Entering Training mode!"
             node.get_logger().info(log)
+        elif key_input == "z":
+            msg.data='planner'
+            tomotors.publish(msg)
+            log = "Entering Random Planner"
+            node.get_logger().info(log)
+        elif key_input == "g":
+            msg.data='PGPE'
+            tomotors.publish(msg)
+            log = "Entering PGPE"
+            node.get_logger().info(log)
+        elif key_input == "x":
+            msg.data='SAC'
+            tomotors.publish(msg)
+            log = "Entering SAC"
+            node.get_logger().info(log)
         elif key_input == chr(IKEY_ASCII_VALUE):
             msg.data = 'Auke'
             tomotors.publish(msg)
@@ -295,6 +311,7 @@ def main(args=None):
             print("sent custom trajectory...")
             traj_pub.publish(traj)
         else:
+            print(key_input)
             print("Wrong input received")
         
 
