@@ -160,7 +160,7 @@ class TurtleRobot(Node, gym.Env):
         self.a_weight, self.x_weight, self.y_weight, self.z_weight, self.tau_weight = weights
         self.quat_weight = 10
         # for PD control
-        self.Kp = np.diag([0.5, 0.1, 0.1, 0.6, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1])*4
+        self.Kp = np.diag([0.6, 0.3, 0.1, 0.6, 0.3, 0.1, 0.4, 0.4, 0.4, 0.4])*4
         self.KD = 0.1
         self.action_space = spaces.Box(low=0, high=30,
                                             shape=(self.nq,1), dtype=np.float32)
@@ -239,7 +239,7 @@ class TurtleRobot(Node, gym.Env):
     def _get_reward(self, tau):
         q = self.quat_data[:, -1]
         acc = self.acc_data[:, -1]
-        R = self.a_weight*acc[1]**2 - self.a_weight*acc[0]**2 - self.a_weight*acc[2]**2 -self.tau_weight* np.linalg.norm(tau)**2 - self.quat_weight * (1 - np.linalg.norm(self.orientation.T @ q))
+        R = self.a_weight*acc[1]**2 - acc[0]**2 - acc[2]**2 -self.tau_weight* np.linalg.norm(tau)**2 - self.quat_weight * (1 - np.linalg.norm(self.orientation.T @ q))
         return R
     
     # def _get_reward(self, tau):
@@ -523,27 +523,27 @@ class TurtleRobot(Node, gym.Env):
 # THIS IS TURTLE CODE
 def main(args=None):
     rclpy.init(args=args)
-    trial = 2
+    trial = 1
     threshold = 11.3
     # the weights applied to reward function terms acc, dx, dy, dz, tau
-    weights = [10, 1, 1, 1, 0.001]
+    weights = [1000, 1, 1, 1, 0.001]
     turtle_node = TurtleRobot('turtle_mode_cmd', weights=weights)
     q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
     print(f"Our initial q: " + str(q))
 
     # create folders 
-    trial_folder = f'Auke_test_{trial}'
+    trial_folder = f'PGPE_pooltest_{trial}'
     best_param_fname = trial_folder + f'/best_params_ephe_{trial}.pth'
     os.makedirs(trial_folder, exist_ok=True)
 
     # Bo Chen paper says robot converged in 20 episodes
-    max_episodes = 20
+    max_episodes = 10
     dt = 0.01
     max_episode_length = 800    # 200 * 0.01 = 2 seconds
 
     # initial params for training
     num_params = 21
-    M = 10
+    M = 5
     K = 3
     num_mods = 10
 
@@ -617,12 +617,12 @@ def main(args=None):
                 # Auke CPG model that outputs position in radians
                 phi=0.0
                 w=0.5
-                a_r=12
-                a_x=12
+                a_r=25
+                a_x=25
                 mu = np.random.rand((num_params)) 
-                mu[0] = 3.0
-                sigma = np.random.rand((num_params)) + 0.3
-                sigma[0] = 0.2
+                mu[0] = 5.5
+                sigma = np.random.rand((num_params)) + 0.9
+                sigma[0] = 0.1
 
                 config_log = {
                     "mu_init": list(mu),
@@ -996,14 +996,15 @@ def main(args=None):
                 print("initializing stoof...\n")
                 phi=0.0
                 w=0.5
-                a_r=12
-                a_x=12
+                a_r=25
+                a_x=25
+                mu = np.random.rand((num_params)) 
+                mu[0] = 5.5
+                sigma = np.random.rand((num_params)) + 0.9
+                sigma[0] = 0.1
                 cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
                 env = turtle_node
-                mu = np.random.rand((num_params)) 
-                mu[0] = 2.5
-                sigma = np.random.rand((num_params)) + 0.3
-                sigma[0] = 0.1
+
 
                 pgpe = PGPE(
                 
@@ -1232,7 +1233,8 @@ def main(args=None):
                 """
                 Randomly pick a motion primitive and run it 4-5 times
                 """
-                primitives = ['surface', 'dive', 'turnrf', 'turnrr', 'straight']
+                primitives = ['surface', 'turnrf', 'turnrr', 'straight', 'turnlr']
+                # primitives = ['turnrr']
                 num_cycles = 4
                 turtle_node.Joints.disable_torque()
                 turtle_node.Joints.set_current_cntrl_mode()
@@ -1245,7 +1247,7 @@ def main(args=None):
                         turtle_node.Joints.disable_torque()
                         break
                     primitive = random.choice(primitives)
-                    print(f"---------------------------------------PRIMITIVE: {primitive}\n\n\n\n\n\n\n\n")
+                    print(f"---------------------------------------PRIMITIVE: {primitive}\n\n")
                     qd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
                     dqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
                     ddqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
