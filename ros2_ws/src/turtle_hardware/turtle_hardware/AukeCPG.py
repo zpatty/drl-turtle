@@ -218,7 +218,7 @@ class AukeCPG:
             # grab output of oscillator i
             if m in [3, 4, 5, 8, 9]:
                 self.theta[m] = -1 * self.theta[m]
-            self.theta[m] += np.pi/4
+            self.theta[m] += np.pi
             action[m] = self.theta[m]  
         return action          
     def ode_fin(self, state, omega, R, X):
