@@ -10,6 +10,8 @@ import torch
 from EPHE import EPHE
 from DualCPG import DualCPG
 from AukeCPG import AukeCPG
+import gymnasium as gym
+from gymnasium import spaces
 # print(f"toc: {time.time() - tic}")
 
 # tic = time.time()
@@ -74,7 +76,7 @@ global mode
 mode = 'rest'
 
 # print(f"toc: {time.time()-tic}\n")
-class TurtleRobot(Node):
+class TurtleRobot(Node, gym.Env):
     """
     This node is responsible for continously reading sensor data and receiving commands from the keyboard node
     to execute specific trajectoreies or handle emergency stops. It also is responsible for sending motor pos commands to the RL node
@@ -160,6 +162,11 @@ class TurtleRobot(Node):
         # for PD control
         self.Kp = np.diag([0.5, 0.1, 0.1, 0.6, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1])*4
         self.KD = 0.1
+        self.action_space = spaces.Box(low=0, high=30,
+                                            shape=(self.nq,1), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=30,
+                                            shape=(self.nq,1), dtype=np.float32)
+
 
     def turtle_mode_callback(self, msg):
         """
@@ -182,6 +189,8 @@ class TurtleRobot(Node):
             self.mode = 'planner'
         elif msg.data == 'PGPE':
             self.mode = 'PGPE'
+        elif msg.data == 'SAC':
+            self.mode = 'SAC'
         else:
             self.mode = 'rest'  
     def reset(self):
@@ -452,23 +461,28 @@ class TurtleRobot(Node):
                     sensor_keys = {'Voltage'}
                     if set(sensor_keys).issubset(sensor_dict):
                         volt = sensor_dict['Voltage'][0]
-                        self.voltage = volt   
+                        self.voltage = volt  
+    def add_place_holder(self):
+        acc = self.acc_data[:, -1].reshape((3,1))
+        gyr = self.gyr_data[:, -1].reshape((3,1))
+        quat_vec = self.quat_data[:, -1].reshape((4,1))
+        self.acc_data = np.append(self.acc_data, acc, axis=1)
+        self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
+        self.quat_data = np.append(self.quat_data, quat_vec, axis=1)
+        self.voltage_data = np.append(self.voltage_data, self.voltage_data[-1])
+ 
     def read_sensors(self):
         """
         Appends current sensor reading to the turtle node's sensor data structs
-        """
-        # def add_place_holder():
-        #     acc = self.acc_data[:, -1].reshape((3,1))
-        #     gyr = self.gyr_data[:, -1].reshape((3,1))
-        #     quat_vec = self.quat_data[:, -1].reshape((4,1))
-        #     self.acc_data = np.append(self.acc_data, acc, axis=1)
-        #     self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
-        #     self.quat_data = np.append(self.quat_data, quat_vec, axis=1)
-        #     self.voltage_data = np.append(self.voltage_data, self.voltage_data[-1])
-        
+        """        
         no_check = False
         keep_trying = True
+        attempts = 0
         while keep_trying:
+            if attempts >= 3:
+                print("adding place holder")
+                self.add_place_holder()
+                break
             self.xiao.reset_input_buffer()
             sensors = self.xiao.readline()
             # print(sensors)
@@ -498,8 +512,8 @@ class TurtleRobot(Node):
                             self.quat_data = np.append(self.quat_data, quat_vec, axis=1)
                             self.voltage_data = np.append(self.voltage_data, volt)
                             self.voltage = volt
-                            print(f"quat data: {self.quat_data[:, -1]}")
                             keep_trying = False
+            attempts += 1
         #         else:
         #             add_place_holder()
         #     else:
@@ -509,7 +523,7 @@ class TurtleRobot(Node):
 # THIS IS TURTLE CODE
 def main(args=None):
     rclpy.init(args=args)
-    trial = 4
+    trial = 2
     threshold = 11.3
     # the weights applied to reward function terms acc, dx, dy, dz, tau
     weights = [10, 1, 1, 1, 0.001]
@@ -518,7 +532,7 @@ def main(args=None):
     print(f"Our initial q: " + str(q))
 
     # create folders 
-    trial_folder = f'test_{trial}'
+    trial_folder = f'Auke_test_{trial}'
     best_param_fname = trial_folder + f'/best_params_ephe_{trial}.pth'
     os.makedirs(trial_folder, exist_ok=True)
 
@@ -606,9 +620,9 @@ def main(args=None):
                 a_r=12
                 a_x=12
                 mu = np.random.rand((num_params)) 
-                mu[0] = 2.5
+                mu[0] = 3.0
                 sigma = np.random.rand((num_params)) + 0.3
-                sigma[0] = 0.1
+                sigma[0] = 0.2
 
                 config_log = {
                     "mu_init": list(mu),
@@ -1130,7 +1144,8 @@ def main(args=None):
 
             elif turtle_node.mode == 'SAC':
                 print(f"Soft Actor Critc....\n")
-                from sbx import DroQ
+                from stable_baselines3.sac.policies import MlpPolicy
+                from stable_baselines3 import SAC
                 print(f"starting...")
                 phi=0.0
                 w=0.5
@@ -1139,7 +1154,7 @@ def main(args=None):
                 cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
 
                 env = turtle_node
-                model = DroQ(
+                model = SAC(
                     "MlpPolicy",
                     env,
                     learning_starts=50,
@@ -1151,25 +1166,68 @@ def main(args=None):
                     gradient_steps=2,
                     ent_coef="auto_1.0",
                     seed=1,
-                    dropout_rate=0.001,
-                    layer_norm=True,
                     # action_noise=NormalActionNoise(np.zeros(1), np.zeros(1)),
                 )
                 # obs is the CPG parameters, or joint positions, or acceleration data, etc.
                 obs, info = env.reset()
-                for i in range(max_episodes):
+                for episode in range(max_episodes):
                     rclpy.spin_once(turtle_node)
                     if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
                         print("breaking out of rollout----------------------------------------------------------------------")
                         turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
                         turtle_node.Joints.disable_torque()
                         break
-                    # grab new cpg parameters
-                    action, _states = model.predict(obs, deterministic=True)
-                    # carray out a rollout with these params
-                    obs, reward, terminated, truncated, info = env.step(action, mode='SAC')
-                    if terminated or truncated:
-                        obs, info = env.reset()
+                    for m in range(M):
+                        # grab new cpg parameters
+                        action, _states = model.predict(obs, deterministic=True)
+                        timestamps = np.zeros(max_episode_length)
+                        t = 0                       # to ensure we only go max_episode length
+                        observation, __ = turtle_node.reset()
+                        t_0 = time.time()
+    ############################ ROLL OUT ###############################################################################
+                        while True:
+                            rclpy.spin_once(turtle_node)
+                            if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
+                                print("breaking out of rollout----------------------------------------------------------------------")
+                                turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                                turtle_node.Joints.disable_torque()
+                                break
+                            # action = cpg_actions[:, t]
+                            action = cpg.get_action()
+                            cpg_data[:, t, m, episode] = action
+                            # save the raw cpg output
+                            timestamps[t] = time.time()-t_0 
+                            print(f"action: {action}")
+                            observation, reward, terminated, truncated, info = turtle_node.step(action, mode='SAC')
+                            v, clipped = info
+                            done = truncated or terminated
+                            reward_data[t, m, episode] = reward
+                            tau_data[:, t, m, episode] = clipped
+                            q_data[:, t, m, episode] = observation
+                            dq_data[:, t, m, episode] = v
+                            print(f"reward : {reward}")
+                            cumulative_reward += reward
+                            t += 1
+                            if t >= max_episode_length:
+                                turtle_node.Joints.disable_torque()
+                                print("\n\n")
+                                print(f"---------------rollout reward: {cumulative_reward}\n\n\n\n")
+                                break
+                        try:
+                            # record data from rollout
+                            time_data[:, m, episode] = timestamps
+                            acc_data[:, :, m, episode] = turtle_node.acc_data[:, 1:]
+                            gyr_data[:, :, m, episode] = turtle_node.gyr_data[:, 1:]
+                            quat_data[:, :, m, episode] = turtle_node.quat_data[:, 1:]
+                            voltage_data[:, m, episode] = turtle_node.voltage_data[1:]
+                        except:
+                            print(f"stopped mid rollout-- saving everything but this rollout data")
+                        # save to folder after each rollout
+                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                            'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
+                            'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
+                            'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
+
             elif turtle_node.mode == 'planner':
                 """
                 Randomly pick a motion primitive and run it 4-5 times
