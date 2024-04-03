@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import os
 import glob
-CHECKERBOARD = (6,9)
+CHECKERBOARD = (7,9)
 subpix_criteria = (cv2.TERM_CRITERIA_EPS+cv2.TERM_CRITERIA_MAX_ITER, 30, 0.1)
 calibration_flags = cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC+cv2.fisheye.CALIB_CHECK_COND+cv2.fisheye.CALIB_FIX_SKEW
 objp = np.zeros((1, CHECKERBOARD[0]*CHECKERBOARD[1], 3), np.float32)
@@ -10,7 +10,7 @@ objp[0,:,:2] = np.mgrid[0:CHECKERBOARD[0], 0:CHECKERBOARD[1]].T.reshape(-1, 2)
 _img_shape = None
 objpoints = [] # 3d point in real world space
 imgpoints = [] # 2d points in image plane.
-images = glob.glob('*.jpeg')
+images = glob.glob('L*.png')
 for fname in images:
     img = cv2.imread(fname)
     if _img_shape == None:
@@ -25,9 +25,13 @@ for fname in images:
         objpoints.append(objp)
         cv2.cornerSubPix(gray,corners,(3,3),(-1,-1),subpix_criteria)
         imgpoints.append(corners)
+    else:
+        print(fname)
+
 N_OK = len(objpoints)
 K = np.zeros((3, 3))
 D = np.zeros((4, 1))
+print("Found " + str(N_OK) + " valid images for calibration")
 rvecs = [np.zeros((1, 1, 3), dtype=np.float64) for i in range(N_OK)]
 tvecs = [np.zeros((1, 1, 3), dtype=np.float64) for i in range(N_OK)]
 rms, _, _, _, _ = \
@@ -42,7 +46,7 @@ rms, _, _, _, _ = \
         calibration_flags,
         (cv2.TERM_CRITERIA_EPS+cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-6)
     )
-print("Found " + str(N_OK) + " valid images for calibration")
+
 print("DIM=" + str(_img_shape[::-1]))
 print("K=np.array(" + str(K.tolist()) + ")")
 print("D=np.array(" + str(D.tolist()) + ")")
