@@ -1,5 +1,5 @@
 import time
-# tic = time.time()
+import subprocess
 import rclpy
 from rclpy.node import Node
 from turtle_interfaces.msg import TurtleTraj, TurtleSensors
@@ -85,7 +85,7 @@ class TurtleRobot(Node, gym.Env):
     TLDR; this is the node that handles all turtle hardware things
     """
 
-    def __init__(self, topic, max_episode_length=60, M=40, max_episodes=20, weights=[1, 1, 1, 1, 0.001]):
+    def __init__(self, topic, params):
         super().__init__('turtle_rl_node')
         # subscribes to keyboard setting different turtle modes 
         self.mode_cmd_sub = self.create_subscription(
@@ -126,11 +126,6 @@ class TurtleRobot(Node, gym.Env):
         self.qs = np.zeros((10,1))
         self.dqs = np.zeros((10,1))
         self.tvec = np.zeros((1,1))
-        self.acc_data = np.zeros((self.n_axis,1))
-        self.gyr_data = np.zeros((self.n_axis,1))
-        self.quat_data = np.zeros((4,1))
-        self.tau_data = np.zeros((10,1))
-        self.voltage_data = np.zeros((1,1))
         if portHandlerJoint.openPort():
             print("[MOTORS STATUS] Suceeded to open port")
         else:
@@ -139,6 +134,12 @@ class TurtleRobot(Node, gym.Env):
             print("[MOTORS STATUS] Suceeded to open port")
         else:
             print("[ERROR] Failed to change baudrate")
+
+        # setup params
+        self.read_params(params=params)
+        self.create_data_structs()
+
+        # dynamixel setup
         self.IDs = [1,2,3,4,5,6,7, 8, 9,10]
         self.nq = 10
         self.Joints = Mod(packetHandlerJoint, portHandlerJoint, self.IDs)
@@ -157,8 +158,6 @@ class TurtleRobot(Node, gym.Env):
         # orientation at rest
         self.quat_data[:, -1] = [1, 1, 1, 1]
         self.orientation = np.array([0.679, 0.0, 0.0, -0.733])      # w, x, y, z
-        self.a_weight, self.x_weight, self.y_weight, self.z_weight, self.tau_weight = weights
-        self.quat_weight = 10
         # for PD control
         self.Kp = np.diag([0.6, 0.3, 0.1, 0.6, 0.3, 0.1, 0.4, 0.4, 0.4, 0.4])*4
         self.KD = 0.1
@@ -166,6 +165,13 @@ class TurtleRobot(Node, gym.Env):
                                             shape=(self.nq,1), dtype=np.float32)
         self.observation_space = spaces.Box(low=0, high=30,
                                             shape=(self.nq,1), dtype=np.float32)
+    def read_params(self, params):
+        self.ax_weight = params["ax_weight"]
+        self.ay_weight = params["ay_weight"]
+        self.az_weight = params["az_weight"]
+
+        self.tau_weight = params["tau_weight"]
+        self.quat_weight = params["quat_weight"]
 
 
     def turtle_mode_callback(self, msg):
@@ -174,7 +180,6 @@ class TurtleRobot(Node, gym.Env):
         This method is what enables us to set "emergency stops" mid-trajectory. 
         """
         # global mode
-        # print("\n\n\n\n\n\ CALLLLBACKKKKKKKKK \n\n\n\n\n")
         if msg.data == 'traj1':
             self.mode = 'traj1'
         elif msg.data == 'train':
@@ -193,26 +198,33 @@ class TurtleRobot(Node, gym.Env):
             self.mode = 'SAC'
         else:
             self.mode = 'rest'  
-    def reset(self):
-        print("resetting turtle...\n")
-        self.Joints.disable_torque()
-        self.Joints.enable_torque()
-        
-        q = self.Joints.get_position()
-        v = self.Joints.get_velocity()
-        acc = self.acc_data[:, -1]
-        quat = self.quat_data[:, -1]
-        observation = np.concatenate((q, v), axis=0)
-        # reset the sensor variables for next trajectory recording
-
-        self.qs = np.zeros((10,1))
-        self.dqs = np.zeros((10,1))
-        self.tvec = np.zeros((1,1))
+    def create_data_structs(self):
+        """
+        Create initial data structs to hold turtle data
+        """
+        # data structs for recording each rollout
         self.acc_data = np.zeros((self.n_axis,1))
         self.gyr_data = np.zeros((self.n_axis,1))
         self.quat_data = np.zeros((4,1))
         self.tau_data = np.zeros((10,1))
         self.voltage_data = np.zeros((1,1))
+
+        # to store individual contributions of rewards 
+        self.a_rewards = np.zeros((1,1))
+        self.x_rewards = np.zeros((1,1))
+        self.y_rewards = np.zeros((1,1))
+        self.z_rewards = np.zeros((1,1))
+        self.tau_rewards = np.zeros((1,1))
+
+    def reset(self):
+        print("resetting turtle...\n")
+        self.Joints.disable_torque()
+        self.Joints.enable_torque()
+        q = self.Joints.get_position()
+        v = self.Joints.get_velocity()
+        acc = self.acc_data[:, -1]
+        quat = self.quat_data[:, -1]
+        observation = np.concatenate((q, v), axis=0)
         return observation, "reset"
     def quatL(self,q):
         qs = q[0]
@@ -239,23 +251,8 @@ class TurtleRobot(Node, gym.Env):
     def _get_reward(self, tau):
         q = self.quat_data[:, -1]
         acc = self.acc_data[:, -1]
-        R = self.a_weight*acc[1]**2 - acc[0]**2 - acc[2]**2 -self.tau_weight* np.linalg.norm(tau)**2 - self.quat_weight * (1 - np.linalg.norm(self.orientation.T @ q))
+        R = self.ay_weight*acc[1]**2 - self.ax_weight*acc[0]**2 - self.az_weight*acc[2]**2 -self.tau_weight* np.linalg.norm(tau)**2 - self.quat_weight * (1 - np.linalg.norm(self.orientation.T @ q))
         return R
-    
-    # def _get_reward(self, tau):
-    #     reward = 0
-    #     acc = self.acc_data[:, -1]
-    #     reward = np.linalg.norm(acc)
-    #     if acc[1] >0:
-    #         reward += self.a_weight* acc[1]/reward
-    #     # print(f"acc reward: {reward}")
-    #     orientation_cost = -np.linalg.norm(self.quat_data[1:, -1] - self.orientation[1:])
-    #     # print(f"o cost: {orientation_cost}")
-    #     tau_cost = -self.tau_weight* np.linalg.norm(tau)**2
-    #     # forward thrust correlates to positive reading on the y-axis of the accelerometer
-    #     reward += orientation_cost
-    #     reward += tau_cost
-    #     return reward
     
     def _get_reward_weighted(self, tau):
         reward = 0
@@ -520,44 +517,91 @@ class TurtleRobot(Node, gym.Env):
         #         add_place_holder()
         # else:
         #     add_place_holder()
-# THIS IS TURTLE CODE
+
+def create_shell_script(params):
+    """
+    Creates temporary shell script that sends data from turtle machine to remote machine
+    """
+    local_folder_path = params["local_folder_path"]
+    remote_user = params["remote_user"]
+    remote_host = params["remote_host"]
+    remote_folder_path = params["remote_folder_path"]
+
+    shell_script_content = f"""#!/bin/bash
+    scp -r {local_folder_path} {remote_user}@{remote_host}:{remote_folder_path}
+    """
+
+    # Write the shell script to a temporary file
+    with open('send_data.sh', 'w') as shell_script:
+        shell_script.write(shell_script_content)
+
+    # Make the shell script executable
+    subprocess.run(['chmod', '+x', 'send_data.sh'])
+
+def scp_data():
+    """
+    Now that data was saved locally, run shell script
+    """
+    # Execute the shell script
+    subprocess.run(['./send_data.sh'])
+
+    # Clean up the temporary shell script file
+    subprocess.run(['rm', 'send_data.sh'])
+
 def main(args=None):
     rclpy.init(args=args)
-    trial = 1
     threshold = 11.3
-    # the weights applied to reward function terms acc, dx, dy, dz, tau
-    weights = [1000, 1, 1, 1, 0.001]
-    turtle_node = TurtleRobot('turtle_mode_cmd', weights=weights)
+    params, config_params = parse_learning_params()
+    print("parsed params")
+    turtle_node = TurtleRobot('turtle_mode_cmd', params=params)
     q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
     print(f"Our initial q: " + str(q))
-
     # create folders 
-    trial_folder = f'PGPE_pooltest_{trial}'
-    best_param_fname = trial_folder + f'/best_params_ephe_{trial}.pth'
-    os.makedirs(trial_folder, exist_ok=True)
+    try:
+        folder_name = "data/" + input("give folder a name: ")
+        os.makedirs(folder_name, exist_ok=False)
 
-    # Bo Chen paper says robot converged in 20 episodes
-    max_episodes = 10
-    dt = 0.01
-    max_episode_length = 800    # 200 * 0.01 = 2 seconds
+    except:
+        print("received weird input or folder already exists-- naming folder with timestamp")
+        t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+        folder_name =  "data/" + t
+        os.makedirs(folder_name)
+    
+    best_param_fname = folder_name + f'/turtle_node.best_params.pth'
+    config_fname = folder_name + "/config.json"
+    # config_log = {
+    #     "mu_init": list(mu),
+    #     "sigma_init": list(sigma),
+    #     "M": M,
+    #     "K": K,
+    #     "num episodes": max_episodes,
+    #     "max_episode_length": max_episode_length,
+    #     "phi": phi,
+    #     "w": w, 
+    #     "a_r": a_r,
+    #     "a_x": a_x,
+    #     "weights": weights,
+    #     "dt": dt
+    # }
+    # Save the dictionary as a JSON file
+    with open(config_fname, 'w') as json_file:
+        json.dump(config_log, json_file)
 
-    # initial params for training
-    num_params = 21
-    M = 5
-    K = 3
-    num_mods = 10
+    # create shell script for sending data over
+    
+    num_params = params["num_params"]
+    num_mods = params["num_mods"]
+    a_r  = params["a_r"]
+    a_x = params["a_x"]
+    phi = params["phi"]
+    w = params["w"]
+    M = params["M"]
+    K = params["K"]
+    max_episodes = params["max_episodes"]
+    max_episode_length = params["max_episode_length"]
+    turtle_node.best_params = np.zeros((num_params))
 
-    # mu = np.random.rand((num_params))
-    # mu[num_mods + 1:] = mu[num_mods + 1] + 5000
-    # mu[0] = np.random.random(1) * 0.5
-
-
-    # to allow higher torques at the beginning of training
-    # tau_init = np.random.uniform(low=0.04, high=0.1, size=1)[0]     # lower tau gives you higher amplitude
-    # params = np.random.uniform(low=0.05, high=1, size=num_params)
-    # params[0] = tau_init
-    params = np.random.rand((num_params)) 
-    # data structs for plotting
+    # data structs
     param_data = np.zeros((num_params, M, max_episodes))
     mu_data = np.zeros((num_params, max_episodes))
     sigma_data = np.zeros((num_params, max_episodes))
@@ -572,12 +616,7 @@ def main(args=None):
     gyr_data = np.zeros((3, max_episode_length, M, max_episodes))
     quat_data = np.zeros((4, max_episode_length, M, max_episodes))
 
-    best_params = np.zeros((num_params))
     best_reward = 0
-
-    # Specify the file path where you want to save the JSON file
-    file_path = trial_folder + "/config.json"
-
     try: 
         while rclpy.ok():
             rclpy.spin_once(turtle_node)
@@ -615,37 +654,8 @@ def main(args=None):
                 print(f"current voltage: {turtle_node.voltage}\n")
             elif turtle_node.mode == 'Auke':
                 # Auke CPG model that outputs position in radians
-                phi=0.0
-                w=0.5
-                a_r=25
-                a_x=25
-                mu = np.random.rand((num_params)) 
-                mu[0] = 5.5
-                sigma = np.random.rand((num_params)) + 0.9
-                sigma[0] = 0.1
-
-                config_log = {
-                    "mu_init": list(mu),
-                    "sigma_init": list(sigma),
-                    "M": M,
-                    "K": K,
-                    "num episodes": max_episodes,
-                    "max_episode_length": max_episode_length,
-                    "phi": phi,
-                    "w": w, 
-                    "a_r": a_r,
-                    "a_x": a_x,
-                    "weights": weights,
-                    "dt": dt
-                }
-                # Save the dictionary as a JSON file
-                with open(file_path, 'w') as json_file:
-                    json.dump(config_log, json_file)
-
                 print(f"intial mu: {mu}\n")
                 print(f"initial sigma: {sigma}\n")
-                print(f"M: {M}\n")
-                print(f"K: {K}\n")
 
                 print("Auke CPG training time\n")
                 cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
@@ -678,11 +688,11 @@ def main(args=None):
                     if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
                         turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
                         turtle_node.Joints.disable_torque()
-                        print("saving data...")
+                        print("saving data to turtle...")
                         # save the best params
-                        torch.save(best_params, best_param_fname)
+                        torch.save(turtle_node.best_params, best_param_fname)
                         # save data structs to matlab 
-                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                        scipy.io.savemat(folder_name + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
                                             'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
                                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
@@ -753,7 +763,7 @@ def main(args=None):
                         except:
                             print(f"stopped mid rollout-- saving everything but this rollout data")
                         # save to folder after each rollout
-                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                        scipy.io.savemat(folder_name + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
                             'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
@@ -766,7 +776,7 @@ def main(args=None):
                         if fitness > best_reward:
                             print(f"params with best fitness: {solutions[m]} with reward {fitness}\n")
                             best_reward = fitness
-                            best_params = solutions[m]  
+                            turtle_node.best_params = solutions[m]  
                         
                         # update reward array for updating mu and sigma
                         R[m] = fitness
@@ -796,13 +806,13 @@ def main(args=None):
                 turtle_node.Joints.disable_torque()
                 print(f"best mu: {best_mu}\n")
                 print(f"best sigma: {best_sigma}\n")
-                print(f"best params: {best_params} got reward of {best_reward}\n")
+                print(f"best params: {turtle_node.best_params} got reward of {best_reward}\n")
                 print("------------------------Saving data------------------------\n")
                 print("saving data....")
                 # save the best params from this episode
-                torch.save(best_params, best_param_fname)
+                torch.save(turtle_node.best_params, best_param_fname)
                 # save data structs to matlab for this episode
-                scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                scipy.io.savemat(folder_name + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
                                             'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
                                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
@@ -831,7 +841,7 @@ def main(args=None):
                 }
 
                 # Save the dictionary as a JSON file
-                with open(file_path, 'w') as json_file:
+                with open(config_fname, 'w') as json_file:
                     json.dump(config_log, json_file)
                 
                 print("TRAIN MODE")
@@ -868,9 +878,9 @@ def main(args=None):
                         turtle_node.Joints.disable_torque()
                         print("saving data...")
                         # save the best params
-                        torch.save(best_params, best_param_fname)
+                        torch.save(turtle_node.best_params, best_param_fname)
                         # save data structs to matlab 
-                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                        scipy.io.savemat(folder_name + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
                                             'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
                                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
@@ -936,7 +946,7 @@ def main(args=None):
                             print(f"stopped mid rollout--saving everything but this rollout")
 
                         # save to folder after each rollout
-                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                        scipy.io.savemat(folder_name + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
                             'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
@@ -949,7 +959,7 @@ def main(args=None):
                         if fitness > best_reward:
                             print(f"params with best fitness: {solutions[m]} with reward {fitness}\n")
                             best_reward = fitness
-                            best_params = solutions[m]  
+                            turtle_node.best_params = solutions[m]  
                         
                         # update the data structs for this rollout
                         R[m] = fitness
@@ -978,12 +988,12 @@ def main(args=None):
                 turtle_node.Joints.disable_torque()
                 print(f"best mu: {best_mu}\n")
                 print(f"best sigma: {best_sigma}\n")
-                print(f"best params: {best_params} got reward of {best_reward}\n")
+                print(f"best params: {turtle_node.best_params} got reward of {best_reward}\n")
                 print("------------------------Saving data------------------------\n")
                 # save the best params from this episode
-                torch.save(best_params, best_param_fname)
+                torch.save(turtle_node.best_params, best_param_fname)
                 # save data structs to matlab for this episode
-                scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                scipy.io.savemat(folder_name + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
                                             'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
                                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
@@ -993,18 +1003,8 @@ def main(args=None):
                 from pgpelib import PGPE
                 from pgpelib.policies import LinearPolicy, MLPPolicy
                 from pgpelib.restore import to_torch_module
-                print("initializing stoof...\n")
-                phi=0.0
-                w=0.5
-                a_r=25
-                a_x=25
-                mu = np.random.rand((num_params)) 
-                mu[0] = 5.5
-                sigma = np.random.rand((num_params)) + 0.9
-                sigma[0] = 0.1
                 cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
                 env = turtle_node
-
 
                 pgpe = PGPE(
                 
@@ -1118,7 +1118,7 @@ def main(args=None):
                         except:
                             print(f"stopped mid rollout-- saving everything but this rollout data")
                         # save to folder after each rollout
-                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                        scipy.io.savemat(folder_name + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
                             'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
@@ -1141,17 +1141,13 @@ def main(args=None):
 
                 # center point (mean) of the search distribution as final solution
                 center_solution = pgpe.center.copy()
-                best_params = center_solution
+                turtle_node.best_params = center_solution
 
             elif turtle_node.mode == 'SAC':
                 print(f"Soft Actor Critc....\n")
                 from stable_baselines3.sac.policies import MlpPolicy
                 from stable_baselines3 import SAC
                 print(f"starting...")
-                phi=0.0
-                w=0.5
-                a_r=12
-                a_x=12
                 cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
 
                 env = turtle_node
@@ -1224,7 +1220,7 @@ def main(args=None):
                         except:
                             print(f"stopped mid rollout-- saving everything but this rollout data")
                         # save to folder after each rollout
-                        scipy.io.savemat(trial_folder + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                        scipy.io.savemat(folder_name + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
                             'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
