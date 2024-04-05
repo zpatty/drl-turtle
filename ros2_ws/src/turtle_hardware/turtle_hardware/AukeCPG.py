@@ -48,6 +48,9 @@ class AukeCPG:
         self.dt = dt
         self.a_r = a_r
         self.a_x = a_x
+        self.omega = []
+        self.Rs = []
+        self.Xs = []
 
         print(f"starting phi: {self.phi}\n")
         print(f"starting w: {self.w}\n")
@@ -64,8 +67,16 @@ class AukeCPG:
         = ...
         = Xn: offset for CPG mod n
         """
-        self.params = params
-        # print(f"current params: {self.params}")
+        # TODO: make sure that params make sense
+        print(f"current params: {self.params}")
+        scaled = params.copy()
+        # print(f"scale: {type(scaled)}")
+        # scale the phase so that it's in an approprite phase range
+        scaled[self.num_mods + 1:]= (scaled[self.num_mods + 1:]) % (2*np.pi)
+        self.params = scaled
+        self.omega = self.params[0]
+        self.Rs = self.params[1:self.num_mods + 1]      # amplitudes
+        self.Xs = self.params[self.num_mods + 1:]       # offsets
     
     def get_params(self):
         return self.params
@@ -182,22 +193,18 @@ class AukeCPG:
         """
         Get single time step action from CPGs
         """
-        omega = self.params[0]
-        Rs = self.params[1:self.num_mods + 1]
-        Xs = self.params[self.num_mods + 1:]
-
         action = np.zeros((self.num_mods))
         # for every front fin
         for m in range(self.num_mods):
             # print(f"mod {m + 1}")
             # for every CPG module calculate output for each oscillator
-            R = Rs[m]
-            X = Xs[m]
+            R = self.Rs[m]
+            X = self.Xs[m]
             # find indices of the other two oscillators coupled to current oscillator state of current oscillator
             state = [self.PHI[m], self.r[m], self.x[m], self.v[m], self.m[m]]
             t_points = [0, self.dt]
             solution = scipy.integrate.solve_ivp(
-                fun = lambda t, y: self.ode_fin(state, omega, R, X),
+                fun = lambda t, y: self.ode_fin(state, self.omega, R, X),
                 t_span=t_points, 
                 y0=state,
                 method='RK45',
@@ -237,48 +244,10 @@ class AukeCPG:
         print("GETTING ROLLOUT")
         # calculate y_out, which in this case we are using as the tau we pass into the turtle
         total_actions = np.zeros((self.num_mods, episode_length))
-        omega = self.params[0]
-        Rs = self.params[1:self.num_mods + 1]
-        Xs = self.params[self.num_mods + 1:]
         for i in range(episode_length):
-            print(f"time step: {i}")
-            action = np.zeros((self.num_mods))
-            # for every front fin
-            for m in range(self.num_mods):
-                # print(f"mod {m + 1}")
-                # for every CPG module calculate output for each oscillator
-                R = Rs[m]
-                X = Xs[m]
-                # find indices of the other two oscillators coupled to current oscillator state of current oscillator
-                state = [self.PHI[m], self.r[m], self.x[m], self.v[m], self.m[m]]
-                t_points = [0, self.dt]
-                solution = scipy.integrate.solve_ivp(
-                    fun = lambda t, y: self.ode_fin(state, omega, R, X),
-                    t_span=t_points, 
-                    y0=state,
-                    method='RK45',
-                    t_eval = t_points
-                )
-                try:
-                    self.PHI[m] = solution.y[0, 1]
-                    self.r[m] = solution.y[1, 1]
-                    self.x[m] = solution.y[2, 1]
-                    self.v[m] = solution.y[3, 1]
-                    self.m[m] = solution.y[4, 1]
-                except:
-                    print("failed to solve ode with the following: \n")
-                    print(f"state= {state}\n")
-                    print(f"dt= {self.dt}\n")
-                    pass
-                self.theta[m] = self.x[m] + self.r[m] * np.cos(self.PHI[m])
-                # grab output of oscillator i
-                if m in [3, 4, 5, 8, 9]:
-                    self.theta[m] = -1 * self.theta[m]
-                self.theta[m] += np.pi/2
-                action[m] = self.theta[m]            
+            action = self.get_action()      
             # record action for time step into total_actions struct
             total_actions[:, i] = action
-
         return total_actions
 
     def get_coupled_rollout(self, episode_length=60):
@@ -533,10 +502,17 @@ class AukeCPG:
 def main(args=None):
     num_params = 21
     num_mods = 10
-    cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=0.0, w=0.5, a_r=20, a_x=20, dt=0.01)
+    dt = 0.03
+    num_secs = 8
+    cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=0.0, w=0.5, a_r=25, a_x=25, dt=0.03)
     
-    mu = np.random.rand((num_params)) 
-    sigma = np.random.rand((num_params)) + 0.3
+    # mu = np.random.rand((num_params)) 
+    # mu = np.array([5.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, np.pi, np.pi, np.pi, 0, 0, np.pi, np.pi])
+    
+    # for some reason higher offset at the beginning leads to a lower amplitude so start all offsets at 0 for now
+    mu = np.array([5.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    sigma = np.ones((num_params)) * 0.3 
+    # sigma = np.array([0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, np.pi, np.pi, , 1.119432233890147, 1.5172791155969239, 1.6633426693131743, 1.8996456008968505, 1.335419697158231, 1.0461858678923706, 1.48016505567595])
 
     ephe = EPHE(
                 
@@ -545,7 +521,7 @@ def main(args=None):
                 solution_length=mu.shape[0],
                 
                 # Population size: the number of trajectories we run with given mu and sigma 
-                popsize=20,
+                popsize=4,
                 
                 # Initial mean of the search distribution:
                 center_init=mu,
@@ -559,12 +535,15 @@ def main(args=None):
                 K=2
             )
     solutions = ephe.ask()     
+    eps_len = int(num_secs/dt)
+    print(f"num time steps: {eps_len}")
+    print(f"brings rollout to be around: {eps_len * dt}")
     for solution in solutions:
         print(f"starting params: {solution}\n")
-        eps_len = 800
         cpg.set_parameters(params=solution)
         # cpg.reset()
         total_actions = cpg.get_rollout(episode_length=eps_len)
+        # print(total_actions)
         # total_actions = cpg.get_coupled_rollout(episode_length=eps_len)
         t = np.arange(0, eps_len*cpg.dt, cpg.dt)
 
