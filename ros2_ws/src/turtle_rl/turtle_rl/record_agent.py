@@ -1,16 +1,18 @@
 import gymnasium as gym
 import torch
 import pickle
+import json
 import numpy as np
 from pgpelib import PGPE
 from pgpelib.policies import LinearPolicy, MLPPolicy
 from pgpelib.restore import to_torch_module
 from DualCPG import DualCPG
+from AukeCPG import AukeCPG
 from gymnasium.wrappers import RecordEpisodeStatistics, RecordVideo
 
 ENV_NAME = 'HalfCheetah-v4'
-AGENT = 'cheetah-agent-cpg'
-PARAM_FILE = 'best_params_ephe_46.pth'
+AGENT = 'cheetah-agent-auke-s-ephe'
+PARAM_FILE = 's/best_params_ephe.pth'
 POLICY_FILE = 'policy.pkl'
 
 def load_params(fname):
@@ -26,6 +28,15 @@ def load_policy(fname):
         policy = pickle.load(f)
     return policy
 
+def parse_learning_params():
+    with open('rl_config.json') as config:
+        param = json.load(config)
+    print(f"[MESSAGE] Config: {param}\n")    
+    # Serializing json
+    config_params = json.dumps(param, indent=14)
+    
+    return param, config_params
+
 def test(best_params, policy=None, num_eval_episodes=3, CPG=True):
 
     # instantiate gym environment 
@@ -37,9 +48,20 @@ def test(best_params, policy=None, num_eval_episodes=3, CPG=True):
 
     rewards = []
     if CPG:
-        alpha = 0.5
-        omega = 0.5
-        cpg = DualCPG(num_params=13, num_mods=6, alpha=alpha, omega=omega)
+        # alpha = 0.5
+        # omega = 0.5
+        # cpg = DualCPG(num_params=13, num_mods=6, alpha=alpha, omega=omega)
+        params, config_params = parse_learning_params()
+
+        a_r  = params["a_r"]
+        a_x = params["a_x"]
+        phi = params["phi"]
+        w = params["w"]
+        M = params["M"]
+        K = params["K"]
+        dt = params["dt"]
+
+        cpg = AukeCPG(num_params=13, num_mods=6, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
         cpg.set_parameters(best_params)
         for episode in range(num_eval_episodes):
             observation, __ = env.reset()
@@ -47,7 +69,7 @@ def test(best_params, policy=None, num_eval_episodes=3, CPG=True):
             env.render()
             cumulative_reward = 0.0
             while True:
-                action = cpg.get_action(dt=0.05)
+                action = cpg.get_CPG_output()
                 observation, reward, terminated, truncated, info = env.step(action)
                 episode_done = truncated or terminated
                 env.render()
@@ -57,9 +79,6 @@ def test(best_params, policy=None, num_eval_episodes=3, CPG=True):
                     print("DONE")
                     rewards.append(cumulative_reward)
                     break    
-
-
-
     else:
         # load parameters of final solution into the policy
         policy.set_parameters(best_params)
