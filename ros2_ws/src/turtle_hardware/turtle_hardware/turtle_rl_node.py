@@ -311,7 +311,7 @@ class TurtleRobot(Node, gym.Env):
             # print(f"clipped: {clipped}")
             avg_tau = np.mean(abs(clipped))
         # print(f"torque: {clipped}")
-        self.Joints.send_torque_cmd(clipped)
+        # self.Joints.send_torque_cmd(clipped)
         self.read_sensors()
         reward = self._get_reward(avg_tau)
         terminated = False
@@ -511,21 +511,15 @@ class TurtleRobot(Node, gym.Env):
                             self.voltage = volt
                             keep_trying = False
             attempts += 1
-        #         else:
-        #             add_place_holder()
-        #     else:
-        #         add_place_holder()
-        # else:
-        #     add_place_holder()
 
-def create_shell_script(params):
+def create_shell_script(params, folder_name):
     """
     Creates temporary shell script that sends data from turtle machine to remote machine
     """
-    local_folder_path = params["local_folder_path"]
+    local_folder_path = "/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/" + folder_name
     remote_user = params["remote_user"]
     remote_host = params["remote_host"]
-    remote_folder_path = params["remote_folder_path"]
+    remote_folder_path = params["remote_folder_path"] + folder_name
 
     shell_script_content = f"""#!/bin/bash
     scp -r {local_folder_path} {remote_user}@{remote_host}:{remote_folder_path}
@@ -552,13 +546,13 @@ def main(args=None):
     rclpy.init(args=args)
     threshold = 11.3
     params, config_params = parse_learning_params()
-    print("parsed params")
     turtle_node = TurtleRobot('turtle_mode_cmd', params=params)
     q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
     print(f"Our initial q: " + str(q))
     # create folders 
     try:
-        folder_name = "data/" + input("give folder a name: ")
+        typed_name =  input("give folder a name: ")
+        folder_name = "data/" + typed_name
         os.makedirs(folder_name, exist_ok=False)
 
     except:
@@ -566,7 +560,8 @@ def main(args=None):
         t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
         folder_name =  "data/" + t
         os.makedirs(folder_name)
-    
+    create_shell_script(params=params, folder_name=folder_name)
+
     best_param_fname = folder_name + f'/turtle_node.best_params.pth'
     config_fname = folder_name + "/config.json"
     # config_log = {
@@ -583,9 +578,6 @@ def main(args=None):
     #     "weights": weights,
     #     "dt": dt
     # }
-    # Save the dictionary as a JSON file
-    with open(config_fname, 'w') as json_file:
-        json.dump(config_log, json_file)
 
     # create shell script for sending data over
     
@@ -597,9 +589,18 @@ def main(args=None):
     w = params["w"]
     M = params["M"]
     K = params["K"]
+    dt = params["dt"]
+    mu = np.array(params["mu"])
+    sigma = np.array(params["sigma"])
     max_episodes = params["max_episodes"]
     max_episode_length = params["max_episode_length"]
     turtle_node.best_params = np.zeros((num_params))
+
+    config_params = json.dumps(params, indent=10)
+
+    # save config file to specified folder beforehand
+    with open(config_fname, 'w') as outfile:
+        outfile.write(config_params)
 
     # data structs
     param_data = np.zeros((num_params, M, max_episodes))
@@ -696,6 +697,8 @@ def main(args=None):
                                             'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
                                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
+                        print("SCPING DATA")
+                        scp_data()
                         break
                     print(f"--------------------episode: {episode} of {max_episodes}------------------")
                     lst_params = np.zeros((num_params, M))
@@ -1329,8 +1332,8 @@ def main(args=None):
                         
                         input_history = np.append(input_history[:,1:], tau,axis=1)
                         input_mean = np.mean(input_history, axis = 1)
-                        input = grab_arm_current(input_mean, min_torque, max_torque)
-                        turtle_node.Joints.send_torque_cmd(input)
+                        curr = grab_arm_current(input_mean, min_torque, max_torque)
+                        turtle_node.Joints.send_torque_cmd(curr)
 
                 turtle_node.Joints.disable_torque()
 
