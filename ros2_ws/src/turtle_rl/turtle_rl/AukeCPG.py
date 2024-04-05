@@ -48,7 +48,8 @@ class AukeCPG:
         self.dt = dt
         self.a_r = a_r
         self.a_x = a_x
-
+        # PD Controller gains
+        self.kp, self.kd = 1.0, 0.05
         print(f"starting phi: {self.phi}\n")
         print(f"starting w: {self.w}\n")
         print(f"number of CPG modules: {self.num_mods}\n")

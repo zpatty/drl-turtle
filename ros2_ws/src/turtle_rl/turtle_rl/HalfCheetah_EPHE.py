@@ -60,14 +60,23 @@ def train(num_params=20, num_mods=10):
     env = gym.make(ENV_NAME, render_mode='human')
     # env = gym.make(ENV_NAME)
     mu = np.array([5.0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0])
-        
+    # mu = np.random.rand((num_params)) * 1
     # mu = np.random.rand((num_params))
     # mu[9] = 0.1
     # mu[10] = 0.1
     # mu[0] = 5.0
 
     sigma = np.ones(num_params) * 0.7
-    sigma[0] = 0.1
+    # sigma[0] = 0.1
+    # tau_shift = 0.2
+    # B_shift = 0.5
+    # E_shift = 0.0
+    # sigma = np.random.rand((num_params)) + [tau_shift, 
+    #                                         E_shift, E_shift, E_shift,
+    #                                         E_shift, E_shift, E_shift,
+    #                                         B_shift, B_shift, B_shift + 0.3,
+    #                                         B_shift + 0.3, B_shift, B_shift,]
+
     params, config_params = parse_learning_params()
 
     a_r  = params["a_r"]
@@ -130,7 +139,7 @@ def train(num_params=20, num_mods=10):
         for i in range(M):
             subplot=True
             lst_params[:, i] = solutions[i]
-            fitness, total_actions = cpg.set_params_and_run(env=env, policy_parameters=solutions[i], max_episode_length=max_episode_length)
+            fitness, total_actions = cpg.set_params_and_run(env=env, policy_parameters=solutions[i], max_episode_length=max_episode_length, PD=True)
             print(f"raw reward: {fitness}")
             timesteps = total_actions.shape[1] - 1
             t = np.arange(0, timesteps*dt, dt)
