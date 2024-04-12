@@ -75,7 +75,6 @@ os.system('sudo /home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardwa
 global mode
 mode = 'rest'
 
-# print(f"toc: {time.time()-tic}\n")
 class TurtleRobot(Node, gym.Env):
     """
     This node is responsible for continously reading sensor data and receiving commands from the keyboard node
@@ -153,8 +152,8 @@ class TurtleRobot(Node, gym.Env):
         
         # set thresholds for motor angles 
         self.epsilon = 0.1
-        self.min_threshold = np.array([1.60, 3.0, 2.4, 2.43, 1.2, 1.7, 1.45, 1.2, 3.0, 2.3])
-        self.max_threshold = np.array([3.45, 5.0, 4.2, 4.5, 4.15, 3.8, 3.2, 4.0, 4.0, 4.7])
+        self.min_threshold = np.array([1.60, 3.0, 2.4, 2.43, 1.2, 1.7, 3.0, 2.0, 3.0, 2.0])
+        self.max_threshold = np.array([3.45, 5.0, 4.2, 4.5, 4.15, 3.8, 3.3, 4.2, 3.3, 4.2])
         # orientation at rest
         self.quat_data[:, -1] = [1, 1, 1, 1]
         self.orientation = np.array([0.679, 0.0, 0.0, -0.733])      # w, x, y, z
@@ -311,7 +310,7 @@ class TurtleRobot(Node, gym.Env):
             # print(f"clipped: {clipped}")
             avg_tau = np.mean(abs(clipped))
         # print(f"torque: {clipped}")
-        # self.Joints.send_torque_cmd(clipped)
+        self.Joints.send_torque_cmd(clipped)
         self.read_sensors()
         reward = self._get_reward(avg_tau)
         terminated = False
@@ -511,6 +510,12 @@ class TurtleRobot(Node, gym.Env):
                             self.voltage = volt
                             keep_trying = False
             attempts += 1
+        #         else:
+        #             add_place_holder()
+        #     else:
+        #         add_place_holder()
+        # else:
+        #     add_place_holder()
 
 def create_shell_script(params, folder_name):
     """
@@ -1232,8 +1237,8 @@ def main(args=None):
                 """
                 Randomly pick a motion primitive and run it 4-5 times
                 """
-                primitives = ['surface', 'turnrf', 'turnrr', 'straight', 'turnlr']
-                # primitives = ['turnrr']
+                # primitives = ['surface', 'turnrr', 'straight', 'turnlr']
+                primitives = ['dive']
                 num_cycles = 4
                 turtle_node.Joints.disable_torque()
                 turtle_node.Joints.set_current_cntrl_mode()
