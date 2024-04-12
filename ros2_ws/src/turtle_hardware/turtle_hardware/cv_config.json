@@ -1,0 +1,16 @@
+{
+    "phi": 0.0,
+    "minThreshold":10,
+    "maxThreshold":200,
+    "minArea": 50,
+    "maxArea": 100000,
+    "minCircularity": 0.1,
+    "minConvexity": 0.1,
+    "minInertiaRatio": 0.1,
+    "lower_yellow": [15,50,180],
+    "upper_yellow": [40,255,255],
+    "turn_thresh": 700,
+    "dive_thresh": 450,
+    "num_cycles": 1
+
+}
