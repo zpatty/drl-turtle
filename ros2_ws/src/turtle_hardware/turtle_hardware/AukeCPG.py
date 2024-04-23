@@ -6,7 +6,7 @@ import numpy as np
 # from pgpelib import PGPE
 # from pgpelib.policies import LinearPolicy, MLPPolicy
 # from pgpelib.restore import to_torch_module
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_rl/turtle_rl"
 sys.path.append(submodule)
@@ -26,13 +26,13 @@ class AukeCPG:
     used in tandem with the PD method of turtle CPG learning. 
     """
     def __init__(self, 
-                 num_params=21,
-                 num_mods=10,
-                 phi=0.0,
-                 w=np.random.rand() * np.pi * 2,
-                 a_r=20,
-                 a_x=20,
-                 dt=0.05):
+                num_params=21,
+                num_mods=10,
+                phi=0.0,
+                w=np.random.rand() * np.pi * 2,
+                a_r=20,
+                a_x=20,
+                dt=0.05):
 
         self.w = w                          # coupled weight bias
         self.phi = phi                      # coupled phase bias- this seems to always be 0 according to auke
@@ -218,10 +218,10 @@ class AukeCPG:
             # grab output of oscillator i
             if m in [3, 4, 5, 8, 9]:
                 self.theta[m] = -1 * self.theta[m]
-            self.theta[m] += np.pi
+            # self.theta[m] += np.pi
             action[m] = self.theta[m]  
         return action   
-           
+        
     def ode_fin(self, state, omega, R, X):
         PHI, r, x, v, m= state
         dPhidt = omega
@@ -242,7 +242,7 @@ class AukeCPG:
         Rs = self.params[1:self.num_mods + 1]
         Xs = self.params[self.num_mods + 1:]
         for i in range(episode_length):
-            print(f"time step: {i}")
+            # print(f"time step: {i}")
             action = np.zeros((self.num_mods))
             # for every front fin
             for m in range(self.num_mods):
@@ -390,15 +390,15 @@ class AukeCPG:
         Inspired by Auke Isjpeert's 2007 Model of Salamander
         """
         oscillator = {1: [2, 4], 
-                      2: [1, 3, 5],
-                      3: [2, 6, 8],
-                      4: [1, 5],
-                      5: [2, 4, 6],
-                      6: [3, 5, 10],
-                      7: [8, 9],
-                      8: [3, 7, 10],
-                      9: [7, 10],
-                      10: [6, 8, 9]}
+                    2: [1, 3, 5],
+                    3: [2, 6, 8],
+                    4: [1, 5],
+                    5: [2, 4, 6],
+                    6: [3, 5, 10],
+                    7: [8, 9],
+                    8: [3, 7, 10],
+                    9: [7, 10],
+                    10: [6, 8, 9]}
         def ode_fin(state, omega, R, X, rs, phis):
             PHI, r, x, v, m= state
             dPhidt = omega
@@ -507,10 +507,10 @@ class AukeCPG:
                 break
         return cumulative_reward, total_actions
     def set_params_and_run(self,
-                           env,
-                           policy_parameters,
-                           max_episode_length=60,
-                           ):
+                        env,
+                        policy_parameters,
+                        max_episode_length=60,
+                        ):
         """Set the the parameters of the policy by copying them
         from the given parameter vector, then run an episode.
 
@@ -530,55 +530,179 @@ class AukeCPG:
         )
         return cumulative_reward, total_actions
 
-# def main(args=None):
-#     num_params = 21
-#     num_mods = 10
-#     cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=0.0, w=0.5, a_r=20, a_x=20, dt=0.01)
-    
-#     mu = np.random.rand((num_params)) 
-#     sigma = np.random.rand((num_params)) + 0.3
+def main(args=None):
 
-#     ephe = EPHE(
+# min thresh: [1.83100306 2.61640122 2.35460184 2.70366769 2.26733537 2.00553599
+#  3.         1.83100306 3.         1.83100306]
+
+# max thresh: [3.57633231 4.01266463 4.27446401 4.44899694 3.66359878 3.92539816
+#  3.3        4.44899694 3.3        4.44899694]
+
+# amplitudes: [0.87266463 0.6981317  0.95993109 0.87266463 0.6981317  0.95993109
+#  0.15       1.30899694 0.15       1.30899694]
+
+# center pos: [2.70366769 3.31453293 3.31453293 3.57633231 2.96546707 2.96546707
+#  3.15       3.14       3.15       3.14      ]
+
+    num_params = 21
+    num_mods = 10
+    cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=0.0, w=0.5, a_r=25, a_x=25, dt=0.03)
+    center_pos = [2.70366769, 3.31453293, 3.31453293,
+                    3.57633231, 2.96546707, 2.96546707,
+                    3.15,       3.14,
+                    3.15,       3.14]
+    mu = np.array([
+            4.5,
+            1.7/2, 1.3/2, 1.9/2,
+            1.7/2, 1.3/2, 1.9/2,
+            0.1,0.01,
+            0.1,0.1,
+            0.0,0.0,0.0,
+            0.0,0.0,0.0,
+            0.0,0.0,
+            0.0,0.0
+          ])
+    sigma = np.array([
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.1,
+                    0.1,
+                    0.1,
+                    0.1,
+                    0.1,
+                    0.1,
+                    0.1,
+                    0.1,
+                    0.1,
+                    0.1
+          ])
+    M = 5
+    # ephe = EPHE(
                 
-#                 # We are looking for solutions whose lengths are equal
-#                 # to the number of parameters required by the policy:
-#                 solution_length=mu.shape[0],
+    #             # We are looking for solutions whose lengths are equal
+    #             # to the number of parameters required by the policy:
+    #             solution_length=mu.shape[0],
                 
-#                 # Population size: the number of trajectories we run with given mu and sigma 
-#                 popsize=20,
+    #             # Population size: the number of trajectories we run with given mu and sigma 
+    #             popsize=M,
                 
-#                 # Initial mean of the search distribution:
-#                 center_init=mu,
+    #             # Initial mean of the search distribution:
+    #             center_init=mu,
                 
-#                 # Initial standard deviation of the search distribution:
-#                 stdev_init=sigma,
+    #             # Initial standard deviation of the search distribution:
+    #             stdev_init=sigma,
 
-#                 # dtype is expected as float32 when using the policy objects
-#                 dtype='float32', 
+    #             # dtype is expected as float32 when using the policy objects
+    #             dtype='float32', 
 
-#                 K=2
-#             )
-#     solutions = ephe.ask()     
-#     for solution in solutions:
-#         print(f"starting params: {solution}\n")
-#         eps_len = 800
-#         cpg.set_parameters(params=solution)
-#         # cpg.reset()
-#         total_actions = cpg.get_rollout(episode_length=eps_len)
-#         # total_actions = cpg.get_coupled_rollout(episode_length=eps_len)
-#         t = np.arange(0, eps_len*cpg.dt, cpg.dt)
+    #             K=2
+    #         )
+    # solutions = ephe.ask()
+    solutions = [[6.13113928,
+ 1.44862795,
+ 1.39094722,
+ 2.67385602,
+ 0.53984296,
+ 2.55652666,
+ 2.59825706,
+ 0.52704805,
+ 0.82929206,
+ 0.6891951 ,
+ 1.48611748,
+ 0.2035916 ,
+ 0.40059659,
+ 3.68023729,
+ 0.37629709,
+ 5.19140434,
+ 2.95819712,
+ 1.78039086,
+ 0.82922041,
+ 3.45125866,
+3.34703922], 
+[5.34091997,
+ 0.53348398,
+3.68209577,
+3.26124096,
+1.01416969,
+3.32129955,
+2.89814663,
+1.27748692,
+1.22613692,
+0.58618146,
+0.84633893,
+1.52943027,
+1.02520585,
+1.84815335,
+2.11502838,
+3.43569851,
+2.84625936,
+3.35995603,
+1.6523037 ,
+0.31203362,
+3.16298175 ],
+[4.99147463,
+  0.20844766,  
+  2.18449306, 
+  3.09150696, 
+  2.24976468, 
+  3.37246561, 
+  3.39152431, 
+  0.69780034, 
+  0.08112788, 
+  0.47566375, 
+  1.22432542, 
+  0.23445748, 
+  1.12991476, 
+  1.31367326, 
+  0.75263262, 
+  5.29078245, 
+  3.06733274, 
+  3.58861184, 
+  1.54152584, 
+  2.49999237, 
+  0.48185545] ]
 
-#         fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
-#         for j, ax in enumerate(axs):
-#             ax.plot(t, total_actions[j, :])
-#             ax.set_title(f"CPG {j+1}")
-#             ax.set_xlabel("Time")
-#             ax.set_ylabel("Data")
-#             ax.grid(True)
-#         plt.tight_layout()
-#     plt.show()
+    for solution in solutions:
+        print(f"starting params: {solution}\n")
+        eps_len = 300
+        cpg.set_parameters(params=solution)
+        # cpg.reset()
+        total_actions = np.zeros((num_mods, eps_len))
 
-#     return 0
+        for i in range(eps_len):
+            act = cpg.get_action()
+            for g in range(num_mods):
+                act[g] = act[g] + center_pos[g]
+            total_actions[:, i] = act
+        mod_amp = total_actions[7, :]
+        print(f"min: {min(mod_amp)}")
+        print(f"max: {max(mod_amp)}")
+        
 
-# if __name__ == "__main__":
-#     main()
+        # total_actions = cpg.get_rollout(episode_length=eps_len)
+        # total_actions = cpg.get_coupled_rollout(episode_length=eps_len)
+        t = np.arange(0, eps_len*cpg.dt, cpg.dt)
+
+        fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
+        for j, ax in enumerate(axs):
+            ax.plot(t, total_actions[j, :])
+            ax.set_title(f"CPG {j+1}")
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Data")
+            ax.grid(True)
+        plt.tight_layout()
+    plt.show()
+
+    return 0
+
+if __name__ == "__main__":
+    main()

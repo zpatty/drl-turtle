@@ -77,7 +77,7 @@ class TurtleRobot(Node, gym.Env):
         self.create_data_structs()
 
         # dynamixel setup
-        self.IDs = [1,2,3,4,5,6,7, 8, 9,10]
+        self.IDs = [1,2,3,4,5,6,7,8,9,10]
         self.nq = 10
         self.Joints = Mod(packetHandlerJoint, portHandlerJoint, self.IDs)
         self.Joints.disable_torque()
@@ -89,9 +89,58 @@ class TurtleRobot(Node, gym.Env):
         self.input_history = np.zeros((self.nq,10))
         
         # set thresholds for motor angles 
-        self.epsilon = 0.1
-        self.min_threshold = np.array([1.60, 3.0, 2.4, 2.43, 1.2, 1.7, 3.0, 2.0, 3.0, 2.0])
-        self.max_threshold = np.array([3.45, 5.0, 4.2, 4.5, 4.15, 3.8, 3.3, 4.2, 3.3, 4.2])
+        self.epsilon = 0.05
+
+        # convert thresholds from degrees to radians   
+
+        # shoulder (M1 and M4)
+        self.shoulder_up = 25 * np.pi/180       
+        self.shoulder_down = 75 * np.pi/180
+        # middle (M2 and M5)
+        self.mid_up = 50 * np.pi/180
+        self.mid_down = 30 * np.pi/180
+        # flipper (M3 and M6)
+        self.flipper_up = 65 * np.pi/180
+        self.flipper_down = 45 * np.pi/180
+
+        self.backfin_up = 75 * np.pi/180
+        self.backfin_down = 75 * np.pi/180
+
+        self.min_threshold = np.array([3.14 - self.shoulder_down, 3.14 - self.mid_down, 3.14 - self.flipper_down, 
+                                        3.14 - self.shoulder_up, 3.14 - self.mid_up, 3.14 - self.flipper_up,
+                                        3.0, 3.14 - self.backfin_down, 
+                                        3.0, 3.14 - self.backfin_up])
+        self.max_threshold = np.array([3.14 + self.shoulder_up, 3.14 + self.mid_up, 3.14 + self.flipper_up,
+                                        3.14 + self.shoulder_down, 3.14 + self.mid_down, 3.14 + self.flipper_down, 
+                                        3.3, 3.14 + self.backfin_up,
+                                        3.3, 3.14 + self.backfin_down])
+        print(f"min thresh: {self.min_threshold}\n")
+        print(f"max thresh: {self.max_threshold}\n")
+        
+        self.center_pos = self.min_threshold + ((self.max_threshold - self.min_threshold)/2)
+        self.amplitudes = self.max_threshold - self.min_threshold
+        print(f"amplitudes: {self.amplitudes}\n")
+
+        print(f"center pos: {self.center_pos}\n")
+        # min thresh: [1.83100306 2.61640122 2.35460184
+        #              2.70366769 2.26733537 2.00553599
+        #               3.  1.7437366
+        #               3.  2.26733537]
+
+        # max thresh: [3.57633231 4.01266463 4.27446401
+        #            4.44899694 3.66359878 3.92539816
+        #            3.3        4.01266463 
+        #            3.3        4.5362634 ]
+
+        # amplitudes: [1.74532925 1.3962634  1.91986218
+        #               1.74532925 1.3962634  1.91986218
+        #               0.3        2.26892803
+        #               0.3        2.26892803]
+
+        # center pos: [2.70366769 3.31453293 3.31453293
+        #               3.57633231 2.96546707 2.96546707
+#                       3.15       2.87820061
+#                       3.15       3.40179939]
         # orientation at rest
         self.quat_data[:, -1] = [1, 1, 1, 1]
         self.orientation = np.array([0.679, 0.0, 0.0, -0.733])      # w, x, y, z
@@ -206,6 +255,7 @@ class TurtleRobot(Node, gym.Env):
         action is tau which we pass into the turtle
         OR its position in radians when PD flag is set to True
         """
+        # shift action based on center of wave 
         keep_trying = True
         motor_count = 0
         while keep_trying:
@@ -218,25 +268,28 @@ class TurtleRobot(Node, gym.Env):
             motor_count += 1
             if motor_count > 4:
                 break
-        if mode == 'SAC':
-            qd = np.where(action < self.max_threshold - self.epsilon, action, self.max_threshold - self.epsilon)
-            qd = np.where(qd > self.min_threshold + self.epsilon, qd, self.min_threshold + self.epsilon)
-            dqd = np.zeros((self.nq,1))
-            ddqd = np.zeros((self.nq,1))
-            # print(f"dqd shape: {dqd.shape}")
-            tau = turtle_controller(observation.reshape((10,1)),v.reshape((10,1)),qd.reshape((10,1)),dqd,ddqd,self.Kp,self.KD)
-            clipped = grab_arm_current(tau, min_torque, max_torque)
+        # if mode == 'SAC':
+        #     qd = np.where(action < self.max_threshold - self.epsilon, action, self.max_threshold - self.epsilon)
+        #     qd = np.where(qd > self.min_threshold + self.epsilon, qd, self.min_threshold + self.epsilon)
+        #     dqd = np.zeros((self.nq,1))
+        #     ddqd = np.zeros((self.nq,1))
+        #     # print(f"dqd shape: {dqd.shape}")
+        #     tau = turtle_controller(observation.reshape((10,1)),v.reshape((10,1)),qd.reshape((10,1)),dqd,ddqd,self.Kp,self.KD)
+        #     clipped = grab_arm_current(tau, min_torque, max_torque)
 
-            terminated = False
-            truncated = False
-            info = [v, clipped]
-            self.read_sensors()
-            reward = self._get_reward(tau)
-            obs = self.acc_data[:, -1]
-            return [obs, reward, terminated, truncated, info]
+        #     terminated = False
+        #     truncated = False
+        #     info = [v, clipped]
+        #     self.read_sensors()
+        #     reward = self._get_reward(tau)
+        #     obs = self.acc_data[:, -1]
+        #     return [obs, reward, terminated, truncated, info]
         if PD:
             # print(f"action shape: {action.shape}")
             # position control 
+
+
+            action = [3.14, 3.14, 4.5, 3.14, 3.14, 1.5, 3.14, 3.14, 3.14, 3.14]
             qd = np.where(action < self.max_threshold - self.epsilon, action, self.max_threshold - self.epsilon)
             qd = np.where(qd > self.min_threshold + self.epsilon, qd, self.min_threshold + self.epsilon)
             dqd = np.zeros((self.nq,1))
@@ -245,26 +298,31 @@ class TurtleRobot(Node, gym.Env):
             tau = turtle_controller(observation.reshape((10,1)),v.reshape((10,1)),qd.reshape((10,1)),dqd,ddqd,self.Kp,self.KD)
             avg_tau = np.mean(abs(tau))
             clipped = grab_arm_current(tau, min_torque, max_torque)
-        else:
-            # print(f"action: {action}")
-            action = 10e3 * action
-            # print(f"action: {action}")
+        # else:
+        #     # print(f"action: {action}")
+        #     action = 10e3 * action
+        #     # print(f"action: {action}")
 
-            inputt = grab_arm_current(action, min_torque, max_torque)
-            # print(f"observation: {observation}\n")
-            clipped = np.where(observation < self.max_threshold - self.epsilon, inputt, np.minimum(np.zeros(len(inputt)), inputt))
-            # print(f"clipped1: {clipped}")
-            clipped = np.where(observation > self.min_threshold + self.epsilon, clipped, np.maximum(np.zeros(len(inputt)), clipped)).astype('int')
-            # print(f"clipped: {clipped}")
-            avg_tau = np.mean(abs(clipped))
+        #     inputt = grab_arm_current(action, min_torque, max_torque)
+        #     # print(f"observation: {observation}\n")
+        #     clipped = np.where(observation < self.max_threshold - self.epsilon, inputt, np.minimum(np.zeros(len(inputt)), inputt))
+        #     # print(f"clipped1: {clipped}")
+        #     clipped = np.where(observation > self.min_threshold + self.epsilon, clipped, np.maximum(np.zeros(len(inputt)), clipped)).astype('int')
+        #     # print(f"clipped: {clipped}")
+        #     avg_tau = np.mean(abs(clipped))
         # print(f"torque: {clipped}")
         self.Joints.send_torque_cmd(clipped)
+        print(observation)
         self.read_sensors()
-        reward = self._get_reward(avg_tau)
+        # reward = self._get_reward(avg_tau)
+        reward = 0
         terminated = False
         truncated = False
         # return velocity and clipped tau (or radians) passed into motors
-        info = [v, clipped]
+        try:
+            info = [v, clipped]
+        except:
+            info = [0, clipped]
         return observation, reward, terminated, truncated, info
 
     def trajectory_callback(self, msg):
