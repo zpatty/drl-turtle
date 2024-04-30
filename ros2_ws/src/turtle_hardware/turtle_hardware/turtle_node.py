@@ -740,10 +740,6 @@ def main(args=None):
         print(exec_type, fname, tb.tb_lineno)
         print(e)
         
-
-
-        
-    
     rclpy.shutdown()
 
 if __name__ == '__main__':

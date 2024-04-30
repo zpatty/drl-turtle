@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from turtle_dynamixel.dyn_functions import *                 
 
-submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware"
+submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/"
 sys.path.append(submodule)
 
 def main(args=None):
@@ -20,7 +20,7 @@ def main(args=None):
     gyr shape:    (3 axis, rollout_len, num rollouts (M), num_episode)
     """
 
-    FNAME = 'turtle_data/test_2'
+    FNAME = 'turtle_data/Auke_pooltest_3'
     q_data = mat2np(FNAME + '/data.mat', 'q_data')
     dq_data = mat2np(FNAME + '/data.mat', 'dq_data')
     tau_data = mat2np(FNAME + '/data.mat', 'tau_data')
@@ -30,6 +30,7 @@ def main(args=None):
     quat_data = mat2np(FNAME + '/data.mat', 'quat_data')
     gyr_data = mat2np(FNAME + '/data.mat', 'gyr_data')
     tau_data = mat2np(FNAME + '/data.mat', 'tau_data')
+    param_data = mat2np(FNAME + '/data.mat', 'param_data')
 
     print(f"q shape: {q_data.shape}")
     print(f"dq shape: {dq_data.shape}")
@@ -40,7 +41,12 @@ def main(args=None):
     print(f"quat shape: {quat_data.shape}")
     print(f"gyr shape: {gyr_data.shape}")
     print(f"tau shape: {tau_data.shape}")
-    print(f"max reward: {np.max(reward_data)}\n")
+    print(f"param shape: {param_data.shape}")
+    rollout_rewards = np.sum(reward_data, axis=0)
+    print(f"rollout reward dim: {rollout_rewards.shape}\n")
+    ep = 4
+    print(f"rollout rewards: {rollout_rewards[:, ep]}\n")
+    print(f"params: {param_data[:, :, ep]}")
     max_index = np.argmax(reward_data)
     max_indices = np.unravel_index(reward_data.argmax(), reward_data.shape)
     print(f"max indices: {max_indices}\n")
@@ -52,8 +58,7 @@ def main(args=None):
     dt = 0.01
     rollout = 0
     episode = 0
-    test = np.sum(reward_data[:, :, episode], axis=0)[:20]
-    print(f"sum shape: {test.shape}")
+    num_rollouts = 1        # number of rollouts we wanna look at
     # plot reward data 
     # t = np.arange(0, num_rollouts, 1)
     # print(f"t shape: {t.shape}")
@@ -67,9 +72,9 @@ def main(args=None):
     # ax.grid(True)
     # plt.tight_layout()
     # plt.show()
-
+    # cpg_data.shape[2]
         # plot CPG data
-    for rollout in range(cpg_data.shape[2]):
+    for rollout in range(num_rollouts):
         total_actions = cpg_data[:, :, rollout, episode]
         t = np.arange(0, rollout_len*dt, dt)
         fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
@@ -83,7 +88,7 @@ def main(args=None):
     # plt.show()
 
     # plot posiiton data
-    for rollout in range(cpg_data.shape[2]):
+    for rollout in range(num_rollouts):
         total_actions = q_data[:, :, rollout, episode]
         t = np.arange(0, rollout_len*dt, dt)
         fig, axs = plt.subplots(nrows=total_actions.shape[0], ncols=1, figsize=(8, 12))
@@ -137,6 +142,18 @@ def main(args=None):
     # plt.tight_layout()
     # plt.show()
     
+    # plot reward data
+    total_rewards = np.sum(reward_data[:, :, episode])
+    t = np.arange(0, rollout_len*dt, dt)
+    fig, axs = plt.subplots(nrows=total_rewards.shape[0], ncols=1, figsize=(8, 12))
+    for j, ax in enumerate(axs):
+        ax.plot(t, total_rewards[j, :])
+        ax.set_title(f"Motor {j + 1}")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Torque")
+        ax.grid(True)
+    plt.tight_layout()
+    plt.show()
 
 
 
