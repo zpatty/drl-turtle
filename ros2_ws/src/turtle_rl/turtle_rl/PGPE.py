@@ -7,7 +7,7 @@ import torch
 
 import gym
 
-ENV_NAME = 'CartPole-v1'
+ENV_NAME = 'HalfCheetah-v4'
 
 def train():
 
@@ -39,7 +39,8 @@ def train():
     # our initial solution (initial parameter vector) for PGPE to start exploring from 
     x0 = np.zeros(policy.get_parameters_count(), dtype='float32')
 
-    print(f"initial solution: {x0}")
+    print(f"initial solution: {x0.shape}")
+    print(f"policy count: {policy.get_parameters_count()}")
 
     pgpe = PGPE(
         
@@ -48,7 +49,7 @@ def train():
         solution_length=policy.get_parameters_count(),
         
         # Population size:
-        popsize=250,
+        popsize=40,
         
         # Initial mean of the search distribution:
         center_init=x0,
@@ -122,7 +123,7 @@ def train():
 def test(policy, best_params):
 
     # instantiate gym environment 
-    env = gym.make(ENV_NAME)
+    env = gym.make(ENV_NAME, render_mode='human')
 
     # load parameters of final solution into the policy
     policy.set_parameters(best_params)

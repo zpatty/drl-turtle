@@ -3,9 +3,6 @@ import sys
 import scipy
 import numpy as np
 from EPHE import EPHE
-# from pgpelib import PGPE
-# from pgpelib.policies import LinearPolicy, MLPPolicy
-# from pgpelib.restore import to_torch_module
 import matplotlib.pyplot as plt
 
 submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_rl/turtle_rl"
@@ -38,7 +35,7 @@ class AukeCPG:
         self.phi = phi                      # coupled phase bias- this seems to always be 0 according to auke
         self.num_mods = num_mods            # number of CPG modules
         self.theta = np.zeros((num_mods))   # oscillating setpoint of oscillator i (in radians)
-
+        self.num_params = num_params
         self.params = np.random.rand((num_params)) * 0.1        # holds the params of the CPG [omega, R, X] = [freq, amplitude, offset]
         self.PHI = np.zeros((num_mods))                         # phase state variables (radians)
         self.r = np.zeros((num_mods))                           # amplitude state variables (radians)
@@ -71,7 +68,7 @@ class AukeCPG:
         scaled[self.num_mods + 1:]= (scaled[self.num_mods + 1:]) % (2*np.pi)
         self.params = scaled
 
-        # print(f"current params: {self.params}")
+        print(f"current params: {self.params}")
     
     def get_params(self):
         return self.params
@@ -222,10 +219,10 @@ class AukeCPG:
                 pass
             self.theta[m] = self.x[m] + self.r[m] * np.cos(self.PHI[m])
             # grab output of oscillator i
-            # if m in [4]:
-            #     self.theta[m] = -1 * self.theta[m]
-            if m in [3, 4]:
+            if m in [0, 1, 6, 7]:
                 self.theta[m] = -1 * self.theta[m]
+            # if m in [3, 4]:
+            #     self.theta[m] = -1 * self.theta[m]
             # self.theta[m] += np.pi
             action[m] = self.theta[m]  
         return action 
@@ -269,6 +266,9 @@ class AukeCPG:
             # grab output of oscillator i
             # if m in [3, 4, 5, 8, 9]:
             #     self.theta[m] = -1 * self.theta[m]
+            if m in [0, 1, 6, 7]:
+                self.theta[m] = -1 * self.theta[m]
+
             # self.theta[m] += np.pi
             action[m] = self.theta[m]  
         return action    
@@ -537,17 +537,21 @@ class AukeCPG:
         t = 0
         first_time = True
         total_actions = np.zeros((self.num_mods, 1))
+        r_forward = 0
+        r_ctrl = 0
         while True:
             if PD:
                 # pass CPG into PD controller of half cheetah
                 qd = self.get_CPG_output()
+                total_actions = np.append(total_actions, qd.reshape((self.num_mods,1)), axis=1)
+
                 desired_torques = self.kp * (qd - env.data.qpos[-self.num_mods:])- self.kd * env.data.qvel[-self.num_mods:]
                 action = np.clip(desired_torques, -1.0, 1.0)  # clip to action bounds of Half-Cheetah
             else:
                 action = self.get_CPG_output()
 
             # print(f"action shape: {action.shape}")
-            total_actions = np.append(total_actions, action.reshape((6,1)), axis=1)
+            # total_actions = np.append(total_actions, action.reshape((6,1)), axis=1)
             # print(f"params: {self.params}\n")
             # print(f"action: {action}\n")
             
@@ -556,7 +560,9 @@ class AukeCPG:
             cumulative_reward += reward
             # print(info)
             # t = time.time()
-            # print(f"reward and cost: {(info['reward_run'], info['reward_ctrl'])}")
+            # print(f"reward and cost: {(info['reward_forward'], info['reward_ctrl'])}")
+            r_forward += info['reward_forward']
+            r_ctrl += info['reward_ctrl']
             t += 1
             if t > max_episode_length:
                 # print(f"we're donesies with {t}")
@@ -567,6 +573,8 @@ class AukeCPG:
                 if terminated:
                     print("terminator")
                 break
+        print(f"reward forward: {r_forward}\n")
+        print(f"reward ctrl: {r_ctrl}\n")
         return cumulative_reward, total_actions
     def set_params_and_run(self,
                            env,

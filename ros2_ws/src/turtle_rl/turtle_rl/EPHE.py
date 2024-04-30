@@ -112,56 +112,56 @@ class EPHE:
         return self._sigma
         
 
-def train(num_params=20, num_mods=10, M=20, K=3):
+# def train(num_params=20, num_mods=10, M=20, K=3):
 
-    # our initial solution (initial parameter vector) for EPHE to start exploring from 
-    mu = np.random.rand((num_params)) * 10
-    sigma = np.ones((num_params)) * 0.3
+#     # our initial solution (initial parameter vector) for EPHE to start exploring from 
+#     mu = np.random.rand((num_params)) * 10
+#     sigma = np.ones((num_params)) * 0.3
 
-    print(f"initial solution: {mu}")
+#     print(f"initial solution: {mu}")
 
-    ephe = EPHE(
+#     ephe = EPHE(
         
-        # We are looking for solutions whose lengths are equal
-        # to the number of parameters required by the policy:
-        solution_length=mu.shape[0],
+#         # We are looking for solutions whose lengths are equal
+#         # to the number of parameters required by the policy:
+#         solution_length=mu.shape[0],
         
-        # Population size:
-        popsize=200,
+#         # Population size:
+#         popsize=200,
         
-        # Initial mean of the search distribution:
-        center_init=mu,
+#         # Initial mean of the search distribution:
+#         center_init=mu,
         
-        # Initial standard deviation of the search distribution:
-        stdev_init=0.08,
+#         # Initial standard deviation of the search distribution:
+#         stdev_init=0.08,
 
-        # dtype is expected as float32 when using the policy objects
-        dtype='float32'
-    )
+#         # dtype is expected as float32 when using the policy objects
+#         dtype='float32'
+#     )
 
-    # Number of iterations (a.k.a sampled rollouts)
-    num_iterations = 15
-    # The main loop of the evolutionary computation
-    for i in range(1, 1 + num_iterations):
+#     # Number of iterations (a.k.a sampled rollouts)
+#     num_iterations = 15
+#     # The main loop of the evolutionary computation
+#     for i in range(1, 1 + num_iterations):
 
-        # Get the solutions from the ephe solver
-        solutions = ephe.ask()
-        fitnesses = []
+#         # Get the solutions from the ephe solver
+#         solutions = ephe.ask()
+#         fitnesses = []
         
-        for solution in solutions:
+#         for solution in solutions:
 
-            fitness, num_interactions = cpg.set_params_and_run(env, solution)
-            fitnesses.append(fitness)
+#             fitness, num_interactions = cpg.set_params_and_run(env, solution)
+#             fitnesses.append(fitness)
         
-        # We inform our pgpe solver of the fitnesses we received,
-        # so that the population gets updated accordingly.
-        ephe.tell(fitnesses)
+#         # We inform our pgpe solver of the fitnesses we received,
+#         # so that the population gets updated accordingly.
+#         ephe.tell(fitnesses)
         
-        print("Iteration:", i, "  median score:", np.median(fitnesses))
+#         print("Iteration:", i, "  median score:", np.median(fitnesses))
 
-    # center point (mean) of the search distribution as final solution
-    best_params = ephe.center.copy()
-    return best_params
+#     # center point (mean) of the search distribution as final solution
+#     best_params = ephe.center.copy()
+#     return best_params
 
 
 def main(args=None):
