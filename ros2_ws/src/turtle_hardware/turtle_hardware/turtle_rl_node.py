@@ -7,6 +7,7 @@ import numpy as np
 from EPHE import EPHE
 from AukeCPG import AukeCPG
 from TurtleRobot import *
+import random
 # from CPG_gym import *
 
 from std_msgs.msg import String
@@ -194,6 +195,8 @@ def main(args=None):
                                 break
                             # action = cpg_actions[:, t]
                             action = cpg.get_action()
+                            for a in range(len(action)):
+                                action[a] = action[a] + turtle_node.center_pos[a]
                             cpg_data[:, t, m, episode] = action
                             # save the raw cpg output
                             timestamps[t] = time.time()-t_0 
@@ -451,7 +454,7 @@ def main(args=None):
                 Randomly pick a motion primitive and run it 4-5 times
                 """
                 # primitives = ['surface', 'turnrr', 'straight', 'turnlr']
-                primitives = ['dive']
+                primitives = ['straight']
                 num_cycles = 4
                 turtle_node.Joints.disable_torque()
                 turtle_node.Joints.set_current_cntrl_mode()
