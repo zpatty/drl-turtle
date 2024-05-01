@@ -1,3 +1,5 @@
 ros2_ws/build/
 ros2_ws/install/
 ros2_ws/log/
+__pycache__/
+ros2_ws/src/turtle_hardware/turtle_hardware/turtle_dynamixel/__pycache__
