@@ -1,5 +1,10 @@
+# ROS directories
 ros2_ws/build/
 ros2_ws/install/
 ros2_ws/log/
+
+# Python misc.
 __pycache__/
-ros2_ws/src/turtle_hardware/turtle_hardware/turtle_dynamixel/__pycache__
+python/build/
+python/dist/
+python/src/dynamixel_sdk.egg-info/
