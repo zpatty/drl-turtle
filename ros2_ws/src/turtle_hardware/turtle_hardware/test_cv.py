@@ -10,6 +10,7 @@ def parse_cv_params():
     print(f"[MESSAGE] Config: {param}\n")    
     # Serializing json
     config_params = json.dumps(param, indent=14)
+    return param, config_params
 cv_params, __ = parse_cv_params()
 
 DIM=(1920, 1080)
