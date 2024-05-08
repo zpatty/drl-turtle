@@ -92,6 +92,8 @@ def main(args=None):
                 print("disabling torques entirely...")
                 turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
                 turtle_node.Joints.disable_torque()
+                turtle_node.xiao.close()
+
                 cmd_msg = String()
                 cmd_msg.data = "stop_received"
                 turtle_node.cmd_received_pub.publish(cmd_msg)
@@ -484,7 +486,7 @@ def main(args=None):
                     timestamps = np.zeros((1,1))
                     dt_loop = np.zeros((1,1))       # hold dt data 
                     cycle = 0
-
+                    t_record = time.time()
                     # zero =  np.zeros((self.nq,1))
                     t_old = time.time()
                     # our loop's "starting" time
@@ -495,13 +497,35 @@ def main(args=None):
                             turtle_node.Joints.disable_torque()
                             break
                         rclpy.spin_once(turtle_node)
+                        timestamps = np.append(timestamps, time.time()-t_record)
                         # print("traj 1...")
                         if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
                             turtle_node.Joints.send_torque_cmd(turtle_node.nq * [0])
                             turtle_node.Joints.disable_torque()
+                            # try:
+                            # # record data from rollout
+                            #     time_data= timestamps
+                            #     acc_data= turtle_node.acc_data[:, 1:]
+                            #     gyr_data= turtle_node.gyr_data[:, 1:]
+                            #     quat_data= turtle_node.quat_data[:, 1:]
+                            #     voltage_data = turtle_node.voltage_data[1:]
+                            # except:
+                            #     print(f"stopped mid rollout-- saving everything but this rollout data")
+                            mu_data =np.zeros((1,1))   
+                            reward_data = np.zeros((1,1))   
+                            param_data = np.zeros((1,1))   
+                            sigma_data = np.zeros((1,1))   
+                            cpg_data = np.zeros((1,1))   
+                            # save to folder after each rollout
+                            scipy.io.savemat(folder_name + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                                'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
+                                'tau_data': tau_data, 'voltage_data': turtle_node.voltage_data, 'acc_data': turtle_node.acc_data, 'quat_data': turtle_node.quat_data, 
+                                'gyr_data': turtle_node.gyr_data, 'time_data': timestamps, 'cpg_data': cpg_data})                            
+                            scp_data()
                             first_time = True
                             break
-                        
+                        turtle_node.read_sensors()
+
                         q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
                         if first_loop:
                             n = get_qindex((time.time() - t_0), tvec)
@@ -564,6 +588,7 @@ def main(args=None):
         print("some error occurred")
         turtle_node.Joints.send_torque_cmd([0] * len(turtle_node.IDs))
         turtle_node.Joints.disable_torque()
+        turtle_node.xiao.close()
         exec_type, obj, tb = sys.exc_info()
         fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
         print(exec_type, fname, tb.tb_lineno)

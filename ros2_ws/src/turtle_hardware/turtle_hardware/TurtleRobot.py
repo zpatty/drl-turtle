@@ -56,7 +56,7 @@ class TurtleRobot(Node, gym.Env):
             10
         )
         self.mode_cmd_sub       # prevent unused variable warning
-        self.create_rate(100)
+        self.create_rate(500)
         self.mode = 'rest'      # initialize motors mode to rest state
         self.voltage = 12.0
         self.n_axis = 3
@@ -84,7 +84,9 @@ class TurtleRobot(Node, gym.Env):
         self.Joints.set_current_cntrl_mode()
         self.Joints.enable_torque()
         self.q = np.array(self.Joints.get_position()).reshape(-1,1)
+        print("[STATUS] opening port to sensors....\n")
         self.xiao = serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
+        print("[STATUS] port opened")
         self.xiao.reset_input_buffer()
         self.input_history = np.zeros((self.nq,10))
         
@@ -136,8 +138,8 @@ class TurtleRobot(Node, gym.Env):
 #  3.15       3.14       3.15       3.14      ]
 
         # orientation at rest
-        self.quat_data[:, -1] = [1, 1, 1, 1]
-        self.orientation = np.array([0.679, 0.0, 0.0, -0.733])      # w, x, y, z
+        self.quat_data[:, -1] = [0.5, 0.0, 0.0, -0.5]
+        self.orientation = np.array([0.65, 0.0, 0.0, -0.733])      # w, x, y, z
         # for PD control
         self.Kp = np.diag([0.6, 0.3, 0.1, 0.6, 0.3, 0.1, 0.4, 0.4, 0.4, 0.4])*4
         self.KD = 0.1
@@ -302,7 +304,7 @@ class TurtleRobot(Node, gym.Env):
             # print(f"clipped: {clipped}")
             avg_tau = np.mean(abs(clipped))
         # print(f"torque: {clipped}")
-        self.Joints.send_torque_cmd(clipped)
+        # self.Joints.send_torque_cmd(clipped)
         # print(observation)
         self.read_sensors()
         reward = self._get_reward(avg_tau)
@@ -467,43 +469,31 @@ class TurtleRobot(Node, gym.Env):
     def read_sensors(self):
         """
         Appends current sensor reading to the turtle node's sensor data structs
-        """        
-        no_check = False
-        keep_trying = True
-        attempts = 0
-        while keep_trying:
-            if attempts >= 3:
-                print("adding place holder")
+        """ 
+
+
+        self.xiao.reset_input_buffer()
+        sensors = self.xiao.readline()
+        try:
+            sensor_dict = json.loads(sensors.decode('utf-8'))
+            sensor_keys = ('Acc', 'Gyr', 'Quat', 'Voltage')
+            if set(sensor_keys).issubset(sensor_dict):
+                a = np.array(sensor_dict['Acc']).reshape((3,1)) * 9.81
+                gyr = np.array(sensor_dict['Gyr']).reshape((3,1))
+                q = np.array(sensor_dict["Quat"])
+                R = quat.quat2mat(q)
+                g_w = np.array([[0], [0], [9.81]])
+                g_local = np.dot(R.T, g_w)
+                acc = a - g_local           # acc without gravity 
+                quat_vec = q.reshape((4,1))
+                volt = sensor_dict['Voltage'][0]
+                self.acc_data = np.append(self.acc_data, acc, axis=1)
+                self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
+                self.quat_data = np.append(self.quat_data, quat_vec, axis=1)
+                self.voltage_data = np.append(self.voltage_data, volt)
+                self.voltage = volt
+            else:
                 self.add_place_holder()
-                break
-            self.xiao.reset_input_buffer()
-            sensors = self.xiao.readline()
-            # print(sensors)
-            # make sure it's a valid byte that's read
-            if len(sensors) != 0:
-                # this ensures the right json string format
-                if sensors[0] == 32 and sensors[-1] == 10:
-                    try:
-                        sensor_dict = json.loads(sensors.decode('utf-8'))
-                    except:
-                        no_check = True
-                    # add sensor data
-                    if no_check == False:
-                        sensor_keys = ('Acc', 'Gyr', 'Quat', 'Voltage')
-                        if set(sensor_keys).issubset(sensor_dict):
-                            a = np.array(sensor_dict['Acc']).reshape((3,1)) * 9.81
-                            gyr = np.array(sensor_dict['Gyr']).reshape((3,1))
-                            q = np.array(sensor_dict["Quat"])
-                            R = quat.quat2mat(q)
-                            g_w = np.array([[0], [0], [9.81]])
-                            g_local = np.dot(R.T, g_w)
-                            acc = a - g_local           # acc without gravity 
-                            quat_vec = q.reshape((4,1))
-                            volt = sensor_dict['Voltage'][0]
-                            self.acc_data = np.append(self.acc_data, acc, axis=1)
-                            self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
-                            self.quat_data = np.append(self.quat_data, quat_vec, axis=1)
-                            self.voltage_data = np.append(self.voltage_data, volt)
-                            self.voltage = volt
-                            keep_trying = False
-            attempts += 1
+        except:
+            self.add_place_holder()
+
