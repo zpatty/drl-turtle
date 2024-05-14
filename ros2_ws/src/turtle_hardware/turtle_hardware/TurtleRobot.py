@@ -21,7 +21,6 @@ class TurtleRobot(Node, gym.Env):
     TODO: migrate dynamixel motors into this class
     TLDR; this is the node that handles all turtle hardware things
     """
-
     def __init__(self, topic, params):
         super().__init__('turtle_rl_node')
         # subscribes to keyboard setting different turtle modes 
@@ -56,7 +55,7 @@ class TurtleRobot(Node, gym.Env):
             10
         )
         self.mode_cmd_sub       # prevent unused variable warning
-        self.create_rate(500)
+        self.create_rate(100)
         self.mode = 'rest'      # initialize motors mode to rest state
         self.voltage = 12.0
         self.n_axis = 3
@@ -84,9 +83,7 @@ class TurtleRobot(Node, gym.Env):
         self.Joints.set_current_cntrl_mode()
         self.Joints.enable_torque()
         self.q = np.array(self.Joints.get_position()).reshape(-1,1)
-        print("[STATUS] opening port to sensors....\n")
         self.xiao = serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
-        print("[STATUS] port opened")
         self.xiao.reset_input_buffer()
         self.input_history = np.zeros((self.nq,10))
         
@@ -137,9 +134,15 @@ class TurtleRobot(Node, gym.Env):
 # center pos: [2.70366769 3.31453293 3.31453293 3.57633231 2.96546707 2.96546707
 #  3.15       3.14       3.15       3.14      ]
 
-        # orientation at rest
-        self.quat_data[:, -1] = [0.5, 0.0, 0.0, -0.5]
-        self.orientation = np.array([0.65, 0.0, 0.0, -0.733])      # w, x, y, z
+        # orientation at rest from first may10 trial prior sweep proper
+        # self.quat_data[:, -1] = [ 0.857, -0.006, -0.03,  -0.514]
+        # self.orientation = np.array([ 0.857, -0.006, -0.03,  -0.514])
+        self.quat_data[:, -1] = [ 0.847, -0.02,   0.019, -0.531]
+        # self.orientation = np.array([ 0.739,  0.014, -0.002, -0.673])
+
+        self.orientation = np.array([ 0.847, -0.02,   0.019, -0.531])       # orienttion may 14th test 
+
+        # self.orientation = np.array([0.679, 0.0, 0.0, -0.733])      # w, x, y, z
         # for PD control
         self.Kp = np.diag([0.6, 0.3, 0.1, 0.6, 0.3, 0.1, 0.4, 0.4, 0.4, 0.4])*4
         self.KD = 0.1
@@ -147,6 +150,142 @@ class TurtleRobot(Node, gym.Env):
                                             shape=(self.nq,1), dtype=np.float32)
         self.observation_space = spaces.Box(low=0, high=30,
                                             shape=(self.nq,1), dtype=np.float32)
+
+    # def __init__(self, topic, params):
+    #     super().__init__('turtle_rl_node')
+    #     # subscribes to keyboard setting different turtle modes 
+    #     self.mode_cmd_sub = self.create_subscription(
+    #         String,
+    #         topic,
+    #         self.turtle_mode_callback,
+    #         10)
+    #     # for case when trajectory mode, receives trajectory msg
+    #     self.motor_traj_sub = self.create_subscription(
+    #         TurtleTraj,
+    #         'turtle_traj',
+    #         self.trajectory_callback,
+    #         10
+    #     )
+    #     # continously reads from all the sensors and publishes data at end of trajectory
+    #     self.sensors_pub = self.create_publisher(
+    #         TurtleSensors,
+    #         'turtle_sensors',
+    #         10
+    #     )
+    #     # sends acknowledgement packet to keyboard node
+    #     self.cmd_received_pub = self.create_publisher(
+    #         String,
+    #         'turtle_state',
+    #         10
+    #     )
+    #     # continously publishes the current motor position      
+    #     self.motor_pos_pub = self.create_publisher(
+    #         String,
+    #         'turtle_motor_pos',
+    #         10
+    #     )
+    #     self.mode_cmd_sub       # prevent unused variable warning
+    #     self.create_rate(100)
+    #     self.mode = 'rest'      # initialize motors mode to rest state
+    #     self.voltage = 12.0
+    #     self.n_axis = 3
+    #     self.qs = np.zeros((10,1))
+    #     self.dqs = np.zeros((10,1))
+    #     self.tvec = np.zeros((1,1))
+    #     if portHandlerJoint.openPort():
+    #         print("[MOTORS STATUS] Suceeded to open port")
+    #     else:
+    #         print("[ERROR] Failed to open port")
+    #     if portHandlerJoint.setBaudRate(BAUDRATE):
+    #         print("[MOTORS STATUS] Suceeded to open port")
+    #     else:
+    #         print("[ERROR] Failed to change baudrate")
+
+    #     # setup params
+    #     self.read_params(params=params)
+    #     self.create_data_structs()
+
+    #     # dynamixel setup
+    #     self.IDs = [1,2,3,4,5,6,7,8,9,10]
+    #     self.nq = 10
+    #     self.Joints = Mod(packetHandlerJoint, portHandlerJoint, self.IDs)
+    #     self.Joints.disable_torque()
+    #     self.Joints.set_current_cntrl_mode()
+    #     self.Joints.enable_torque()
+    #     self.q = np.array(self.Joints.get_position()).reshape(-1,1)
+    #     print("[STATUS] opening port to sensors....\n")
+    #     self.xiao = serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
+    #     print("[STATUS] port opened")
+    #     self.xiao.reset_input_buffer()
+    #     self.input_history = np.zeros((self.nq,10))
+        
+    #     # set thresholds for motor angles 
+    #     self.epsilon = 0.05
+
+    #     # convert thresholds from degrees to radians   
+
+    #     # shoulder (M1 and M4)
+    #     self.shoulder_up = 25 * np.pi/180       
+    #     self.shoulder_down = 75 * np.pi/180
+    #     # middle (M2 and M5)
+    #     self.mid_up = 50 * np.pi/180
+    #     self.mid_down = 30 * np.pi/180
+    #     # flipper (M3 and M6)
+    #     self.flipper_up = 65 * np.pi/180
+    #     self.flipper_down = 45 * np.pi/180
+
+    #     self.backfin_up = 75 * np.pi/180
+    #     self.backfin_down = 75 * np.pi/180
+
+    #     self.min_threshold = np.array([3.14 - self.shoulder_down, 3.14 - self.mid_down, 3.14 - self.flipper_down, 
+    #                                     3.14 - self.shoulder_up, 3.14 - self.mid_up, 3.14 - self.flipper_up,
+    #                                     3.0, 3.14 - self.backfin_down, 
+    #                                     3.0, 3.14 - self.backfin_up])
+    #     self.max_threshold = np.array([3.14 + self.shoulder_up, 3.14 + self.mid_up, 3.14 + self.flipper_up,
+    #                                     3.14 + self.shoulder_down, 3.14 + self.mid_down, 3.14 + self.flipper_down, 
+    #                                     3.3, 3.14 + self.backfin_up,
+    #                                     3.3, 3.14 + self.backfin_down])
+    #     print(f"min thresh: {self.min_threshold}\n")
+    #     print(f"max thresh: {self.max_threshold}\n")
+        
+    #     self.center_pos = self.min_threshold + ((self.max_threshold - self.min_threshold)/2)
+    #     self.amplitudes = self.max_threshold - self.min_threshold
+    #     print(f"amplitudes: {self.amplitudes/2}\n")
+
+    #     print(f"center pos: {self.center_pos}\n")
+
+    #     # min thresh: [1.83100306 2.61640122 2.35460184 2.70366769 2.26733537 2.00553599
+    #     #  3.         1.83100306 3.         1.83100306]
+
+    #     # max thresh: [3.57633231 4.01266463 4.27446401 4.44899694 3.66359878 3.92539816
+    #     #  3.3        4.44899694 3.3        4.44899694]
+
+    #     # amplitudes: [0.87266463 0.6981317  0.95993109 0.87266463 0.6981317  0.95993109
+    #     #  0.15       1.30899694 0.15       1.30899694]
+
+    #     # center pos: [2.70366769 3.31453293 3.31453293 3.57633231 2.96546707 2.96546707
+    #     #  3.15       3.14       3.15       3.14      ]
+
+    #     # orientation at rest
+    #     # self.orientation = np.array([0.65, 0.0, 0.0, -0.733])      # w, x, y, z
+    #     # self.orientation = np.array([ 0.688, -0.015,  0.023, -0.726])
+
+    #     # sea grant 
+    #     self.quat_data[:, -1] = [1, 1, 1, 1]
+
+    #     self.orientation = np.array([ 0.857 -0.006 -0.03  -0.514])
+
+    #     # self.orientation = np.array([ 1.    -0.015 -0.008 -0.004])
+
+    #     # self.quat_data[:, -1] = [ 0.857 -0.006 -0.03  -0.514]
+
+    #     # for PD control
+    #     self.Kp = np.diag([0.6, 0.3, 0.1, 0.6, 0.3, 0.1, 0.4, 0.4, 0.4, 0.4])*4
+    #     self.KD = 0.1
+    #     self.action_space = spaces.Box(low=0, high=30,
+    #                                         shape=(self.nq,1), dtype=np.float32)
+    #     self.observation_space = spaces.Box(low=0, high=30,
+    #                                         shape=(self.nq,1), dtype=np.float32)
     def read_params(self, params):
         self.ax_weight = params["ax_weight"]
         self.ay_weight = params["ay_weight"]
@@ -236,16 +375,26 @@ class TurtleRobot(Node, gym.Env):
     def skew(self,x):
         return np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]])
     
+    # def _get_reward(self, tau):
+    #     q = self.quat_data[:, -1]
+    #     print(q)
+    #     acc = self.acc_data[:, -1]
+    #     print(acc)
+    #     R = self.ay_weight*acc[1]**2 - self.ax_weight*acc[0]**2 - self.az_weight*acc[2]**2 -self.tau_weight* np.linalg.norm(tau)**2 - self.quat_weight * (1 - np.linalg.norm(self.orientation.T @ q))
+    #     print(R)
+    #     return R
     def _get_reward(self, tau):
         q = self.quat_data[:, -1]
         acc = self.acc_data[:, -1]
         R = self.ay_weight*acc[1]**2 - self.ax_weight*acc[0]**2 - self.az_weight*acc[2]**2 -self.tau_weight* np.linalg.norm(tau)**2 - self.quat_weight * (1 - np.linalg.norm(self.orientation.T @ q))
         return R
     
+    
     def _get_reward_weighted(self, tau):
         reward = 0
         return reward
     
+    ######## more STEP ###########
     def step(self, action, PD=False, mode='None'):
         """
         action is tau which we pass into the turtle
@@ -281,7 +430,7 @@ class TurtleRobot(Node, gym.Env):
             obs = self.acc_data[:, -1]
             return [obs, reward, terminated, truncated, info]
         if PD:
-            # print(f"action shape: {action.shape}")
+            # print(f"action shape: {action}")
             # position control 
             qd = np.where(action < self.max_threshold - self.epsilon, action, self.max_threshold - self.epsilon)
             qd = np.where(qd > self.min_threshold + self.epsilon, qd, self.min_threshold + self.epsilon)
@@ -304,19 +453,99 @@ class TurtleRobot(Node, gym.Env):
             # print(f"clipped: {clipped}")
             avg_tau = np.mean(abs(clipped))
         # print(f"torque: {clipped}")
-        # self.Joints.send_torque_cmd(clipped)
+        self.Joints.send_torque_cmd(clipped)
         # print(observation)
         self.read_sensors()
-        reward = self._get_reward(avg_tau)
+        reward = self._get_reward(clipped)
         # reward = 0
         terminated = False
         truncated = False
         # return velocity and clipped tau (or radians) passed into motors
         try:
-            info = [v, clipped]
+            info = [v, tau[:, 0]]
         except:
-            info = [0, clipped]
+            info = [0, tau[:, 0]]
         return observation, reward, terminated, truncated, info
+
+    
+    # def step(self, action, PD=False, mode='None'):
+    #     """
+    #     action is tau which we pass into the turtle
+    #     OR its position in radians when PD flag is set to True
+    #     """
+    #     # shift action based on center of wave 
+    #     keep_trying = True
+    #     motor_count = 0
+    #     while keep_trying:
+    #         try:
+    #             observation = np.array(self.Joints.get_position())
+    #             v = np.array(self.Joints.get_velocity())
+    #             keep_trying = False
+    #         except:
+    #             print("failed to read from motors")
+    #         motor_count += 1
+    #         if motor_count > 4:
+    #             break
+    #     if mode == 'SAC':
+    #         qd = np.where(action < self.max_threshold - self.epsilon, action, self.max_threshold - self.epsilon)
+    #         qd = np.where(qd > self.min_threshold + self.epsilon, qd, self.min_threshold + self.epsilon)
+    #         dqd = np.zeros((self.nq,1))
+    #         ddqd = np.zeros((self.nq,1))
+    #         # print(f"dqd shape: {dqd.shape}")
+    #         tau = turtle_controller(observation.reshape((10,1)),v.reshape((10,1)),qd.reshape((10,1)),dqd,ddqd,self.Kp,self.KD)
+    #         clipped = grab_arm_current(tau, min_torque, max_torque)
+
+    #         terminated = False
+    #         truncated = False
+    #         info = [v, clipped]
+    #         self.read_sensors()
+    #         reward = self._get_reward(tau)
+    #         obs = self.acc_data[:, -1]
+    #         return [obs, reward, terminated, truncated, info]
+    #     if PD:
+    #         # print(f"action shape: {action.shape}")
+    #         # position control 
+    #         qd = np.where(action < self.max_threshold - self.epsilon, action, self.max_threshold - self.epsilon)
+    #         qd = np.where(qd > self.min_threshold + self.epsilon, qd, self.min_threshold + self.epsilon)
+    #         dqd = np.zeros((self.nq,1))
+    #         ddqd = np.zeros((self.nq,1))
+    #         # print(f"dqd shape: {dqd.shape}")
+    #         tau = turtle_controller(observation.reshape((10,1)),v.reshape((10,1)),qd.reshape((10,1)),dqd,ddqd,self.Kp,self.KD)
+    #         avg_tau = np.mean(abs(tau))
+    #         clipped = grab_arm_current(tau, min_torque, max_torque)
+    #     else:
+    #         # print(f"action: {action}")
+    #         action = 10e3 * action
+    #         # print(f"action: {action}")
+
+    #         inputt = grab_arm_current(action, min_torque, max_torque)
+    #         # print(f"observation: {observation}\n")
+    #         clipped = np.where(observation < self.max_threshold - self.epsilon, inputt, np.minimum(np.zeros(len(inputt)), inputt))
+    #         # print(f"clipped1: {clipped}")
+    #         clipped = np.where(observation > self.min_threshold + self.epsilon, clipped, np.maximum(np.zeros(len(inputt)), clipped)).astype('int')
+    #         # print(f"clipped: {clipped}")
+    #         avg_tau = np.mean(abs(clipped))
+    #     # print(f"avg tau: {avg_tau}")
+    #     # print(f"avg tau shape: {avg_tau.shape}")
+    #     # print(f"torque: {clipped.shape}")
+    #     # self.Joints.send_torque_cmd(clipped)
+    #     # print("sent torque")
+    #     # print(observation)
+    #     self.read_sensors()
+    #     # print("sensors")
+    #     reward = self._get_reward(avg_tau)
+    #     # print("got reward")
+    #     # reward = 0
+    #     terminated = False
+    #     truncated = False
+    #     # return velocity and tau (or radians) -- we can calculate clipped later
+    #     try:
+    #         info = [v, tau[:, 0]]
+    #     except:
+    #         print("weird ")
+    #         info = [0, tau[:, 0]]
+    #     print("returning")
+    #     return observation, reward, terminated, truncated, info
 
     def trajectory_callback(self, msg):
         """

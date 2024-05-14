@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-import torch
+# import torch
 import rclpy
 import numpy as np
 from EPHE import EPHE
@@ -13,7 +13,7 @@ import random
 from std_msgs.msg import String
 from turtle_dynamixel.utilities import *
 
-os.system('sudo /home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/latency_write.sh')
+os.system('sudo /home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_dynamixel/latency_write.sh')
 
 global mode
 mode = 'rest'
@@ -55,6 +55,7 @@ def main(args=None):
     sigma = np.array(params["sigma"])
     max_episodes = params["max_episodes"]
     max_episode_length = params["max_episode_length"]
+    num_priors = params["num_priors"]
     turtle_node.best_params = np.zeros((num_params))
 
     config_params = json.dumps(params, indent=10)
@@ -102,6 +103,8 @@ def main(args=None):
             elif turtle_node.mode == 'rest':
                 rclpy.spin_once(turtle_node)
                 turtle_node.read_voltage()
+                turtle_node.read_sensors()
+                print(f"quat data: {turtle_node.quat_data[:, -1]}")
                 if turtle_node.voltage < threshold:
                     turtle_node.Joints.disable_torque()
                     print(f"VOLTAGE: {turtle_node.voltage}")
@@ -115,10 +118,111 @@ def main(args=None):
                 print(f"current voltage: {turtle_node.voltage}\n")
             elif turtle_node.mode == 'Auke':
                 # Auke CPG model that outputs position in radians
-                print(f"intial mu: {mu}\n")
-                print(f"initial sigma: {sigma}\n")
                 print("Auke CPG training time\n")
                 cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
+                # data structs for plotting
+                prior_acc_data = np.zeros((3, max_episode_length, num_priors))
+                prior_gyr_data = np.zeros((3, max_episode_length, num_priors))
+                prior_quat_data = np.zeros((4, max_episode_length, num_priors))
+                prior_voltage_data = np.zeros((max_episode_length, num_priors))
+                prior_reward_data = np.zeros((max_episode_length, num_priors))
+                prior_q_data = np.zeros((10, max_episode_length, num_priors))
+                prior_dq_data = np.zeros((10, max_episode_length, num_priors))
+                prior_tau_data = np.zeros((10, max_episode_length, num_priors))
+                prior_cpg_data = np.zeros((10, max_episode_length, num_priors))
+                prior_time_data = np.zeros((max_episode_length, num_priors))
+                best_reward = 0
+                # first run priors sweep ----------------------------------------------------------------------------------------------------------
+                prior_param_data = np.zeros((num_params, num_priors))
+                R = np.zeros(num_priors)
+                for i in range(num_priors):
+                    rclpy.spin_once(turtle_node)
+                    if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
+                        print("breaking out of rollout----------------------------------------------------------------------")
+                        turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                        turtle_node.Joints.disable_torque()
+                        break
+                    cpg.reset()
+
+                    freq = np.random.uniform(low=5.0, high=10, size=1)
+                    shoulder = np.random.uniform(low=0.3, high=0.9, size=1)
+                    mid = np.random.uniform(low=0.3, high=0.8, size=1)
+                    flipper = np.random.uniform(low=0.3, high=0.9, size=1)
+
+                    b_joint = np.random.uniform(low=0.0, high=0.1, size=1)
+                    b_fin = np.random.uniform(low=0.0, high=0.8, size=1)
+                    # amps = np.random.uniform(low=0.1, high=1, size=10)
+                    offset_shoulder = np.random.uniform(low=2.0, high=3.14, size=1)
+                    offset_mid = np.random.uniform(low=2.0, high=3.14, size=1)
+                    offset_flipper = np.random.uniform(low=2.0, high=3.14, size=1)
+
+                    offset_bjoint = np.random.uniform(low=2.0, high=3.14, size=1)
+                    offset_bfin = np.random.uniform(low=2.0, high=3.14, size=1)
+
+                    sol = np.concatenate((freq, shoulder, mid, flipper, shoulder, mid, flipper, b_joint, b_fin, b_joint, b_fin, 
+                                            offset_shoulder, offset_mid, offset_flipper, offset_shoulder, offset_mid, offset_flipper,
+                                            offset_bjoint, offset_bfin, offset_bjoint, offset_bfin))                    
+                    prior_param_data[:, i] = sol
+                    cpg.set_parameters(sol)
+                    observation, __ = turtle_node.reset()
+                    cumulative_reward = 0.0
+                    t = 0
+                    timestamps = np.zeros(max_episode_length)
+                    t_0 = time.time()
+                    while True:
+                        rclpy.spin_once(turtle_node)
+                        if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
+                            print("breaking out of rollout----------------------------------------------------------------------")
+                            turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
+                            turtle_node.Joints.disable_torque()
+                            break
+                        action = cpg.get_action()
+                        prior_cpg_data[:, t, i] = action
+                        # for a in range(len(action)):
+                        #     if a not in [6,7,8,9]:
+                        #         action[a] = action[a] + turtle_node.center_pos[a]
+                        timestamps[t] = time.time()-t_0 
+                        observation, reward, terminated, truncated, info = turtle_node.step(action, PD=True)
+                        v, tau = info
+                        prior_tau_data[:, t, i] = tau
+                        prior_q_data[:, t, i] = observation
+                        prior_dq_data[:, t, i] = v
+                        prior_reward_data[t, i] = reward
+                        cumulative_reward += reward
+                        t += 1
+                        if t >= max_episode_length:
+                            turtle_node.Joints.disable_torque()
+                            print(f"---------------prior {i}, reward: {cumulative_reward}\n")
+                            break
+                    try:
+                        prior_time_data[:, i] = timestamps
+                        prior_acc_data[:, :, i] = turtle_node.acc_data[:, 1:]
+                        prior_gyr_data[:, :, i] = turtle_node.gyr_data[:, 1:]
+                        prior_quat_data[:, :, i] = turtle_node.quat_data[:, 1:]
+                        prior_voltage_data[:, i] = turtle_node.voltage_data[1:]
+                    except:
+                        print(f"stopped mid rollout-- saving everything but this rollout data")
+
+                    # save to folder after each rollout
+                    scipy.io.savemat(folder_name + "/prior_data.mat", {
+                        'param_data': prior_param_data, 'reward_data': prior_reward_data, 'q_data': prior_q_data, 'dq_data': prior_dq_data,
+                        'tau_data': prior_tau_data, 'voltage_data': prior_voltage_data, 'acc_data': prior_acc_data, 'quat_data': prior_quat_data, 
+                        'gyr_data': prior_gyr_data, 'time_data': prior_time_data, 'cpg_data': prior_cpg_data})
+                    R[i] = cumulative_reward
+                # get indices of K best rewards
+                best_inds = np.argsort(-R)[:K]
+                k_params = prior_param_data[:, best_inds]
+                print(f"k params: {k_params}")
+                k_rewards = R[best_inds]
+                print(f"k rewards: {k_rewards}")
+                mu = k_params[:, 0]
+                # mu = np.array(params["mu"])
+                sigma = np.ones(num_params) * 0.7
+                print(f"using this mu: {mu}\n")
+                prior_mu = mu
+                ## RESET CPG ##
+                cpg.reset()
+################# reinitialize EPHE ################################
                 ephe = EPHE(
                     
                     # We are looking for solutions whose lengths are equal
@@ -139,6 +243,7 @@ def main(args=None):
 
                     K=K
                 )
+
                 # get to training
                 turtle_node.Joints.enable_torque()
     ############################ EPISODE #################################################
@@ -149,10 +254,8 @@ def main(args=None):
                         turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
                         turtle_node.Joints.disable_torque()
                         print("saving data to turtle...")
-                        # save the best params
-                        torch.save(turtle_node.best_params, best_param_fname)
                         # save data structs to matlab 
-                        scipy.io.savemat(folder_name + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                        scipy.io.savemat(folder_name + "/data.mat", {'prior_mu': prior_mu,'mu_data': mu_data,'sigma_data': sigma_data,
                                             'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
                                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
@@ -173,18 +276,13 @@ def main(args=None):
                             turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
                             turtle_node.Joints.disable_torque()
                             break
-                        lst_params[:, m] = solutions[m]
+                        lst_params[:, m] = cpg.filter(solutions[m])
                         cpg.set_parameters(solutions[m])
                         cumulative_reward = 0.0
 
                         # reset the environment after every rollout
                         timestamps = np.zeros(max_episode_length)
                         t = 0                       # to ensure we only go max_episode length
-                        # tic = time.time()
-                        # cpg_actions = cpg.get_rollout(max_episode_length)
-                        # cpg_actions = cpg.get_rollout(max_episode_length)
-                        # print(f"cpg calc toc: {time.time()-tic}")
-                        # cpg_data[:, :, m, episode] = cpg_actions
                         observation, __ = turtle_node.reset()
                         t_0 = time.time()
     ############################ ROLL OUT ###############################################################################
@@ -197,16 +295,16 @@ def main(args=None):
                                 break
                             # action = cpg_actions[:, t]
                             action = cpg.get_action()
-                            for a in range(len(action)):
-                                action[a] = action[a] + turtle_node.center_pos[a]
+                            # for a in range(len(action)):
+                            #     action[a] = action[a] + turtle_node.center_pos[a]
                             cpg_data[:, t, m, episode] = action
                             # save the raw cpg output
                             timestamps[t] = time.time()-t_0 
                             observation, reward, terminated, truncated, info = turtle_node.step(action, PD=True)
-                            v, clipped = info
+                            v, tau = info
                             done = truncated or terminated
                             reward_data[t, m, episode] = reward
-                            tau_data[:, t, m, episode] = clipped
+                            tau_data[:, t, m, episode] = tau
                             q_data[:, t, m, episode] = observation
                             dq_data[:, t, m, episode] = v
                             cumulative_reward += reward
@@ -226,7 +324,7 @@ def main(args=None):
                         except:
                             print(f"stopped mid rollout-- saving everything but this rollout data")
                         # save to folder after each rollout
-                        scipy.io.savemat(folder_name + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
+                        scipy.io.savemat(folder_name + "/data.mat", {'prior_mu': prior_mu, 'mu_data': mu_data,'sigma_data': sigma_data,
                             'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
@@ -271,185 +369,12 @@ def main(args=None):
                 print(f"best params: {turtle_node.best_params} got reward of {best_reward}\n")
                 print("------------------------Saving data------------------------\n")
                 print("saving data....")
-                # save the best params from this episode
-                torch.save(turtle_node.best_params, best_param_fname)
                 # save data structs to matlab for this episode
                 scipy.io.savemat(folder_name + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
                                             'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
                                             'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
                                             'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
                 break
-            elif turtle_node.mode == 'PGPE':
-                print("Grabbing PGPE imports...")
-                from pgpelib import PGPE
-                from pgpelib.policies import LinearPolicy, MLPPolicy
-                from pgpelib.restore import to_torch_module
-                cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
-                env = turtle_node
-
-                pgpe = PGPE(
-                
-                
-                # We are looking for solutions whose lengths are equal
-                # to the number of parameters required by the policy:
-                solution_length=mu.shape[0],
-                
-                # Population size:
-                popsize=10,
-                
-                # Initial mean of the search distribution:
-                center_init=mu,
-                
-                # Learning rate for when updating the mean of the search distribution:
-                center_learning_rate=0.075,
-                
-                # Optimizer to be used for when updating the mean of the search
-                # distribution, and optimizer-specific configuration:
-                optimizer='clipup',
-                optimizer_config={'max_speed': 0.15},
-                
-                # Initial standard deviation of the search distribution:
-                stdev_init=sigma,
-                
-                # Learning rate for when updating the standard deviation of the
-                # search distribution:
-                stdev_learning_rate=0.1,
-                
-                # Limiting the change on the standard deviation:
-                stdev_max_change=0.2,
-                
-                # Solution ranking (True means 0-centered ranking will be used)
-                solution_ranking=True,
-                
-                # dtype is expected as float32 when using the policy objects
-                dtype='float32'
-                )
-                # Number of iterations
-                num_iterations = 20
-
-                # The main loop of the evolutionary computation
-                for episode in range(1, 1 + num_iterations):
-
-                    # Get the solutions from the pgpe solver
-                    solutions = pgpe.ask()          # this is population size
-
-                    # The list below will keep the fitnesses
-                    # (i-th element will store the reward accumulated by the
-                    # i-th solution)
-                    fitnesses = []
-                    lst_params = np.zeros((num_params, M))
-
-                    # print(f"num of sols: {len(solutions)}")
-                    for m in range(len(solutions)):
-                        if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
-                            print("breaking out of episode----------------------------------------------------------------------")
-                            turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-                            turtle_node.Joints.disable_torque()
-                            break
-                        lst_params[:, m] = solutions[m]
-                        cpg.set_parameters(solutions[m])
-                        cumulative_reward = 0.0
-
-                        # reset the environment after every rollout
-                        timestamps = np.zeros(max_episode_length)
-                        t = 0                                       # to ensure we only go max_episode length
-                        # tic = time.time()
-                        # cpg_actions = cpg.get_rollout(max_episode_length)
-                        # cpg_actions = cpg.get_rollout(max_episode_length)
-                        # print(f"cpg calc toc: {time.time()-tic}")
-                        # cpg_data[:, :, m, episode] = cpg_actions
-                        observation, __ = turtle_node.reset()
-                        t_0 = time.time()
-    ############################ ROLL OUT ###############################################################################
-                        while True:
-                            rclpy.spin_once(turtle_node)
-                            if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
-                                print("breaking out of rollout----------------------------------------------------------------------")
-                                turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-                                turtle_node.Joints.disable_torque()
-                                break
-                            # action = cpg_actions[:, t]
-                            action = cpg.get_action()
-                            cpg_data[:, t, m, episode] = action
-                            # save the raw cpg output
-                            timestamps[t] = time.time()-t_0 
-                            print(f"action: {action}")
-                            observation, reward, terminated, truncated, info = turtle_node.step(action, PD=True)
-                            v, clipped = info
-                            done = truncated or terminated
-                            reward_data[t, m, episode] = reward
-                            tau_data[:, t, m, episode] = clipped
-                            q_data[:, t, m, episode] = observation
-                            dq_data[:, t, m, episode] = v
-                            print(f"reward : {reward}")
-                            cumulative_reward += reward
-                            t += 1
-                            if t >= max_episode_length:
-                                turtle_node.Joints.disable_torque()
-                                print("\n\n")
-                                print(f"---------------rollout reward: {cumulative_reward}\n\n\n\n")
-                                break
-                        try:
-                            # record data from rollout
-                            time_data[:, m, episode] = timestamps
-                            acc_data[:, :, m, episode] = turtle_node.acc_data[:, 1:]
-                            gyr_data[:, :, m, episode] = turtle_node.gyr_data[:, 1:]
-                            quat_data[:, :, m, episode] = turtle_node.quat_data[:, 1:]
-                            voltage_data[:, m, episode] = turtle_node.voltage_data[1:]
-                        except:
-                            print(f"stopped mid rollout-- saving everything but this rollout data")
-                        # save to folder after each rollout
-                        scipy.io.savemat(folder_name + "/data.mat", {'mu_data': mu_data,'sigma_data': sigma_data,
-                            'param_data': param_data, 'reward_data': reward_data, 'q_data': q_data, 'dq_data': dq_data,
-                            'tau_data': tau_data, 'voltage_data': voltage_data, 'acc_data': acc_data, 'quat_data': quat_data, 
-                            'gyr_data': gyr_data, 'time_data': time_data, 'cpg_data': cpg_data})
-
-
-                        fitness = cumulative_reward
-                        
-                        # In the case of this example, we are only interested
-                        # in our fitness values, so we add it to our fitnesses list.
-                        fitnesses.append(fitness)
-                    
-                    # We inform our pgpe solver of the fitnesses we received,
-                    # so that the population gets updated accordingly.
-                    try:
-                        pgpe.tell(fitnesses)
-                        
-                        print("Iteration:", episode, "  median score:", np.median(fitnesses))
-                    except:
-                        print(f"couldn't update fitnesses--cut too early")
-
-                # center point (mean) of the search distribution as final solution
-                center_solution = pgpe.center.copy()
-                turtle_node.best_params = center_solution
-
-            elif turtle_node.mode == 'SAC':
-                print(f"Soft Actor Critc....\n")
-                from stable_baselines3.sac.policies import MlpPolicy
-                from stable_baselines3 import SAC
-                print(f"starting...")
-                cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
-
-                env = CPGGym(turtle_node, cpg, max_episode_length)
-                model = SAC(
-                    "MlpPolicy",
-                    env,
-                    learning_starts=50,
-                    learning_rate=1e-3,
-                    tau=0.02,
-                    gamma=0.98,
-                    verbose=1,
-                    buffer_size=5000,
-                    gradient_steps=2,
-                    ent_coef="auto_1.0",
-                    seed=1,
-                    # action_noise=NormalActionNoise(np.zeros(1), np.zeros(1)),
-                )
-                # obs is the CPG parameters, or joint positions, or acceleration data, etc.
-                obs, info = env.reset()
-                model.learn(total_timesteps=8/0.05, log_interval=10)
-                model.save("half_cheetah_sac")
 
             elif turtle_node.mode == 'planner':
                 """

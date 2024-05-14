@@ -52,6 +52,12 @@ class AukeCPG:
         print(f"starting phi: {self.phi}\n")
         print(f"starting w: {self.w}\n")
         print(f"number of CPG modules: {self.num_mods}\n")
+    def filter(self, params):
+        scaled = params.copy()
+        scaled[0] = np.clip(scaled[0], 2.0, 10)
+        scaled[1:self.num_mods + 1]= np.clip(scaled[1:self.num_mods + 1], 0.0, 1.0)
+        scaled[self.num_mods + 1:]= np.clip(scaled[self.num_mods + 1:], 0, np.pi)
+        return scaled
     def set_parameters(self, params):
         """
         Updates parameters of the CPG oscillators.
@@ -64,8 +70,14 @@ class AukeCPG:
         = ...
         = Xn: offset for CPG mod n
         """
-        self.params = params
-        # print(f"current params: {self.params}")
+        # self.params = params        
+        scaled = params.copy()
+        scaled[0] = np.clip(scaled[0], 2.0, 10)
+        scaled[1:self.num_mods + 1]= np.clip(scaled[1:self.num_mods + 1], 0.0, 1.0)
+        scaled[self.num_mods + 1:]= np.clip(scaled[self.num_mods + 1:], 0, np.pi)
+        self.params = scaled
+
+        print(f"current params: {self.params}")
     
     def get_params(self):
         return self.params
@@ -74,109 +86,11 @@ class AukeCPG:
         """
         Reset your CPGs?
         """
-        self.PHI = np.random.uniform(low=0.01, high=3, size=self.num_mods)
-        self.r = np.random.uniform(low=0.01, high=3, size=self.num_mods)
-        self.x = np.random.uniform(low=0.01, high=3, size=self.num_mods)
-        self.m = np.random.uniform(low=0.01, high=3, size=self.num_mods)
-        self.v = np.random.uniform(low=0.01, high=3, size=self.num_mods)
-
-        
-    def get_coupled_action(self, dt):
-        """
-        Return action based off of observation and current CPG params
-        
-        """
-        def ode_fin(state, omega, R, X, rs, phis):
-            PHI, r, x, v, m= state
-            dPhidt = omega
-            for i in range(len(len(rs))):
-                r_other = rs[i]
-                phi_other = phis[i]
-                dPhidt += self.w*r_other*np.sin(phi_other - PHI - self.phi)
-            dRdt = v
-            dVdt = self.a_r * ((self.a_r/4) * (R-r) - dRdt)
-            dXdt = m
-            dMdt = self.a_x * ((self.a_x/4) * (X-x) - dXdt)
-            return [dPhidt, dRdt, dXdt, dVdt, dMdt]
-        # calculate y_out, which in this case we are using as the tau we pass into the turtle
-        action = np.zeros((self.num_mods))
-        omega = self.params[0]
-        Rs = self.params[1:self.num_mods + 1]
-        Xs = self.params[self.num_mods + 1:]
-        front_fins = [[0, 1, 2], [3, 4, 5]]
-        back_fins = [[6, 7], [8, 9]]
-        # for every front fin
-        for fin in front_fins:
-            num_coupled = 3
-            # for each oscillator in front fin
-            for f in range(len(fin)):
-                # grab the index of the oscillator
-                idx = fin[f]
-                R = Rs[idx]
-                X = Xs[idx]
-                # find indices of the other two oscillators coupled to current oscillator
-                ind1 = fin[(f + 1)%num_coupled]
-                ind2 = fin[(f + 2)%num_coupled]
-                rs = [self.r[ind1] , self.r[ind2]]
-                phis = [self.PHI[ind1] , self.PHI[ind2]]
-                # state of current oscillator
-                state = [self.PHI[idx], self.r[idx], self.x[idx], self.v[idx], self.m[idx]]
-                t_points = [0,self.dt]
-                solution = scipy.integrate.solve_ivp(
-                    fun = lambda t, y: ode_fin(state, omega, R, X, rs, phis),
-                    t_span=t_points, 
-                    y0=state,
-                    method='RK45',
-                    t_eval = t_points
-                )
-                try:
-                    self.PHI[idx] = solution.y[0, 1]
-                    self.r[idx] = solution.y[1, 1]
-                    self.x[idx] = solution.y[2, 1]
-                    self.v[idx] = solution.y[3, 1]
-                    self.m[idx] = solution.y[4, 1]
-                except:
-                    print("failed to solve ode with the following: \n")
-                    print(f"state= {state}\n")
-                    print(f"dt= {dt}\n")
-                    pass
-                # grab output of oscillator i
-                self.theta[idx] = self.x[idx] + self.r[idx] * np.cos(self.PHI[idx])
-                action[idx] = self.theta[idx]
-
-        # for every back fin
-        for fin in back_fins:
-            num_coupled = 2
-            for f in range(len(fin)):
-                idx = fin[f]                            # grab index of current oscillator
-                ind = fin[(f + 1) % num_coupled]        # grab index of other oscillator
-                rs = [self.r[ind]]
-                phis = [self.PHI[ind]]
-                # state of current oscillator
-                state = [self.PHI[idx], self.r[idx], self.x[idx], self.v[idx], self.m[idx]]
-                t_points = [0,self.dt]
-                solution = scipy.integrate.solve_ivp(
-                    fun = lambda t, y: ode_fin(state, omega, R, X, rs, phis),
-                    t_span=t_points, 
-                    y0=state,
-                    method='RK45',
-                    t_eval = t_points
-                )
-                try:
-                    self.PHI[idx] = solution.y[0, 1]
-                    self.r[idx] = solution.y[1, 1]
-                    self.x[idx] = solution.y[2, 1]
-                    self.v[idx] = solution.y[3, 1]
-                    self.m[idx] = solution.y[4, 1]
-                except:
-                    print("failed to solve ode with the following: \n")
-                    print(f"state= {state}\n")
-                    print(f"dt= {dt}\n")
-                    pass
-                # grab output of oscillator i
-                self.theta[idx] = self.x[idx] + self.r[idx] * np.cos(self.PHI[idx])
-                action[idx] = self.theta[idx]
-        return action
+        self.PHI = np.zeros((self.num_mods))
+        self.r = np.zeros((self.num_mods))
+        self.x = np.zeros((self.num_mods))
+        self.m = np.zeros((self.num_mods))  
+        self.v = np.zeros((self.num_mods))  
 
     def get_action(self):
         """
@@ -217,7 +131,7 @@ class AukeCPG:
             self.theta[m] = self.x[m] + self.r[m] * np.cos(self.PHI[m])
             # grab output of oscillator i
             if m in [3, 4, 5, 8, 9]:
-                self.theta[m] = -1 * self.theta[m]
+                self.theta[m] = np.pi + (np.pi - self.theta[m])
             # self.theta[m] += np.pi
             action[m] = self.theta[m]  
         return action   
@@ -271,10 +185,13 @@ class AukeCPG:
                     print(f"state= {state}\n")
                     print(f"dt= {self.dt}\n")
                     pass
+                if m in [3, 4, 5, 8, 9]:
+                    print(self.x[m])
+                #     self.r[m] = 1 * self.r[m]
                 self.theta[m] = self.x[m] + self.r[m] * np.cos(self.PHI[m])
                 # grab output of oscillator i
-                if m in [3, 4, 5, 8, 9]:
-                    self.theta[m] = -1 * self.theta[m]
+                # if m in [3, 4, 5, 8, 9]:
+                #     self.theta[m] = -1 * self.theta[m]
                 # 4/30/24 comment: during the last pool test we had this line uncommented-- this could explain some things
                 # self.theta[m] += np.pi/2
                 action[m] = self.theta[m]            
@@ -283,186 +200,8 @@ class AukeCPG:
 
         return total_actions
 
-    def get_coupled_rollout(self, episode_length=60):
-        """
-        Calculate the entire rollout
-        """
-        def ode_fin(state, omega, R, X, rs, phis):
-            PHI, r, x, v, m= state
-            dPhidt = omega
-            for i in range(len(rs)):
-                r_other = rs[i]
-                phi_other = phis[i]
-                dPhidt += self.w*r_other*np.sin(phi_other - PHI - self.phi)
-            dRdt = v
-            dVdt = self.a_r * ((self.a_r/4) * (R-r) - dRdt)
-            dXdt = m
-            dMdt = self.a_x * ((self.a_x/4) * (X-x) - dXdt)
-            return [dPhidt, dRdt, dXdt, dVdt, dMdt]
-        # calculate y_out, which in this case we are using as the tau we pass into the turtle
-        total_actions = np.zeros((self.num_mods, episode_length))
-        omega = self.params[0]
-        Rs = self.params[1:self.num_mods + 1]
-        Xs = self.params[self.num_mods + 1:]
-        front_fins = [[0, 1, 2], [3, 4, 5]]
-        back_fins = [[6, 7], [8, 9]]
-        for i in range(episode_length):
-            action = np.zeros((self.num_mods))
-            # for every front fin
-            for fin in front_fins:
-                num_coupled = 3
-                # for each oscillator in front fin
-                for f in range(len(fin)):
-                    # grab the index of the oscillator
-                    idx = fin[f]
-                    R = Rs[idx]
-                    X = Xs[idx]
-                    # find indices of the other two oscillators coupled to current oscillator
-                    ind1 = fin[(f + 1)%num_coupled]
-                    ind2 = fin[(f + 2)%num_coupled]
-                    rs = [self.r[ind1] , self.r[ind2]]
-                    phis = [self.PHI[ind1] , self.PHI[ind2]]
-                    # state of current oscillator
-                    state = [self.PHI[idx], self.r[idx], self.x[idx], self.v[idx], self.m[idx]]
-                    t_points = [0,self.dt]
-                    solution = scipy.integrate.solve_ivp(
-                        fun = lambda t, y: ode_fin(state, omega, R, X, rs, phis),
-                        t_span=t_points, 
-                        y0=state,
-                        method='RK45',
-                        t_eval = t_points
-                    )
-                    try:
-                        self.PHI[idx] = solution.y[0, 1]
-                        self.r[idx] = solution.y[1, 1]
-                        self.x[idx] = solution.y[2, 1]
-                        self.v[idx] = solution.y[3, 1]
-                        self.m[idx] = solution.y[4, 1]
-                    except:
-                        print("failed to solve ode with the following: \n")
-                        print(f"state= {state}\n")
-                        print(f"dt= {self.dt}\n")
-                        pass
-                    # grab output of oscillator i
-                    self.theta[idx] = self.x[idx] + self.r[idx] * np.cos(self.PHI[idx])
-                    action[idx] = self.theta[idx]
-
-            # for every back fin
-            for fin in back_fins:
-                num_coupled = 2
-                for f in range(len(fin)):
-                    idx = fin[f]                            # grab index of current oscillator
-                    ind = fin[(f + 1) % num_coupled]        # grab index of other oscillator
-                    rs = [self.r[ind]]
-                    phis = [self.PHI[ind]]
-                    # state of current oscillator
-                    state = [self.PHI[idx], self.r[idx], self.x[idx], self.v[idx], self.m[idx]]
-                    t_points = [0,self.dt]
-                    solution = scipy.integrate.solve_ivp(
-                        fun = lambda t, y: ode_fin(state, omega, R, X, rs, phis),
-                        t_span=t_points, 
-                        y0=state,
-                        method='RK45',
-                        t_eval = t_points
-                    )
-                    try:
-                        self.PHI[idx] = solution.y[0, 1]
-                        self.r[idx] = solution.y[1, 1]
-                        self.x[idx] = solution.y[2, 1]
-                        self.v[idx] = solution.y[3, 1]
-                        self.m[idx] = solution.y[4, 1]
-                    except:
-                        print("failed to solve ode with the following: \n")
-                        print(f"state= {state}\n")
-                        print(f"dt= {self.dt}\n")
-                        pass
-                    # grab output of oscillator i
-                    self.theta[idx] = self.x[idx] + self.r[idx] * np.cos(self.PHI[idx])
-                    action[idx] = self.theta[idx]
-            
-            # record action for time step into total_actions struct
-            total_actions[:, i] = action
-
-        return total_actions
     
-    def get_other_rollout(self, episode_length=60):
-        """
-        Calculate the entire rollout. This has all 10 motors coupled together
-        Inspired by Auke Isjpeert's 2007 Model of Salamander
-        """
-        oscillator = {1: [2, 4], 
-                    2: [1, 3, 5],
-                    3: [2, 6, 8],
-                    4: [1, 5],
-                    5: [2, 4, 6],
-                    6: [3, 5, 10],
-                    7: [8, 9],
-                    8: [3, 7, 10],
-                    9: [7, 10],
-                    10: [6, 8, 9]}
-        def ode_fin(state, omega, R, X, rs, phis):
-            PHI, r, x, v, m= state
-            dPhidt = omega
-            for i in range(len(rs)):
-                r_other = rs[i]
-                phi_other = phis[i]
-                dPhidt += self.w*r_other*np.sin(phi_other - PHI - self.phi)
-            dRdt = v
-            dVdt = self.a_r * ((self.a_r/4) * (R-r) - dRdt)
-            dXdt = m
-            dMdt = self.a_x * ((self.a_x/4) * (X-x) - dXdt)
-            return [dPhidt, dRdt, dXdt, dVdt, dMdt]
-        # calculate y_out, which in this case we are using as the tau we pass into the turtle
-        total_actions = np.zeros((self.num_mods, episode_length))
-        omega = self.params[0]
-        Rs = self.params[1:self.num_mods + 1]
-        Xs = self.params[self.num_mods + 1:]
-        for e in range(episode_length):
-            action = np.zeros((self.num_mods))
-            for i in range(self.num_mods):
-                # ex 1: [2, 4], 
-                #    2: [1, 3, 5]
-                R = Rs[i]
-                X = Xs[i]
-                fin = oscillator[i + 1]         # for one-indexing
-                num_coupled = len(fin)
-                fin = [f - 1 for f in fin]
-                rs = []
-                phis = []
-                for c in range(num_coupled):
-                    idx = fin[c]
-                    rs.append(self.r[idx])
-                    phis.append(self.PHI[idx])
-                
-                state = [self.PHI[i], self.r[i], self.x[i], self.v[i], self.m[i]]
-                t_points = [0,self.dt]
-                solution = scipy.integrate.solve_ivp(
-                    fun = lambda t, y: ode_fin(state, omega, R, X, rs, phis),
-                    t_span=t_points, 
-                    y0=state,
-                    method='RK45',
-                    t_eval = t_points
-                )
-                try:
-                    self.PHI[i] = solution.y[0, 1]
-                    self.r[i] = solution.y[1, 1]
-                    self.x[i] = solution.y[2, 1]
-                    self.v[i] = solution.y[3, 1]
-                    self.m[i] = solution.y[4, 1]
-                except:
-                    print("failed to solve ode with the following: \n")
-                    print(f"state= {state}\n")
-                    print(f"dt= {self.dt}\n")
-                    pass
-                # grab output of oscillator i
-                self.theta[i] = self.x[i] + self.r[i] * np.cos(self.PHI[i])
-                action[i] = self.theta[i]
-
-            # record action for time step into total_actions struct
-            total_actions[:, e] = action
-
-        return total_actions
-
+    
     def run(self, 
             env,
             max_episode_length=60):
@@ -530,4 +269,3 @@ class AukeCPG:
             max_episode_length=max_episode_length
         )
         return cumulative_reward, total_actions
-
