@@ -7,10 +7,10 @@
     "minCircularity": 0.1,
     "minConvexity": 0.1,
     "minInertiaRatio": 0.1,
-    "lower_yellow": [15,50,180],
-    "upper_yellow": [40,255,255],
-    "turn_thresh": 700,
-    "dive_thresh": 450,
+    "lower_yellow": [0,30,10],
+    "upper_yellow": [45,100,75],
+    "turn_thresh": 100,
+    "dive_thresh": 100,
     "num_cycles": 1
 
 }

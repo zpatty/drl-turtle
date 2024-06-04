@@ -10,20 +10,6 @@ import cv2
 import numpy as np
 import json 
 
-submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware"
-sys.path.append(submodule)
-
-from std_msgs.msg import String
-import rclpy
-from rclpy.node import Node
-from rclpy.executors import Executor, MultiThreadedExecutor
-
-from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
-from turtle_interfaces.msg import TurtleTraj, TurtleSensors
-
-from std_msgs.msg import String
-from std_msgs.msg import Float64MultiArray
-
 def parse_cv_params():
     with open('cv_config.json') as config:
         param = json.load(config)
@@ -37,43 +23,12 @@ def fixHSVRange(val):
     # OpenCV H,S,V: (0-180,0-255 ,0-255)
     return (180 * val[0] / 360, 255 * val[1] / 100, 255 * val[2] / 100)
 
-global flag
-flag = ''
 
-class MinimalSubscriber(Node):
-
-    def __init__(self):
-        super().__init__('cam_node')
-        self.flag = ''
-        self.subscription = self.create_subscription(
-            String,
-            'turtle_mode_cmd',
-            self.keyboard_callback,
-            10)
-        self.cam_pub = self.create_publisher(String, 'primitive', 10)
-        self.create_rate(100)
-        self.subscription  # prevent unused variable warning
-
-    def keyboard_callback(self, msg):
-        """
-        Callback function that updates the mode the turtle should be in.
-        This method is what enables us to set "emergency stops" mid-trajectory. 
-        """
-        # global mode
-        if msg.data == 'stop':
-            self.flag = 'stop'
 
 def main(args=None):
-    global flag
     home_dir = os.path.expanduser("~")
 
-    rclpy.init(args=args)
-
-    minimal_subscriber = MinimalSubscriber()
-    # node = rclpy.create_node('cam_node')
-
     cv_params, __ = parse_cv_params()
-    print("created subscriber")
     DIM=(640, 480)
 
     lower_yellow = np.array(cv_params["lower_yellow"])
@@ -82,15 +37,10 @@ def main(args=None):
     # cap0.set(3, 1920)
     # cap0.set(4, 1080)
     # cap1 = cv2.VideoCapture(2)
+
     print("active video feed")
-    print("created publisher")
-    # big_mask = np.zeros((640, 480, 1))
-    # cam_pub = node.create_publisher(String, 'primitive', 10)
-    msg = String()
-    count = 0
-    while(minimal_subscriber.flag != 'stop'):
-        
-        rclpy.spin_once(minimal_subscriber)
+
+    while(True):
         # ret0, left = cap1.read()
         ret1, right = cap0.read()
         denoise = 15
@@ -111,7 +61,6 @@ def main(args=None):
         kernel = np.ones((10,10),np.uint8)
 
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-        # big_mask = np.append(big_mask, mask, axis=2)
 
         cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         cnt_s = sorted(cnts, key=cv2.contourArea)
@@ -124,11 +73,6 @@ def main(args=None):
             radius = int(radius)
             cv2.circle(mask,center,radius,10,2)
             centerMask=cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
-            shesh = '/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
-            # print(f"check: {shesh}")
-            cv2.imwrite(shesh + "images/frame%d.jpg" % count, centerMask)
-            # print("saved")
-            count += 1
             # cv2.imshow('Mask',centerMask)
             # if cv2.waitKey(1) & 0xFF == ord('q'):
             #     break
@@ -138,48 +82,32 @@ def main(args=None):
             if abs(centroid[0] - DIM[0]/2) < turn_thresh and abs(centroid[1] - DIM[1]/2) < dive_thresh:
                 # output straight primitive
                 print("go straight...\n")
-                msg.data = 'straight'
-                minimal_subscriber.cam_pub.publish(msg)
-                # cam_pub.publish(msg)
             elif centroid[0] > DIM[0] - (DIM[0]/2 - turn_thresh):
                 # turn right
                 print("turn right...\n")
-                msg.data = 'turnrf'
-                minimal_subscriber.cam_pub.publish(msg)
-                # cam_pub.publish(msg)
             elif centroid[0] < (DIM[0]/2 - turn_thresh):
                 # turn left
                 print("turn left...\n")
-                msg.data = 'turnlf'
-                minimal_subscriber.cam_pub.publish(msg)
-                # cam_pub.publish(msg)
             elif centroid[1] > DIM[1] - (DIM[1]/2 - dive_thresh):
                 # dive
                 print("dive...\n")
-                msg.data = 'dive'
-                minimal_subscriber.cam_pub.publish(msg)
             elif centroid[1] < (DIM[1]/2 - dive_thresh): 
                 # surface
                 print("surface...\n")
-                msg.data = 'surface'
-                minimal_subscriber.cam_pub.publish(msg)
-                # cam_pub.publish(msg)
             else:
                 # dwell
                 print("dwell...\n")
-                msg.data = 'straight'
-                minimal_subscriber.cam_pub.publish(msg)
-                # cam_pub.publish(msg)
         else:
             print("no detection")
             # centerMask=cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
             # cv2.imshow('Mask',centerMask)
             # if cv2.waitKey(1) & 0xFF == ord('q'):
             #     break
-        print(minimal_subscriber.flag)
-    # cv2.destroyAllWindows()
+
+
+    	
+    cv2.destroyAllWindows()
     print("closing")
-    cap0.release()
 
 if __name__ == '__main__':
     main()
