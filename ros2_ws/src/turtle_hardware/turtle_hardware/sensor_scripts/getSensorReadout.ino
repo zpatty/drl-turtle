@@ -1,6 +1,7 @@
 #include <Wire.h>
 #include <Adafruit_INA219.h>
 #include "ICM_20948.h" // Click here to get the library: http://librarymanager/All#SparkFun_ICM_20948_IMU
+#include "MS5837.h"
 
 #define AD0_VAL 1
 
@@ -11,6 +12,13 @@ double q1 = 0;
 double q2 = 0;
 double q3 = 0;
 double q0 = 0;
+
+double base_time = 0;
+double now_time = 0;
+
+double depth_val = 0;
+
+MS5837 ms_depth;
 
 void setup(void) 
 
@@ -23,15 +31,29 @@ void setup(void)
       delay(1);
 
   }
+  Serial.println("Serial Begin");
   Wire.begin();
-  Wire.setClock(400000);
+  Wire.setClock(100000);
+  Serial.println("Wire init");
   icm.begin(Wire, AD0_VAL);
+  Serial.println("ICM Begin");
   if (!ina219.begin() || icm.status != ICM_20948_Stat_Ok) {
 
     Serial.println(F("Failed to find ICM chip"));
 
     while (1) { delay(10); }
   }
+  Serial.println("ICM Initialized");
+  while (!ms_depth.init()) {
+    Serial.println("Depth init failed!");
+    Serial.println("Are SDA/SCL connected correctly?");
+    Serial.println("Blue Robotics Bar30: White=SDA, Green=SCL");
+    Serial.println("\n\n\n");
+    delay(5000);
+  }
+  Serial.println("Depth Initialized");
+  ms_depth.setModel(MS5837::MS5837_30BA);
+  ms_depth.setFluidDensity(997); // kg/m^3 (freshwater, 1029 for seawater)
 
   bool success = true;
     // Initialize the DMP. initializeDMP is a weak function. You can overwrite it if you want to e.g. to change the sample rate
@@ -67,6 +89,8 @@ void setup(void)
     }
 
   }
+
+  base_time = millis();
 }
 
 
@@ -74,6 +98,12 @@ void loop(void)
 
 {
   printIMUData(&icm, &ina219);
+  // ms_depth.read();
+  
+  // Serial.print("Depth: "); 
+  // Serial.print(ms_depth.depth()); 
+  // Serial.println(" m");
+  
 }
 
 void printScaledAGMT(ICM_20948_I2C *sensor) {
@@ -139,6 +169,19 @@ void printFormattedFloat(float val, uint8_t leading, uint8_t decimals) {
 
 void printIMUData(ICM_20948_I2C *sensor, Adafruit_INA219 * volt_sensor){
   icm.readDMPdataFromFIFO(&data);
+  now_time = millis();
+  if (now_time - base_time > 50) {
+    ms_depth.read();
+    // Serial.print("Depth: "); 
+    depth_val = ms_depth.depth();
+    // Serial.print(ms_depth.depth()); 
+    // Serial.println(" m");
+    base_time = millis();
+  }
+  else {
+    depth_val = NAN;
+  }
+  
   float busvoltage = 0;
 
   if ((icm.status == ICM_20948_Stat_Ok) || (icm.status == ICM_20948_Stat_FIFOMoreDataAvail)) // Was valid data available?
@@ -185,6 +228,11 @@ void printIMUData(ICM_20948_I2C *sensor, Adafruit_INA219 * volt_sensor){
       printFormattedFloat(sensor->gyrY(), 5, 2);
       Serial.print(", ");
       printFormattedFloat(sensor->gyrZ(), 5, 2);
+      Serial.print(" ],");
+
+      // Depth
+      Serial.print(" ], \"Depth\" :[ ");
+      printFormattedFloat(depth_val, 5, 2);
       Serial.print(" ],");
 
       busvoltage = volt_sensor->getBusVoltage_V();
