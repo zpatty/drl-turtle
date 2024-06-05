@@ -329,6 +329,7 @@ class TurtleRobot(Node, gym.Env):
         self.quat_data = np.zeros((4,1))
         self.tau_data = np.zeros((10,1))
         self.voltage_data = np.zeros((1,1))
+        self.depth_data = np.zeros((1,1))
 
         # to store individual contributions of rewards 
         self.a_rewards = np.zeros((1,1))
@@ -350,6 +351,7 @@ class TurtleRobot(Node, gym.Env):
         self.quat_data = np.zeros((4,1))
         self.tau_data = np.zeros((10,1))
         self.voltage_data = np.zeros((1,1))
+        self.depth_data = np.zeros((1,1))
         self.tau_rewards = np.zeros((1,1))
 
         return observation, "reset"
@@ -705,7 +707,7 @@ class TurtleRobot(Node, gym.Env):
         sensors = self.xiao.readline()
         try:
             sensor_dict = json.loads(sensors.decode('utf-8'))
-            sensor_keys = ('Acc', 'Gyr', 'Quat', 'Voltage')
+            sensor_keys = ('Acc', 'Gyr', 'Quat', 'Depth', 'Voltage')
             if set(sensor_keys).issubset(sensor_dict):
                 a = np.array(sensor_dict['Acc']).reshape((3,1)) * 9.81
                 gyr = np.array(sensor_dict['Gyr']).reshape((3,1))
@@ -715,11 +717,14 @@ class TurtleRobot(Node, gym.Env):
                 g_local = np.dot(R.T, g_w)
                 acc = a - g_local           # acc without gravity 
                 quat_vec = q.reshape((4,1))
+                d = sensor_dict['Depth'][0]
                 volt = sensor_dict['Voltage'][0]
                 self.acc_data = np.append(self.acc_data, acc, axis=1)
                 self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
                 self.quat_data = np.append(self.quat_data, quat_vec, axis=1)
                 self.voltage_data = np.append(self.voltage_data, volt)
+                self.depth_data = np.append(self.depth_data, d)
+                self.depth = d
                 self.voltage = volt
             else:
                 self.add_place_holder()
