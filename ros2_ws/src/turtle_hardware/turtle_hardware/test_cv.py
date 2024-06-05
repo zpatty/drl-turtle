@@ -7,6 +7,8 @@ import traceback
 
 # Standard imports
 import cv2
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
 import numpy as np
 import json 
 
@@ -17,6 +19,7 @@ from std_msgs.msg import String
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import Executor, MultiThreadedExecutor
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 
 from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
 from turtle_interfaces.msg import TurtleTraj, TurtleSensors
@@ -45,12 +48,21 @@ class MinimalSubscriber(Node):
     def __init__(self):
         super().__init__('cam_node')
         self.flag = ''
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10
+        )
         self.subscription = self.create_subscription(
             String,
             'turtle_mode_cmd',
             self.keyboard_callback,
-            10)
-        self.cam_pub = self.create_publisher(String, 'primitive', 10)
+            qos_profile)
+        self.cam_pub = self.create_publisher(String, 'primitive', qos_profile)
+        self.publisher_ = self.create_publisher(Image, 'video_frames' , qos_profile)
+        self.br = CvBridge()
+
         self.create_rate(100)
         self.subscription  # prevent unused variable warning
 
@@ -93,6 +105,13 @@ def main(args=None):
         rclpy.spin_once(minimal_subscriber)
         # ret0, left = cap1.read()
         ret1, right = cap0.read()
+        if ret1 == True:
+            print(f"count: {count}")
+            print("sending image")
+            minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(right, encoding="bgr8"))
+            count += 1
+        else:
+            print("ignore frame")
         denoise = 15
         blur = cv2.GaussianBlur(right, (5,5), 1)
         # Converting from BGR to HSV color space
@@ -124,11 +143,15 @@ def main(args=None):
             radius = int(radius)
             cv2.circle(mask,center,radius,10,2)
             centerMask=cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
-            shesh = '/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
+            # try:
+            #     minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(right))
+            # except:
+            #     print("can't do this")
+            # shesh = '/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
             # print(f"check: {shesh}")
-            cv2.imwrite(shesh + "images/frame%d.jpg" % count, centerMask)
+            # cv2.imwrite(shesh + "images/frame%d.jpg" % count, centerMask)
             # print("saved")
-            count += 1
+            # count += 1
             # cv2.imshow('Mask',centerMask)
             # if cv2.waitKey(1) & 0xFF == ord('q'):
             #     break
@@ -176,7 +199,7 @@ def main(args=None):
             # cv2.imshow('Mask',centerMask)
             # if cv2.waitKey(1) & 0xFF == ord('q'):
             #     break
-        print(minimal_subscriber.flag)
+        # print(minimal_subscriber.flag)
     # cv2.destroyAllWindows()
     print("closing")
     cap0.release()
