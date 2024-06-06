@@ -14,7 +14,7 @@ class CamSubscriber(Node):
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
             history=HistoryPolicy.KEEP_LAST,
-            depth=10
+            depth=50
         )
         self.cam_subscription = self.create_subscription(
             Image,
