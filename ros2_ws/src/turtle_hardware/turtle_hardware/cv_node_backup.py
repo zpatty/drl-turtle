@@ -1,7 +1,5 @@
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
-
 from turtle_interfaces.msg import TurtleTraj, TurtleSensors
 import transforms3d.quaternions as quat
 import torch
@@ -28,7 +26,6 @@ import numpy as np
 import json
 import serial
 import random
-from statistics import mode as md
 # print(f"sec import toc: {time.time()-tic}")
 
 # tic = time.time()
@@ -50,60 +47,40 @@ class TurtleRobot(Node, gym.Env):
 
     def __init__(self, topic, params=None):
         super().__init__('turtle_rl_node')
-        qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=2
-        )
-        buff_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=10
-        )
         # subscribes to keyboard setting different turtle modes 
         self.mode_cmd_sub = self.create_subscription(
             String,
             topic,
             self.turtle_mode_callback,
-            qos_profile)
+            10)
         # for case when trajectory mode, receives trajectory msg
         self.motor_traj_sub = self.create_subscription(
             TurtleTraj,
             'turtle_traj',
             self.trajectory_callback,
-            qos_profile
-        )
-        # for case camera mode, receives motion primitive
-        self.cam_sub = self.create_subscription(
-            String,
-            'primitive',
-            self.primitive_callback,
-            buff_profile
+            10
         )
         # continously reads from all the sensors and publishes data at end of trajectory
         self.sensors_pub = self.create_publisher(
             TurtleSensors,
             'turtle_sensors',
-            qos_profile
+            10
         )
         # sends acknowledgement packet to keyboard node
         self.cmd_received_pub = self.create_publisher(
             String,
             'turtle_state',
-            qos_profile
+            10
         )
         # continously publishes the current motor position      
         self.motor_pos_pub = self.create_publisher(
             String,
             'turtle_motor_pos',
-            qos_profile
+            10
         )
         self.mode_cmd_sub       # prevent unused variable warning
         self.create_rate(100)
         self.mode = 'rest'      # initialize motors mode to rest state
-        self.primitives = ['dwell']
         self.voltage = 12.0
         self.n_axis = 3
         self.qs = np.zeros((10,1))
@@ -184,24 +161,8 @@ class TurtleRobot(Node, gym.Env):
             self.mode = 'PGPE'
         elif msg.data == 'SAC':
             self.mode = 'SAC'
-        elif msg.data == 'turnlr':
-            self.mode = 'turnlr'
-        elif msg.data == 'turnrf':
-            self.mode = 'turnrf'
-        elif msg.data == 'straight':
-            self.mode = 'straight'
-        elif msg.data == 'planner':
-            self.mode = 'planner'
         else:
             self.mode = 'rest'  
-
-    def primitive_callback(self, msg):
-        """
-        Callback function that updates the desired behavior based on the computer vision module. 
-        """
-        self.primitives.append(msg.data)
-        
-
     def create_data_structs(self):
         """
         Create initial data structs to hold turtle data
@@ -576,351 +537,13 @@ def main(args=None):
                 cmd_msg.data = 'rest_received'
                 turtle_node.cmd_received_pub.publish(cmd_msg)
                 print(f"current voltage: {turtle_node.voltage}\n")
-            elif turtle_node.mode == 'turnlr':
-                rclpy.spin_once(turtle_node)
-                print("plan plan plan")
-                primitives = ['surface', 'turnrf', 'turnrr', 'straight', 'turnlr']
-                # primitives = ['turnrr']
-                num_cycles = 1
-                turtle_node.Joints.disable_torque()
-                turtle_node.Joints.set_current_cntrl_mode()
-                turtle_node.Joints.enable_torque()
-
-                while True:
-                    rclpy.spin_once(turtle_node)
-                    if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
-                        turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-                        turtle_node.Joints.disable_torque()
-                        break
-                    # # get mode here
-                    # # primitive = random.choice(primitives)
-                    # print(f"list : {turtle_node.primitives}")
-                    # primitive = md(turtle_node.primitives)
-                    # print(f"prim: {primitive}")
-                    # turtle_node.primitives = ['dwell']
-                    primitive = "turnlf"
-                    if primitive != "dwell":
-                        print(f"---------------------------------------PRIMITIVE: {primitive}\n\n")
-                        qd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
-                        dqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
-                        ddqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
-                        tvec = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
-                        first_time = True
-                        first_loop = True
-                        input_history = np.zeros((turtle_node.nq,10))
-                        q_data = np.zeros((turtle_node.nq,1))
-                        tau_data = np.zeros((turtle_node.nq,1))
-                        timestamps = np.zeros((1,1))
-                        dt_loop = np.zeros((1,1))       # hold dt data 
-                        dq_data = np.zeros((turtle_node.nq,1))
-                        tau_data = np.zeros((turtle_node.nq,1))
-                        timestamps = np.zeros((1,1))
-                        dt_loop = np.zeros((1,1))       # hold dt data 
-                        cycle = 0
-
-                        # zero =  np.zeros((self.nq,1))
-                        t_old = time.time()
-                        # our loop's "starting" time
-                        t_0 = time.time()
-                        while cycle < num_cycles:
-                            if turtle_node.voltage < threshold:
-                                print("voltage too low--powering off...")
-                                turtle_node.Joints.disable_torque()
-                                break
-                            rclpy.spin_once(turtle_node)
-                            # print("traj 1...")
-                            if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
-                                turtle_node.Joints.send_torque_cmd(turtle_node.nq * [0])
-                                turtle_node.Joints.disable_torque()
-                                first_time = True
-                                break
-                            
-                            q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
-                            if first_loop:
-                                n = get_qindex((time.time() - t_0), tvec)
-                            else:
-                                # print("done with first loop")
-                                offset = t_0 - 2
-                                n = get_qindex((time.time() - offset), tvec)
-
-                            # print(f"n: {n}\n")
-                            if n == len(tvec[0]) - 1:
-                                first_loop = False
-                                t_0 = time.time()
-                                cycle += 1
-                                print(f"-----------------cycle: {cycle}\n\n\n")
-                            
-                            qd = np.array(qd_mat[:, n]).reshape(-1,1)
-                            dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
-                            ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
-                            # # print(f"[DEBUG] qdata: {q_data}\n")
-                            # print(f"[DEBUG] qd: {qd}\n")
-                            q_data=np.append(q_data, q, axis = 1) 
-                            # # At the first iteration velocity is 0  
-                            
-                            if first_time:
-                                # dq = np.zeros((nq,1))
-                                dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
-                                dq_data=np.append(dq_data, dq, axis = 1) 
-                                q_old = q
-                                first_time = False
-                            else:
-                                t = time.time()
-                                dt = t - t_old
-                            #     # print(f"[DEBUG] dt: {dt}\n")  
-                                t_old = t
-                                # dq = diff(q, q_old, dt)
-                                dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
-                                dq_data=np.append(dq_data, dq, axis = 1) 
-                                q_old = q
-                                # # calculate errors
-                            err = q - qd
-                            # # print(f"[DEBUG] e: {err}\n")
-                            # # print(f"[DEBUG] q: {q * 180/3.14}\n")
-                            # # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
-                            err_dot = dq
-
-                            tau = turtle_controller(q,dq,qd,dqd,ddqd,turtle_node.Kp,turtle_node.KD)
-
-                            # publish motor data, tau data, 
-                            
-                            input_history = np.append(input_history[:,1:], tau,axis=1)
-                            input_mean = np.mean(input_history, axis = 1)
-                            curr = grab_arm_current(input_mean, min_torque, max_torque)
-                            turtle_node.Joints.send_torque_cmd(curr)
-            elif turtle_node.mode == 'turnrf':
-                rclpy.spin_once(turtle_node)
-                # primitives = ['surface', 'turnrf', 'turnrr', 'straight', 'turnlr']
-                primitives = ['turnrr']
-                num_cycles = 5
-                turtle_node.Joints.disable_torque()
-                turtle_node.Joints.set_current_cntrl_mode()
-                turtle_node.Joints.enable_torque()
-
-                while True:
-                    rclpy.spin_once(turtle_node)
-                    if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
-                        turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-                        turtle_node.Joints.disable_torque()
-                        break
-                    # # get mode here
-                    # # primitive = random.choice(primitives)
-                    # print(f"list : {turtle_node.primitives}")
-                    # primitive = md(turtle_node.primitives)
-                    # print(f"prim: {primitive}")
-                    # turtle_node.primitives = ['dwell']
-                    primitive = "turnlf"
-                    if primitive != "dwell":
-                        print(f"---------------------------------------PRIMITIVE: {primitive}\n\n")
-                        qd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
-                        dqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
-                        ddqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
-                        tvec = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
-                        first_time = True
-                        first_loop = True
-                        input_history = np.zeros((turtle_node.nq,10))
-                        q_data = np.zeros((turtle_node.nq,1))
-                        tau_data = np.zeros((turtle_node.nq,1))
-                        timestamps = np.zeros((1,1))
-                        dt_loop = np.zeros((1,1))       # hold dt data 
-                        dq_data = np.zeros((turtle_node.nq,1))
-                        tau_data = np.zeros((turtle_node.nq,1))
-                        timestamps = np.zeros((1,1))
-                        dt_loop = np.zeros((1,1))       # hold dt data 
-                        cycle = 0
-
-                        # zero =  np.zeros((self.nq,1))
-                        t_old = time.time()
-                        # our loop's "starting" time
-                        t_0 = time.time()
-                        while cycle < num_cycles:
-                            if turtle_node.voltage < threshold:
-                                print("voltage too low--powering off...")
-                                turtle_node.Joints.disable_torque()
-                                break
-                            rclpy.spin_once(turtle_node)
-                            # print("traj 1...")
-                            if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
-                                turtle_node.Joints.send_torque_cmd(turtle_node.nq * [0])
-                                turtle_node.Joints.disable_torque()
-                                first_time = True
-                                break
-                            
-                            q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
-                            if first_loop:
-                                n = get_qindex((time.time() - t_0), tvec)
-                            else:
-                                # print("done with first loop")
-                                offset = t_0 - 2
-                                n = get_qindex((time.time() - offset), tvec)
-
-                            # print(f"n: {n}\n")
-                            if n == len(tvec[0]) - 1:
-                                first_loop = False
-                                t_0 = time.time()
-                                cycle += 1
-                                print(f"-----------------cycle: {cycle}\n\n\n")
-                            
-                            qd = np.array(qd_mat[:, n]).reshape(-1,1)
-                            dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
-                            ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
-                            # # print(f"[DEBUG] qdata: {q_data}\n")
-                            # print(f"[DEBUG] qd: {qd}\n")
-                            q_data=np.append(q_data, q, axis = 1) 
-                            # # At the first iteration velocity is 0  
-                            
-                            if first_time:
-                                # dq = np.zeros((nq,1))
-                                dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
-                                dq_data=np.append(dq_data, dq, axis = 1) 
-                                q_old = q
-                                first_time = False
-                            else:
-                                t = time.time()
-                                dt = t - t_old
-                            #     # print(f"[DEBUG] dt: {dt}\n")  
-                                t_old = t
-                                # dq = diff(q, q_old, dt)
-                                dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
-                                dq_data=np.append(dq_data, dq, axis = 1) 
-                                q_old = q
-                                # # calculate errors
-                            err = q - qd
-                            # # print(f"[DEBUG] e: {err}\n")
-                            # # print(f"[DEBUG] q: {q * 180/3.14}\n")
-                            # # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
-                            err_dot = dq
-
-                            tau = turtle_controller(q,dq,qd,dqd,ddqd,turtle_node.Kp,turtle_node.KD)
-
-                            # publish motor data, tau data, 
-                            
-                            input_history = np.append(input_history[:,1:], tau,axis=1)
-                            input_mean = np.mean(input_history, axis = 1)
-                            curr = grab_arm_current(input_mean, min_torque, max_torque)
-                            turtle_node.Joints.send_torque_cmd(curr)
-            elif turtle_node.mode == 'straight':
-                rclpy.spin_once(turtle_node)
-                # print("plan plan plan")
-                # primitives = ['surface', 'turnrf', 'turnrr', 'straight', 'turnlr']
-                # primitives = ['turnrr']
-                num_cycles = 1
-                turtle_node.Joints.disable_torque()
-                turtle_node.Joints.set_current_cntrl_mode()
-                turtle_node.Joints.enable_torque()
-
-                while True:
-                    rclpy.spin_once(turtle_node)
-                    if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
-                        turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
-                        turtle_node.Joints.disable_torque()
-                        break
-                    # # get mode here
-                    # # primitive = random.choice(primitives)
-                    # print(f"list : {turtle_node.primitives}")
-                    # primitive = md(turtle_node.primitives)
-                    # print(f"prim: {primitive}")
-                    # turtle_node.primitives = ['dwell']
-                    primitive = "straight"
-                    if primitive != "dwell":
-                        print(f"---------------------------------------PRIMITIVE: {primitive}\n\n")
-                        qd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
-                        dqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
-                        ddqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
-                        tvec = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
-                        first_time = True
-                        first_loop = True
-                        input_history = np.zeros((turtle_node.nq,10))
-                        q_data = np.zeros((turtle_node.nq,1))
-                        tau_data = np.zeros((turtle_node.nq,1))
-                        timestamps = np.zeros((1,1))
-                        dt_loop = np.zeros((1,1))       # hold dt data 
-                        dq_data = np.zeros((turtle_node.nq,1))
-                        tau_data = np.zeros((turtle_node.nq,1))
-                        timestamps = np.zeros((1,1))
-                        dt_loop = np.zeros((1,1))       # hold dt data 
-                        cycle = 0
-
-                        # zero =  np.zeros((self.nq,1))
-                        t_old = time.time()
-                        # our loop's "starting" time
-                        t_0 = time.time()
-                        while cycle < num_cycles:
-                            if turtle_node.voltage < threshold:
-                                print("voltage too low--powering off...")
-                                turtle_node.Joints.disable_torque()
-                                break
-                            rclpy.spin_once(turtle_node)
-                            # print("traj 1...")
-                            if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
-                                turtle_node.Joints.send_torque_cmd(turtle_node.nq * [0])
-                                turtle_node.Joints.disable_torque()
-                                first_time = True
-                                break
-                            
-                            q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
-                            if first_loop:
-                                n = get_qindex((time.time() - t_0), tvec)
-                            else:
-                                # print("done with first loop")
-                                offset = t_0 - 2
-                                n = get_qindex((time.time() - offset), tvec)
-
-                            # print(f"n: {n}\n")
-                            if n == len(tvec[0]) - 1:
-                                first_loop = False
-                                t_0 = time.time()
-                                cycle += 1
-                                print(f"-----------------cycle: {cycle}\n\n\n")
-                            
-                            qd = np.array(qd_mat[:, n]).reshape(-1,1)
-                            dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
-                            ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
-                            # # print(f"[DEBUG] qdata: {q_data}\n")
-                            # print(f"[DEBUG] qd: {qd}\n")
-                            q_data=np.append(q_data, q, axis = 1) 
-                            # # At the first iteration velocity is 0  
-                            
-                            if first_time:
-                                # dq = np.zeros((nq,1))
-                                dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
-                                dq_data=np.append(dq_data, dq, axis = 1) 
-                                q_old = q
-                                first_time = False
-                            else:
-                                t = time.time()
-                                dt = t - t_old
-                            #     # print(f"[DEBUG] dt: {dt}\n")  
-                                t_old = t
-                                # dq = diff(q, q_old, dt)
-                                dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
-                                dq_data=np.append(dq_data, dq, axis = 1) 
-                                q_old = q
-                                # # calculate errors
-                            err = q - qd
-                            # # print(f"[DEBUG] e: {err}\n")
-                            # # print(f"[DEBUG] q: {q * 180/3.14}\n")
-                            # # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
-                            err_dot = dq
-
-                            tau = turtle_controller(q,dq,qd,dqd,ddqd,turtle_node.Kp,turtle_node.KD)
-
-                            # publish motor data, tau data, 
-                            
-                            input_history = np.append(input_history[:,1:], tau,axis=1)
-                            input_mean = np.mean(input_history, axis = 1)
-                            curr = grab_arm_current(input_mean, min_torque, max_torque)
-                            turtle_node.Joints.send_torque_cmd(curr)
-
-
             elif turtle_node.mode == 'planner':
                 """
                 Randomly pick a motion primitive and run it 4-5 times
                 """
-                print("plan plan plan")
                 primitives = ['surface', 'turnrf', 'turnrr', 'straight', 'turnlr']
                 # primitives = ['turnrr']
-                num_cycles = 1
+                num_cycles = 4
                 turtle_node.Joints.disable_torque()
                 turtle_node.Joints.set_current_cntrl_mode()
                 turtle_node.Joints.enable_torque()
@@ -931,104 +554,95 @@ def main(args=None):
                         turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
                         turtle_node.Joints.disable_torque()
                         break
-                    # get mode here
-                    # primitive = random.choice(primitives)
-                    # print(f"list : {turtle_node.primitives}")
-                    try:
-                        primitive = md(turtle_node.primitives)
-                    except:
-                        primitive = "dwell"
-                    # print(f"prim: {primitive}")
-                    turtle_node.primitives = []
-                    if primitive != "dwell":
-                        print(f"---------------------------------------PRIMITIVE: {primitive}\n\n")
-                        qd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
-                        dqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
-                        ddqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
-                        tvec = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
-                        first_time = True
-                        first_loop = True
-                        input_history = np.zeros((turtle_node.nq,10))
-                        q_data = np.zeros((turtle_node.nq,1))
-                        tau_data = np.zeros((turtle_node.nq,1))
-                        timestamps = np.zeros((1,1))
-                        dt_loop = np.zeros((1,1))       # hold dt data 
-                        dq_data = np.zeros((turtle_node.nq,1))
-                        tau_data = np.zeros((turtle_node.nq,1))
-                        timestamps = np.zeros((1,1))
-                        dt_loop = np.zeros((1,1))       # hold dt data 
-                        cycle = 0
+                    primitive = random.choice(primitives)
+                    print(f"---------------------------------------PRIMITIVE: {primitive}\n\n")
+                    qd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
+                    dqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
+                    ddqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
+                    tvec = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
+                    first_time = True
+                    first_loop = True
+                    input_history = np.zeros((turtle_node.nq,10))
+                    q_data = np.zeros((turtle_node.nq,1))
+                    tau_data = np.zeros((turtle_node.nq,1))
+                    timestamps = np.zeros((1,1))
+                    dt_loop = np.zeros((1,1))       # hold dt data 
+                    dq_data = np.zeros((turtle_node.nq,1))
+                    tau_data = np.zeros((turtle_node.nq,1))
+                    timestamps = np.zeros((1,1))
+                    dt_loop = np.zeros((1,1))       # hold dt data 
+                    cycle = 0
 
-                        # zero =  np.zeros((self.nq,1))
-                        t_old = time.time()
-                        # our loop's "starting" time
-                        t_0 = time.time()
-                        while cycle < num_cycles:
-                            if turtle_node.voltage < threshold:
-                                print("voltage too low--powering off...")
-                                turtle_node.Joints.disable_torque()
-                                break
-                            rclpy.spin_once(turtle_node)
-                            # print("traj 1...")
-                            if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
-                                turtle_node.Joints.send_torque_cmd(turtle_node.nq * [0])
-                                turtle_node.Joints.disable_torque()
-                                first_time = True
-                                break
-                            
-                            q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
-                            if first_loop:
-                                n = get_qindex((time.time() - t_0), tvec)
-                            else:
-                                # print("done with first loop")
-                                offset = t_0 - 2
-                                n = get_qindex((time.time() - offset), tvec)
+                    # zero =  np.zeros((self.nq,1))
+                    t_old = time.time()
+                    # our loop's "starting" time
+                    t_0 = time.time()
+                    while cycle < num_cycles:
+                        if turtle_node.voltage < threshold:
+                            print("voltage too low--powering off...")
+                            turtle_node.Joints.disable_torque()
+                            break
+                        rclpy.spin_once(turtle_node)
+                        # print("traj 1...")
+                        if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
+                            turtle_node.Joints.send_torque_cmd(turtle_node.nq * [0])
+                            turtle_node.Joints.disable_torque()
+                            first_time = True
+                            break
+                        
+                        q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
+                        if first_loop:
+                            n = get_qindex((time.time() - t_0), tvec)
+                        else:
+                            # print("done with first loop")
+                            offset = t_0 - 2
+                            n = get_qindex((time.time() - offset), tvec)
 
-                            # print(f"n: {n}\n")
-                            if n == len(tvec[0]) - 1:
-                                first_loop = False
-                                t_0 = time.time()
-                                cycle += 1
-                                print(f"-----------------cycle: {cycle}\n\n\n")
-                            
-                            qd = np.array(qd_mat[:, n]).reshape(-1,1)
-                            dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
-                            ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
-                            # # print(f"[DEBUG] qdata: {q_data}\n")
-                            # print(f"[DEBUG] qd: {qd}\n")
-                            q_data=np.append(q_data, q, axis = 1) 
-                            # # At the first iteration velocity is 0  
-                            
-                            if first_time:
-                                # dq = np.zeros((nq,1))
-                                dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
-                                dq_data=np.append(dq_data, dq, axis = 1) 
-                                q_old = q
-                                first_time = False
-                            else:
-                                t = time.time()
-                                dt = t - t_old
-                            #     # print(f"[DEBUG] dt: {dt}\n")  
-                                t_old = t
-                                # dq = diff(q, q_old, dt)
-                                dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
-                                dq_data=np.append(dq_data, dq, axis = 1) 
-                                q_old = q
-                                # # calculate errors
-                            err = q - qd
-                            # # print(f"[DEBUG] e: {err}\n")
-                            # # print(f"[DEBUG] q: {q * 180/3.14}\n")
-                            # # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
-                            err_dot = dq
+                        # print(f"n: {n}\n")
+                        if n == len(tvec[0]) - 1:
+                            first_loop = False
+                            t_0 = time.time()
+                            cycle += 1
+                            print(f"-----------------cycle: {cycle}\n\n\n")
+                        
+                        qd = np.array(qd_mat[:, n]).reshape(-1,1)
+                        dqd = np.array(dqd_mat[:, n]).reshape(-1,1)
+                        ddqd = np.array(ddqd_mat[:, n]).reshape(-1,1)
+                        # # print(f"[DEBUG] qdata: {q_data}\n")
+                        # print(f"[DEBUG] qd: {qd}\n")
+                        q_data=np.append(q_data, q, axis = 1) 
+                        # # At the first iteration velocity is 0  
+                        
+                        if first_time:
+                            # dq = np.zeros((nq,1))
+                            dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
+                            dq_data=np.append(dq_data, dq, axis = 1) 
+                            q_old = q
+                            first_time = False
+                        else:
+                            t = time.time()
+                            dt = t - t_old
+                        #     # print(f"[DEBUG] dt: {dt}\n")  
+                            t_old = t
+                            # dq = diff(q, q_old, dt)
+                            dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
+                            dq_data=np.append(dq_data, dq, axis = 1) 
+                            q_old = q
+                            # # calculate errors
+                        err = q - qd
+                        # # print(f"[DEBUG] e: {err}\n")
+                        # # print(f"[DEBUG] q: {q * 180/3.14}\n")
+                        # # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
+                        err_dot = dq
 
-                            tau = turtle_controller(q,dq,qd,dqd,ddqd,turtle_node.Kp,turtle_node.KD)
+                        tau = turtle_controller(q,dq,qd,dqd,ddqd,turtle_node.Kp,turtle_node.KD)
 
-                            # publish motor data, tau data, 
-                            
-                            input_history = np.append(input_history[:,1:], tau,axis=1)
-                            input_mean = np.mean(input_history, axis = 1)
-                            curr = grab_arm_current(input_mean, min_torque, max_torque)
-                            turtle_node.Joints.send_torque_cmd(curr)
+                        # publish motor data, tau data, 
+                        
+                        input_history = np.append(input_history[:,1:], tau,axis=1)
+                        input_mean = np.mean(input_history, axis = 1)
+                        curr = grab_arm_current(input_mean, min_torque, max_torque)
+                        turtle_node.Joints.send_torque_cmd(curr)
 
                 turtle_node.Joints.disable_torque()
 
@@ -1243,7 +857,7 @@ def main(args=None):
                             input_history = np.append(input_history[:,1:], tau,axis=1)
                             input_mean = np.mean(input_history, axis = 1)
                             curr = grab_arm_current(input_mean, min_torque, max_torque)
-                            # turtle_node.Joints.send_torque_cmd(curr)
+                            turtle_node.Joints.send_torque_cmd(curr)
                             prev_primitive = primitive 
                     
             else:
