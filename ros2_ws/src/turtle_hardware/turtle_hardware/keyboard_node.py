@@ -14,6 +14,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
 from turtle_interfaces.msg import TurtleTraj, TurtleSensors
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 
 from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
@@ -167,7 +168,13 @@ def main(args=None):
     global rest_received
     global traj
     node = rclpy.create_node('keyboard_node')
-    tomotors = node.create_publisher(String, 'turtle_mode_cmd', 10)
+    qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10
+        )
+    tomotors = node.create_publisher(String, 'turtle_mode_cmd', qos_profile)
     traj_pub = node.create_publisher(TurtleTraj, 'turtle_traj', 10)
     turtle_sub = node.create_subscription(TurtleSensors, 'turtle_sensors', turtle_data_callback, 10)
     turtle_cmd_received = node.create_subscription(String, 'turtle_state', turtle_state_callback, 10)
