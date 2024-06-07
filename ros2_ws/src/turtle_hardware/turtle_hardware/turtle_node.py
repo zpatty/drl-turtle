@@ -82,35 +82,41 @@ class TurtleRobot(Node):
     def __init__(self, topic):
         super().__init__('turtle_node')
         # subscribes to keyboard setting different turtle modes 
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=2
+        )
         self.mode_cmd_sub = self.create_subscription(
             String,
             topic,
             self.turtle_mode_callback,
-            10)
+            qos_profile)
         # for case when trajectory mode, receives trajectory msg
         self.motor_traj_sub = self.create_subscription(
             TurtleTraj,
             'turtle_traj',
             self.trajectory_callback,
-            10
+            qos_profile
         )
         # continously reads from all the sensors and publishes data at end of trajectory
         self.sensors_pub = self.create_publisher(
             TurtleSensors,
             'turtle_sensors',
-            10
+            qos_profile
         )
         # sends acknowledgement packet to keyboard node
         self.cmd_received_pub = self.create_publisher(
             String,
             'turtle_state',
-            10
+            qos_profile
         )
         # continously publishes the current motor position      
         self.motor_pos_pub = self.create_publisher(
             String,
             'turtle_motor_pos',
-            10
+            qos_profile
         )
         self.mode_cmd_sub       # prevent unused variable warning
         self.create_rate(100)

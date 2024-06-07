@@ -636,15 +636,15 @@ def main(args=None):
                                 break
                             
                             q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
-                            if first_loop:
-                                n = get_qindex((time.time() - t_0), tvec)
-                            else:
+                            # if first_loop:
+                            n = get_qindex((time.time() - t_0), tvec)
+                            # else:
                                 # print("done with first loop")
-                                offset = t_0 - 2
-                                n = get_qindex((time.time() - offset), tvec)
+                                # offset = t_0 - 2
+                                # n = get_qindex((time.time() - offset), tvec)
 
                             # print(f"n: {n}\n")
-                            if n == len(tvec[0]) - 1:
+                            if n > len(tvec[0]) - 2:
                                 first_loop = False
                                 t_0 = time.time()
                                 cycle += 1
@@ -747,15 +747,15 @@ def main(args=None):
                                 break
                             
                             q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
-                            if first_loop:
-                                n = get_qindex((time.time() - t_0), tvec)
-                            else:
+                            # if first_loop:
+                            n = get_qindex((time.time() - t_0), tvec)
+                            # else:
                                 # print("done with first loop")
-                                offset = t_0 - 2
-                                n = get_qindex((time.time() - offset), tvec)
+                                # offset = t_0 - 2
+                                # n = get_qindex((time.time() - offset), tvec)
 
                             # print(f"n: {n}\n")
-                            if n == len(tvec[0]) - 1:
+                            if n > len(tvec[0]) - 2:
                                 first_loop = False
                                 t_0 = time.time()
                                 cycle += 1
@@ -859,15 +859,15 @@ def main(args=None):
                                 break
                             
                             q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
-                            if first_loop:
-                                n = get_qindex((time.time() - t_0), tvec)
-                            else:
+                            # if first_loop:
+                            n = get_qindex((time.time() - t_0), tvec)
+                            # else:
                                 # print("done with first loop")
-                                offset = t_0 - 2
-                                n = get_qindex((time.time() - offset), tvec)
+                                # offset = t_0 - 2
+                                # n = get_qindex((time.time() - offset), tvec)
 
                             # print(f"n: {n}\n")
-                            if n == len(tvec[0]) - 1:
+                            if n > len(tvec[0]) - 2:
                                 first_loop = False
                                 t_0 = time.time()
                                 cycle += 1
@@ -977,15 +977,15 @@ def main(args=None):
                                 break
                             
                             q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
-                            if first_loop:
-                                n = get_qindex((time.time() - t_0), tvec)
-                            else:
+                            # if first_loop:
+                            n = get_qindex((time.time() - t_0), tvec)
+                            # else:
                                 # print("done with first loop")
-                                offset = t_0 - 2
-                                n = get_qindex((time.time() - offset), tvec)
+                                # offset = t_0 - 2
+                                # n = get_qindex((time.time() - offset), tvec)
 
                             # print(f"n: {n}\n")
-                            if n == len(tvec[0]) - 1:
+                            if n > len(tvec[0]) - 2:
                                 first_loop = False
                                 t_0 = time.time()
                                 cycle += 1
