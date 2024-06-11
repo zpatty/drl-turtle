@@ -86,6 +86,8 @@ class MinimalSubscriber(Node):
             qos_profile)
         self.cam_pub = self.create_publisher(String, 'primitive', buff_profile)
         self.publisher_ = self.create_publisher(Image, 'video_frames' , qos_profile)
+        self.publisher_color = self.create_publisher(Image, 'video_frames_color' , qos_profile)
+
         self.br = CvBridge()
 
         self.create_rate(100)
@@ -140,6 +142,8 @@ def main(args=None):
             # ret1, right = cap0.read()
             ret1 = stream.ret
             right = stream.frame
+            minimal_subscriber.publisher_color.publish(minimal_subscriber.br.cv2_to_imgmsg(right, encoding="bgr8"))
+
             # if ret1 == True:
             #     print(f"count: {count}")
             #     # print("sending image")
@@ -165,19 +169,23 @@ def main(args=None):
             kernel = np.ones((10,10),np.uint8)
 
             mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+            disp_mask=cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
+            minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(disp_mask, encoding="bgr8"))
+
             # big_mask = np.append(big_mask, mask, axis=2)
 
             cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             cnt_s = sorted(cnts, key=cv2.contourArea)
-
+            cnt_s = sorted(cnt_s, key=lambda ctr: cv2.minEnclosingCircle(ctr)[1])
             if not (len(cnts) == 0):
+                # cnt = cnt_s[-1]
                 cnt = cnt_s[-1]
                 (x,y),radius = cv2.minEnclosingCircle(cnt)
                 center = (int(x),int(y))
                 radius = int(radius)
                 cv2.circle(mask,center,radius,10,2)
                 centerMask=cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
-                minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(centerMask, encoding="bgr8"))
+                # minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(centerMask, encoding="bgr8"))
                 # minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(right, encoding="bgr8"))
 
 
@@ -230,7 +238,7 @@ def main(args=None):
     except KeyboardInterrupt:
         print("cntrl c input: shutting down...")
         stream.stop_process()
-        minimal_subscriber.cam_pub.destroy_node()
+        minimal_subscriber.destroy_node()
         rclpy.shutdown()
     print("closing")
     stream.stop_process()

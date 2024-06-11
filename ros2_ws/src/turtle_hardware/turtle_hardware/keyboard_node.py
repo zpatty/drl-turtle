@@ -237,7 +237,7 @@ def main(args=None):
             log = "Entering Training mode!"
             node.get_logger().info(log)
         elif key_input == "z":
-            msg.data='cv'
+            msg.data='turnrf'
             tomotors.publish(msg)
             log = "Entering CV"
             node.get_logger().info(log)
@@ -247,7 +247,7 @@ def main(args=None):
             log = "planner"
             node.get_logger().info(log)
         elif key_input == "x":
-            msg.data='SAC'
+            msg.data='turnlf'
             tomotors.publish(msg)
             log = "Entering SAC"
             node.get_logger().info(log)

@@ -4,12 +4,12 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPo
 
 from turtle_interfaces.msg import TurtleTraj, TurtleSensors
 import transforms3d.quaternions as quat
-import torch
+# import torch
 from EPHE import EPHE
 from DualCPG import DualCPG
 from AukeCPG import AukeCPG
-import gymnasium as gym
-from gymnasium import spaces
+# import gymnasium as gym
+# from gymnasium import spaces
 import cv2
 
 # submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware"
@@ -32,14 +32,16 @@ from statistics import mode as md
 # print(f"sec import toc: {time.time()-tic}")
 
 # tic = time.time()
-os.system('sudo /home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_dynamixel/latency_write.sh')
+os.system('sudo /home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_dynamixel/latency_write.sh')
 
 # global variable was set in the callback function directly
 global mode
 mode = 'rest'
 
 # print(f"toc: {time.time()-tic}\n")
-class TurtleRobot(Node, gym.Env):
+class TurtleRobot(Node):
+
+# class TurtleRobot(Node, gym.Env):
     """
     This node is responsible for continously reading sensor data and receiving commands from the keyboard node
     to execute specific trajectoreies or handle emergency stops. It also is responsible for sending motor pos commands to the RL node
@@ -144,10 +146,10 @@ class TurtleRobot(Node, gym.Env):
         # for PD control
         self.Kp = np.diag([0.6, 0.3, 0.1, 0.6, 0.3, 0.1, 0.4, 0.4, 0.4, 0.4])*4
         self.KD = 0.1
-        self.action_space = spaces.Box(low=0, high=30,
-                                            shape=(self.nq,1), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=30,
-                                            shape=(self.nq,1), dtype=np.float32)
+        # self.action_space = spaces.Box(low=0, high=30,
+        #                                     shape=(self.nq,1), dtype=np.float32)
+        # self.observation_space = spaces.Box(low=0, high=30,
+        #                                     shape=(self.nq,1), dtype=np.float32)
     def read_params(self, params):
         self.ax_weight = params["ax_weight"]
         self.ay_weight = params["ay_weight"]
@@ -601,10 +603,10 @@ def main(args=None):
                     primitive = "turnlf"
                     if primitive != "dwell":
                         print(f"---------------------------------------PRIMITIVE: {primitive}\n\n")
-                        qd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
-                        dqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
-                        ddqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
-                        tvec = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
+                        qd_mat = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
+                        dqd_mat = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
+                        ddqd_mat = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
+                        tvec = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
                         first_time = True
                         first_loop = True
                         input_history = np.zeros((turtle_node.nq,10))
@@ -712,10 +714,10 @@ def main(args=None):
                     primitive = "turnlf"
                     if primitive != "dwell":
                         print(f"---------------------------------------PRIMITIVE: {primitive}\n\n")
-                        qd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
-                        dqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
-                        ddqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
-                        tvec = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
+                        qd_mat = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
+                        dqd_mat = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
+                        ddqd_mat = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
+                        tvec = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
                         first_time = True
                         first_loop = True
                         input_history = np.zeros((turtle_node.nq,10))
@@ -824,10 +826,10 @@ def main(args=None):
                     primitive = "straight"
                     if primitive != "dwell":
                         print(f"---------------------------------------PRIMITIVE: {primitive}\n\n")
-                        qd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
-                        dqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
-                        ddqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
-                        tvec = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
+                        qd_mat = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
+                        dqd_mat = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
+                        ddqd_mat = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
+                        tvec = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
                         first_time = True
                         first_loop = True
                         input_history = np.zeros((turtle_node.nq,10))
@@ -942,10 +944,10 @@ def main(args=None):
                     turtle_node.primitives = []
                     if primitive != "dwell":
                         print(f"---------------------------------------PRIMITIVE: {primitive}\n\n")
-                        qd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
-                        dqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
-                        ddqd_mat = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
-                        tvec = mat2np(f'/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
+                        qd_mat = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/qd.mat', 'qd')
+                        dqd_mat = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/dqd.mat', 'dqd')
+                        ddqd_mat = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/ddqd.mat', 'ddqd')
+                        tvec = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
                         first_time = True
                         first_loop = True
                         input_history = np.zeros((turtle_node.nq,10))
@@ -1029,7 +1031,8 @@ def main(args=None):
                             input_mean = np.mean(input_history, axis = 1)
                             curr = grab_arm_current(input_mean, min_torque, max_torque)
                             turtle_node.Joints.send_torque_cmd(curr)
-
+                    else:
+                        turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
                 turtle_node.Joints.disable_torque()
 
             elif turtle_node.mode == 'cv':
