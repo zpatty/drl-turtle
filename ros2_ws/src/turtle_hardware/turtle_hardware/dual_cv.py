@@ -33,15 +33,21 @@ class CamStream():
     """
     def __init__(self, idx=0):
         self.cap = cv2.VideoCapture(0)
+        self.cap1 = cv2.VideoCapture(4)
         self.ret, self.frame = self.cap.read()
+        self.ret1, self.frame1 = self.cap1.read()
         self.stopped = False
     
     def start(self):
         Thread(target=self.get, args=()).start()
+        Thread(target=self.get1, args=()).start()
         return self
     def get(self):
         while not self.stopped:
             self.ret, self.frame = self.cap.read()
+    def get1(self):
+        while not self.stopped:
+            self.ret1, self.frame1 = self.cap1.read()
     def stop_process(self):
         self.stopped = True
         self.cap.release()
@@ -86,7 +92,7 @@ class MinimalSubscriber(Node):
             qos_profile)
         self.cam_pub = self.create_publisher(String, 'primitive', buff_profile)
         self.publisher_ = self.create_publisher(Image, 'video_frames' , qos_profile)
-        self.publisher_color = self.create_publisher(Image, 'video_frames_color' , qos_profile)
+        self.publisher_1 = self.create_publisher(Image, 'video_frames_1' , qos_profile)
 
         self.br = CvBridge()
 
@@ -124,6 +130,7 @@ def main(args=None):
     upper_yellow = np.array(cv_params["upper_yellow"])
 
     cap0 = stream.cap
+    cap1 = stream.cap1
     # cap0 = cv2.VideoCapture(0)
     # cap0.set(3, 1920)
     # cap0.set(4, 1080)
@@ -141,8 +148,12 @@ def main(args=None):
             # ret0, left = cap1.read()
             # ret1, right = cap0.read()
             ret1 = stream.ret
+            ret0 = stream.ret1
             right = stream.frame
-            minimal_subscriber.publisher_color.publish(minimal_subscriber.br.cv2_to_imgmsg(right, encoding="bgr8"))
+            left = stream.frame1
+            minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(right, encoding="bgr8"))
+            minimal_subscriber.publisher_1.publish(minimal_subscriber.br.cv2_to_imgmsg(left, encoding="bgr8"))
+
 
             # if ret1 == True:
             #     print(f"count: {count}")
@@ -169,16 +180,12 @@ def main(args=None):
             kernel = np.ones((10,10),np.uint8)
 
             mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-            disp_mask=cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
-            minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(disp_mask, encoding="bgr8"))
-
             # big_mask = np.append(big_mask, mask, axis=2)
 
             cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             cnt_s = sorted(cnts, key=cv2.contourArea)
-            cnt_s = sorted(cnt_s, key=lambda ctr: cv2.minEnclosingCircle(ctr)[1])
+
             if not (len(cnts) == 0):
-                # cnt = cnt_s[-1]
                 cnt = cnt_s[-1]
                 (x,y),radius = cv2.minEnclosingCircle(cnt)
                 center = (int(x),int(y))
