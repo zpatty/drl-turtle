@@ -50,6 +50,18 @@ class AukeCPG:
         print(f"starting phi: {self.phi}\n")
         print(f"starting w: {self.w}\n")
         print(f"number of CPG modules: {self.num_mods}\n")
+        # half cheetah
+        self.min_threshold = np.array([(-5/6) * np.pi, 0.25 * np.pi, (-5/6) * np.pi, 
+                                    (1/18) * np.pi, 0, (-2/3) * np.pi])
+        self.max_threshold = np.array([(-1/3)*np.pi, (3/4) * np.pi, (-1/6) * np.pi, 
+                                     0.5 * np.pi, (8/9) * np.pi, (1/9) * np.pi])
+        
+        # TODO: ant sim
+        self.center_pos = self.min_threshold + ((self.max_threshold - self.min_threshold)/2)
+        self.amplitudes = self.max_threshold - self.min_threshold
+        print(f"amplitudes: {self.amplitudes/2}\n")
+
+        print(f"center pos: {self.center_pos}\n")
     def set_parameters(self, params):
         """
         Updates parameters of the CPG oscillators.
@@ -77,11 +89,11 @@ class AukeCPG:
         """
         Reset your CPGs?
         """
-        self.PHI = np.random.uniform(low=0.01, high=3, size=self.num_mods)
-        self.r = np.random.uniform(low=0.01, high=3, size=self.num_mods)
-        self.x = np.random.uniform(low=0.01, high=3, size=self.num_mods)
-        self.m = np.random.uniform(low=0.01, high=3, size=self.num_mods)
-        self.v = np.random.uniform(low=0.01, high=3, size=self.num_mods)
+        self.PHI = np.zeros((self.num_mods))                         # phase state variables (radians)
+        self.r = np.zeros((self.num_mods))                           # amplitude state variables (radians)
+        self.x = np.zeros((self.num_mods))                           # offset state variables (radians)                           
+        self.v = np.zeros((self.num_mods))                           # to handle second order eq of amplitude
+        self.m = np.zeros((self.num_mods))                           # to handle second order eq of offset
 
         
     def get_coupled_action(self, dt):
@@ -219,12 +231,13 @@ class AukeCPG:
                 pass
             self.theta[m] = self.x[m] + self.r[m] * np.cos(self.PHI[m])
             # grab output of oscillator i
-            if m in [0, 1, 6, 7]:
+            # have the front leg of half cheetah mirror
+            if m in [3, 4]:
                 self.theta[m] = -1 * self.theta[m]
             # if m in [3, 4]:
             #     self.theta[m] = -1 * self.theta[m]
             # self.theta[m] += np.pi
-            action[m] = self.theta[m]  
+            action[m] = self.theta[m] + self.center_pos[m]
         return action 
          
     def get_action(self):
@@ -270,7 +283,7 @@ class AukeCPG:
                 self.theta[m] = -1 * self.theta[m]
 
             # self.theta[m] += np.pi
-            action[m] = self.theta[m]  
+            action[m] = self.theta[m]  + self.center_pos[m]
         return action    
               
     def ode_fin(self, state, omega, R, X):
@@ -534,34 +547,54 @@ class AukeCPG:
         # TODO: look into whether you need to normalize the observation or not
         cumulative_reward = 0.0
         observation, __ = env.reset()
+        print(observation)
         t = 0
         first_time = True
+        # CPG output of joint positions
         total_actions = np.zeros((self.num_mods, 1))
+        # what is actually being passed in 
+        total_obs = np.zeros((self.num_mods, 1))
+        total_clips = np.zeros((self.num_mods, 1))
         r_forward = 0
         r_ctrl = 0
         while True:
             if PD:
                 # pass CPG into PD controller of half cheetah
                 qd = self.get_CPG_output()
+                if t <2:
+                    print(f"t: {t}------------------------------------------------------\n\n")
+
+                    print(f"og qd: {qd}")
+
                 total_actions = np.append(total_actions, qd.reshape((self.num_mods,1)), axis=1)
+                qd = np.where(qd < self.max_threshold, qd, self.max_threshold)
+                qd = np.where(qd > self.min_threshold, qd, self.min_threshold)
+                if t < 2:
+                    print(f"clipped qd: {qd}")
+                
+                total_clips = np.append(total_clips, qd.reshape((self.num_mods,1)), axis=1)
+                if t < 2:
+                    print(f"obs q: {env.data.qpos[-self.num_mods:]}\n")
+                total_obs = np.append(total_obs, env.data.qpos[-self.num_mods:].reshape((self.num_mods,1)), axis=1)
 
                 desired_torques = self.kp * (qd - env.data.qpos[-self.num_mods:])- self.kd * env.data.qvel[-self.num_mods:]
                 action = np.clip(desired_torques, -1.0, 1.0)  # clip to action bounds of Half-Cheetah
             else:
                 action = self.get_CPG_output()
-
+            # print(f" z: {env.data.qpos[0]}")
             # print(f"action shape: {action.shape}")
-            # total_actions = np.append(total_actions, action.reshape((6,1)), axis=1)
             # print(f"params: {self.params}\n")
             # print(f"action: {action}\n")
-            
             observation, reward, terminated, truncated, info = env.step(action)
             done = truncated or terminated
             cumulative_reward += reward
-            # print(info)
+
             # t = time.time()
+            # print(info)
             # print(f"reward and cost: {(info['reward_forward'], info['reward_ctrl'])}")
-            r_forward += info['reward_forward']
+            # r_forward += info['reward_forward']
+            # r_ctrl += info['reward_ctrl']
+            r_forward += info['reward_run']
             r_ctrl += info['reward_ctrl']
             t += 1
             if t > max_episode_length:
@@ -573,9 +606,12 @@ class AukeCPG:
                 if terminated:
                     print("terminator")
                 break
-        print(f"reward forward: {r_forward}\n")
-        print(f"reward ctrl: {r_ctrl}\n")
-        return cumulative_reward, total_actions
+            # print("-----------------------------------------\n\n\n\n")
+        # print(f"reward forward: {r_forward}\n")
+        # print(f"reward ctrl: {r_ctrl}\n")
+        library = {"total_clips": total_clips,
+                   "total_obs": total_obs}
+        return cumulative_reward, total_actions, library
     def set_params_and_run(self,
                            env,
                            policy_parameters,
@@ -595,10 +631,10 @@ class AukeCPG:
             A tuple (cumulative_reward, t (len of episode in seconds)).
         """
         self.set_parameters(policy_parameters)
-        cumulative_reward, total_actions = self.run(env,
+        cumulative_reward, total_actions, info = self.run(env,
             max_episode_length=max_episode_length, PD=PD
         )
-        return cumulative_reward, total_actions
+        return cumulative_reward, total_actions, info
 
 # def main(args=None):
 #     num_params = 21
