@@ -599,7 +599,6 @@ def main(args=None):
                 dq_data = np.zeros((nq,1))
                 tau_data = np.zeros((nq,1))
                 current_data = np.zeros((nq,1))
-
                 time_data = np.zeros((1,1))
 
                 while True:
@@ -664,6 +663,7 @@ def main(args=None):
                                 first_time = False
                             else:
                                 t = time.time()
+                                time_data=np.append(time_data, t-t_0) 
                                 dt = t - t_old
                                 t_old = t
                                 dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
