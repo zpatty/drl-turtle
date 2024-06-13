@@ -3,6 +3,8 @@ import sys
 import scipy
 import numpy as np
 from EPHE import EPHE
+import gymnasium as gym
+from gymnasium import spaces
 import matplotlib.pyplot as plt
 
 submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_rl/turtle_rl"
@@ -55,10 +57,11 @@ class AukeCPG:
                                     (1/18) * np.pi, 0, (-2/3) * np.pi])
         self.max_threshold = np.array([(-1/3)*np.pi, (3/4) * np.pi, (-1/6) * np.pi, 
                                      0.5 * np.pi, (8/9) * np.pi, (1/9) * np.pi])
-        
-        # TODO: ant sim
+
         self.center_pos = self.min_threshold + ((self.max_threshold - self.min_threshold)/2)
         self.amplitudes = self.max_threshold - self.min_threshold
+        self.t = 0
+
         print(f"amplitudes: {self.amplitudes/2}\n")
 
         print(f"center pos: {self.center_pos}\n")
@@ -80,7 +83,7 @@ class AukeCPG:
         scaled[self.num_mods + 1:]= (scaled[self.num_mods + 1:]) % (2*np.pi)
         self.params = scaled
 
-        print(f"current params: {self.params}")
+        # print(f"current params: {self.params}")
     
     def get_params(self):
         return self.params
@@ -232,8 +235,8 @@ class AukeCPG:
             self.theta[m] = self.x[m] + self.r[m] * np.cos(self.PHI[m])
             # grab output of oscillator i
             # have the front leg of half cheetah mirror
-            if m in [3, 4]:
-                self.theta[m] = -1 * self.theta[m]
+            # if m in [3, 4]:
+            #     self.theta[m] = -1 * self.theta[m]
             # if m in [3, 4]:
             #     self.theta[m] = -1 * self.theta[m]
             # self.theta[m] += np.pi
@@ -635,6 +638,35 @@ class AukeCPG:
             max_episode_length=max_episode_length, PD=PD
         )
         return cumulative_reward, total_actions, info
+
+    def sac_step(self, 
+            env, PD=False):
+        """Run an episode.
+
+        Args:
+            env: The env object we need to run a step
+        Returns:
+            observation, reward, terminated, truncated, info
+        """
+        observation, __ = env.reset()
+        if PD:
+            qd = self.get_CPG_output()
+            qd = np.where(qd < self.max_threshold, qd, self.max_threshold)
+            qd = np.where(qd > self.min_threshold, qd, self.min_threshold)                
+            desired_torques = self.kp * (qd - env.data.qpos[-self.num_mods:])- self.kd * env.data.qvel[-self.num_mods:]
+            action = np.clip(desired_torques, -1.0, 1.0)  # clip to action bounds of Half-Cheetah
+        else:
+            action = self.get_CPG_output()
+        observation, reward, terminated, truncated, info = env.step(action)
+        done = truncated or terminated
+        return observation, reward, terminated, truncated, info
+    def set_params_and_step(self, env, policy_parameters, max_episode_length=60, PD=False):
+        
+        self.set_parameters(policy_parameters)
+        # print(f"params: {policy_parameters}")
+        observation, reward, terminated, truncated, info = self.sac_step(env, PD=PD)
+        return observation, reward, terminated, truncated, info
+
 
 # def main(args=None):
 #     num_params = 21
