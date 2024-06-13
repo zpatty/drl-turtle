@@ -539,7 +539,18 @@ def main(args=None):
     turtle_node = TurtleRobot('turtle_mode_cmd')
     q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
     print(f"Our initial q: " + str(q))
-    # create folders 
+    # create folders
+    try:
+        typed_name =  input("give folder a name: ")
+        folder_name = "data/" + typed_name
+        os.makedirs(folder_name, exist_ok=False)
+
+    except:
+        print("received weird input or folder already exists-- naming folder with timestamp")
+        t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+        folder_name =  "data/" + t
+        os.makedirs(folder_name)
+ 
 
     best_reward = 0
     try: 
@@ -583,12 +594,23 @@ def main(args=None):
                 turtle_node.Joints.disable_torque()
                 turtle_node.Joints.set_current_cntrl_mode()
                 turtle_node.Joints.enable_torque()
+                input_history = np.zeros((nq,10))
+                q_data = np.zeros((nq,1))
+                dq_data = np.zeros((nq,1))
+                tau_data = np.zeros((nq,1))
+                current_data = np.zeros((nq,1))
+
+                time_data = np.zeros((1,1))
 
                 while True:
                     rclpy.spin_once(turtle_node)
                     if turtle_node.mode == 'rest' or turtle_node.mode == 'stop' or turtle_node.voltage < threshold:
                         turtle_node.Joints.send_torque_cmd([0] *len(turtle_node.IDs))
                         turtle_node.Joints.disable_torque()
+                        scipy.io.savemat(folder_name + "/primitive_data.mat", {
+                               'q_data': q_data, 'dq_data': dq_data,
+                                'tau_data': tau_data, 'time_data': time_data, 'current_data': current_data})
+
                         break
 
                     primitive = turtle_node.mode
@@ -600,15 +622,6 @@ def main(args=None):
                         tvec = mat2np(f'/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/{primitive}/tvec.mat', 'tvec')
                         first_time = True
                         first_loop = True
-                        input_history = np.zeros((turtle_node.nq,10))
-                        q_data = np.zeros((turtle_node.nq,1))
-                        tau_data = np.zeros((turtle_node.nq,1))
-                        timestamps = np.zeros((1,1))
-                        dt_loop = np.zeros((1,1))       # hold dt data 
-                        dq_data = np.zeros((turtle_node.nq,1))
-                        tau_data = np.zeros((turtle_node.nq,1))
-                        timestamps = np.zeros((1,1))
-                        dt_loop = np.zeros((1,1))       # hold dt data 
                         cycle = 0
 
                         # zero =  np.zeros((self.nq,1))
@@ -625,9 +638,13 @@ def main(args=None):
                                 turtle_node.Joints.send_torque_cmd(turtle_node.nq * [0])
                                 turtle_node.Joints.disable_torque()
                                 first_time = True
+                                scipy.io.savemat(folder_name + "/primitive_data.mat", {
+                               'q_data': q_data, 'dq_data': dq_data,
+                                'tau_data': tau_data, 'time_data': time_data, 'current_data': current_data})
                                 break
                             
                             q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
+
                             n = get_qindex((time.time() - t_0), tvec)
                             if n > len(tvec[0]) - 2:
                                 first_loop = False
@@ -652,13 +669,18 @@ def main(args=None):
                                 dq = np.array(turtle_node.Joints.get_velocity()).reshape(-1,1)
                                 dq_data=np.append(dq_data, dq, axis = 1) 
                                 q_old = q
+
                             err = q - qd
                             err_dot = dq
-                            tau = turtle_controller(q,dq,qd,dqd,ddqd,turtle_node.Kp,turtle_node.KD)                            
+                            tau = turtle_controller(q,dq,qd,dqd,ddqd,turtle_node.Kp,turtle_node.KD)   
+                            tau_data=np.append(tau_data, tau, axis = 1) 
+                         
                             input_history = np.append(input_history[:,1:], tau,axis=1)
                             input_mean = np.mean(input_history, axis = 1)
                             curr = grab_arm_current(input_mean, min_torque, max_torque)
                             turtle_node.Joints.send_torque_cmd(curr)
+                            current_data=np.append(current_data, curr, axis = 1) 
+
             elif turtle_node.mode == 'planner':
                 """
                 Randomly pick a motion primitive and run it 4-5 times
