@@ -9,7 +9,7 @@
     "minInertiaRatio": 0.1,
     "lower_yellow": [10,35,50],
     "upper_yellow": [30,70,100],
-    "turn_thresh": 100,
+    "turn_thresh": 150,
     "dive_thresh": 100,
     "num_cycles": 1
 

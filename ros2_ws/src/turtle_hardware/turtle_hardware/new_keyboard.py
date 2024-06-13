@@ -211,6 +211,11 @@ def main(args=None):
                 tomotors.publish(msg)
                 log = "planner"
                 node.get_logger().info(log)
+            case "teacher":
+                msg.data='teacher'
+                tomotors.publish(msg)
+                log = "teacher"
+                node.get_logger().info(log)    
             case "a":
                 msg.data='train'
                 tomotors.publish(msg)
