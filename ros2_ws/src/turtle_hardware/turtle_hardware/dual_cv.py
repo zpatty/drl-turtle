@@ -92,7 +92,9 @@ class MinimalSubscriber(Node):
             qos_profile)
         self.cam_pub = self.create_publisher(String, 'primitive', buff_profile)
         self.publisher_ = self.create_publisher(Image, 'video_frames' , qos_profile)
-        self.publisher_1 = self.create_publisher(Image, 'video_frames_1' , qos_profile)
+        # self.publisher_1 = self.create_publisher(Image, 'video_frames_1' , qos_profile)
+        self.publisher_color = self.create_publisher(Image, 'video_frames_color' , qos_profile)
+        # self.publisher_color_1 = self.create_publisher(Image, 'video_frames_color_1' , qos_profile)
 
         self.br = CvBridge()
 
@@ -151,17 +153,10 @@ def main(args=None):
             ret0 = stream.ret1
             right = stream.frame
             left = stream.frame1
-            minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(right, encoding="bgr8"))
-            minimal_subscriber.publisher_1.publish(minimal_subscriber.br.cv2_to_imgmsg(left, encoding="bgr8"))
+            minimal_subscriber.publisher_color.publish(minimal_subscriber.br.cv2_to_imgmsg(right, encoding="bgr8"))
+            # minimal_subscriber.publisher_color_1.publish(minimal_subscriber.br.cv2_to_imgmsg(left, encoding="bgr8"))
 
 
-            # if ret1 == True:
-            #     print(f"count: {count}")
-            #     # print("sending image")
-            #     minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(right, encoding="bgr8"))
-            #     count += 1
-            # else:
-            #     print("ignore frame")
             denoise = 15
             blur = cv2.GaussianBlur(right, (5,5), 1)
             # Converting from BGR to HSV color space
@@ -179,10 +174,33 @@ def main(args=None):
             mask = bin_y #cv2.bitwise_not(bin_y)
             kernel = np.ones((10,10),np.uint8)
 
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+            mask_right = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+            disp_mask_r=cv2.cvtColor(mask_right,cv2.COLOR_GRAY2BGR)
+            minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(disp_mask_r, encoding="bgr8"))
+
+            # denoise = 15
+            # blur = cv2.GaussianBlur(left, (5,5), 1)
+            # # Converting from BGR to HSV color space
+            # hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
+
+            # lab = cv2.cvtColor(left, cv2.COLOR_BGR2LAB)
+            # bin_y = cv2.inRange(hsv, fixHSVRange(lower_yellow), fixHSVRange(upper_yellow))
+            # open_kern = np.ones((10,10), dtype=np.uint8)
+            # bin_y = cv2.morphologyEx(bin_y, cv2.MORPH_OPEN, open_kern, iterations=2)
+
+            # rip_y = left.copy()
+            # rip_y[bin_y==0] = 0
+            # mark_y = cv2.addWeighted(left, .4, rip_y, .6, 1)
+
+            # mask = bin_y #cv2.bitwise_not(bin_y)
+            # kernel = np.ones((10,10),np.uint8)
+
+            # mask_left = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+            # disp_mask_l=cv2.cvtColor(mask_left,cv2.COLOR_GRAY2BGR)
+            # minimal_subscriber.publisher_1.publish(minimal_subscriber.br.cv2_to_imgmsg(disp_mask_l, encoding="bgr8"))
             # big_mask = np.append(big_mask, mask, axis=2)
 
-            cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            cnts, _ = cv2.findContours(mask_right, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             cnt_s = sorted(cnts, key=cv2.contourArea)
 
             if not (len(cnts) == 0):

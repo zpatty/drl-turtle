@@ -22,12 +22,12 @@ class CamSubscriber(Node):
             self.img_callback,
             qos_profile
             )
-        self.cam_subscription_1 = self.create_subscription(
-        Image,
-        'video_frames_1',
-        self.img_callback_1,
-        qos_profile
-        )
+        # self.cam_subscription_1 = self.create_subscription(
+        # Image,
+        # 'video_frames_1',
+        # self.img_callback_1,
+        # qos_profile
+        # )
 
         self.cam_color = self.create_subscription(
             Image,
@@ -36,12 +36,12 @@ class CamSubscriber(Node):
             qos_profile
             )
 
-        self.cam_color_1 = self.create_subscription(
-            Image,
-            'video_frames_color_1',
-            self.img_callback_color_1,
-            qos_profile
-            )
+        # self.cam_color_1 = self.create_subscription(
+        #     Image,
+        #     'video_frames_color_1',
+        #     self.img_callback_color_1,
+        #     qos_profile
+        #     )
 
 
         self.key_subscription = self.create_subscription(
@@ -65,14 +65,14 @@ class CamSubscriber(Node):
         cv2.imshow("camera", current_frame)   
         cv2.waitKey(1)
 
-    def img_callback_1(self, data):
-        self.get_logger().info('Receiving other video frame')
-        current_frame = self.br.imgmsg_to_cv2(data)
-        # shesh = '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
-        # cv2.imwrite(shesh + "images/frame%d.jpg" % self.count, current_frame)
-        # self.count += 1
-        cv2.imshow("camera_1", current_frame)   
-        cv2.waitKey(1)
+    # def img_callback_1(self, data):
+    #     self.get_logger().info('Receiving other video frame')
+    #     current_frame = self.br.imgmsg_to_cv2(data)
+    #     # shesh = '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
+    #     # cv2.imwrite(shesh + "images/frame%d.jpg" % self.count, current_frame)
+    #     # self.count += 1
+    #     cv2.imshow("camera_1", current_frame)   
+    #     cv2.waitKey(1)
     
     def img_callback_color(self, data):
         self.get_logger().info('Receiving other video frame')
@@ -83,14 +83,14 @@ class CamSubscriber(Node):
         cv2.imshow("right camera", current_frame)   
         cv2.waitKey(1)
 
-    def img_callback_color_1(self, data):
-        self.get_logger().info('Receiving other video frame')
-        current_frame = self.br.imgmsg_to_cv2(data)
-        # shesh = '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
-        # cv2.imwrite(shesh + "images/frame%d.jpg" % self.count, current_frame)
-        # self.count += 1
-        cv2.imshow("left camera", current_frame)   
-        cv2.waitKey(1)
+    # def img_callback_color_1(self, data):
+    #     self.get_logger().info('Receiving other video frame')
+    #     current_frame = self.br.imgmsg_to_cv2(data)
+    #     # shesh = '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
+    #     # cv2.imwrite(shesh + "images/frame%d.jpg" % self.count, current_frame)
+    #     # self.count += 1
+    #     cv2.imshow("left camera", current_frame)   
+    #     cv2.waitKey(1)
 
     def keyboard_callback(self, msg):
         """
