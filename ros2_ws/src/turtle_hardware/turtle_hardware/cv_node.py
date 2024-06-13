@@ -181,16 +181,12 @@ class TurtleRobot(Node):
             self.mode = 'teacher'
         elif msg.data == 'Auke':
             self.mode = 'Auke'
-        elif msg.data == 'cv':
-            self.mode = 'cv'
         elif msg.data == 'PGPE':
             self.mode = 'PGPE'
         elif msg.data == 'SAC':
             self.mode = 'SAC'
         elif msg.data in self.turtle_trajs:
             self.mode = msg.data
-        elif msg.data == 'straight':
-            self.mode = 'straight'
         elif msg.data == 'planner':
             self.mode = 'planner'
         else:
@@ -551,7 +547,7 @@ def main(args=None):
         folder_name =  "data/" + t
         os.makedirs(folder_name)
  
-
+    new_folder = False
     best_reward = 0
     try: 
         while rclpy.ok():
@@ -573,6 +569,18 @@ def main(args=None):
                 break
             elif turtle_node.mode == 'rest':
                 rclpy.spin_once(turtle_node)
+                if new_folder:
+                    try:
+                        typed_name =  input("give folder a name: ")
+                        folder_name = "data/" + typed_name
+                        os.makedirs(folder_name, exist_ok=False)
+
+                    except:
+                        print("received weird input or folder already exists-- naming folder with timestamp")
+                        t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+                        folder_name =  "data/" + t
+                        os.makedirs(folder_name)
+                    new_folder = False
                 turtle_node.read_voltage()
                 if turtle_node.voltage < threshold:
                     turtle_node.Joints.disable_torque()
@@ -609,7 +617,7 @@ def main(args=None):
                         scipy.io.savemat(folder_name + "/primitive_data.mat", {
                                'q_data': q_data, 'dq_data': dq_data,
                                 'tau_data': tau_data, 'time_data': time_data, 'current_data': current_data})
-
+                        new_folder = True
                         break
 
                     primitive = turtle_node.mode
@@ -640,6 +648,7 @@ def main(args=None):
                                 scipy.io.savemat(folder_name + "/primitive_data.mat", {
                                'q_data': q_data, 'dq_data': dq_data,
                                 'tau_data': tau_data, 'time_data': time_data, 'current_data': current_data})
+                                new_folder = True
                                 break
                             
                             q = np.array(turtle_node.Joints.get_position()).reshape(-1,1)
