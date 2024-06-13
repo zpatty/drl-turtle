@@ -58,9 +58,9 @@ def train(num_params=20, num_mods=10, M=20, K=3):
     dt = params["dt"]
     max_episode_length = 20/0.05
 
-    cheetah = gym.make(ENV_NAME)
+    cheetah = gym.make(ENV_NAME, render_mode='human')
     cpg = AukeCPG(num_params=num_params, num_mods=num_mods, phi=phi, w=w, a_r=a_r, a_x=a_x, dt=dt)
-    env = CPGGym(cheetah, cpg, max_episode_length)
+    env = CPGGym(cheetah, cpg, max_episode_length, info={"robot": "half-cheetah"})
     policy = 'MlpPolicy'
     # policy = SACPolicy(observation_space=env.observation_space,
     #                    action_space=env.action_space,
@@ -74,8 +74,29 @@ def train(num_params=20, num_mods=10, M=20, K=3):
         env,
         verbose=1
     )
-    model.learn(total_timesteps=8/0.05, log_interval=10)
-    model.save("half_cheetah_sac")
+    print("learning...")
+    model.learn(total_timesteps=1000, log_interval=10)
+    # model.save("half_cheetah_sac")
+
+    # model.load("half_cheetah_sac")
+
+    cumulative_reward = 0
+    obs, info = env.reset()
+    print("entering test stage...")
+    max_steps = 1000
+    step = 0
+    while True:
+        action, _states = model.predict(obs, deterministic=True)
+        obs, reward, terminated, truncated, info = env.step(action)
+        cumulative_reward += reward
+        # print(f"reward: {cumulative_reward}")
+        if terminated or truncated:
+            obs, info = env.reset()
+            break
+        # if step > max_steps:
+        #     break
+        step += 1
+    print(f"cumulative reward: {cumulative_reward}\n")
 
 ######################################################################################################################
 # def test():
