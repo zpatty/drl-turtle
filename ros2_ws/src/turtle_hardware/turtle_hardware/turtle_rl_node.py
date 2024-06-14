@@ -8,6 +8,7 @@ from EPHE import EPHE
 from AukeCPG import AukeCPG
 from TurtleRobot import *
 import random
+
 # from CPG_gym import *
 
 from std_msgs.msg import String
@@ -144,20 +145,20 @@ def main(args=None):
                         break
                     cpg.reset()
 
-                    freq = np.random.uniform(low=5.0, high=10, size=1)
-                    shoulder = np.random.uniform(low=0.3, high=0.9, size=1)
-                    mid = np.random.uniform(low=0.3, high=0.8, size=1)
-                    flipper = np.random.uniform(low=0.3, high=0.9, size=1)
+                    freq = np.random.uniform(low=2.0, high=3.5, size=1)
+                    shoulder = np.random.uniform(low=0.4, high=0.7, size=1)
+                    mid = np.random.uniform(low=0.7, high=0.9, size=1)
+                    flipper = np.random.uniform(low=0.3, high=0.6   , size=1)
 
                     b_joint = np.random.uniform(low=0.0, high=0.1, size=1)
-                    b_fin = np.random.uniform(low=0.0, high=0.8, size=1)
+                    b_fin = np.random.uniform(low=0.0, high=0.1, size=1)
                     # amps = np.random.uniform(low=0.1, high=1, size=10)
-                    offset_shoulder = np.random.uniform(low=2.0, high=3.14, size=1)
-                    offset_mid = np.random.uniform(low=2.0, high=3.14, size=1)
-                    offset_flipper = np.random.uniform(low=2.0, high=3.14, size=1)
+                    offset_shoulder = np.random.uniform(low=3.0, high=3.05, size=1)
+                    offset_mid = np.random.uniform(low=3.14, high=3.18, size=1)
+                    offset_flipper = np.random.uniform(low=3.14, high=3.15, size=1)
 
-                    offset_bjoint = np.random.uniform(low=2.0, high=3.14, size=1)
-                    offset_bfin = np.random.uniform(low=2.0, high=3.14, size=1)
+                    offset_bjoint = np.random.uniform(low=3.14, high=3.15, size=1)
+                    offset_bfin = np.random.uniform(low=3.14, high=3.15, size=1)
 
                     sol = np.concatenate((freq, shoulder, mid, flipper, shoulder, mid, flipper, b_joint, b_fin, b_joint, b_fin, 
                                             offset_shoulder, offset_mid, offset_flipper, offset_shoulder, offset_mid, offset_flipper,
@@ -193,6 +194,10 @@ def main(args=None):
                         if t >= max_episode_length:
                             turtle_node.Joints.disable_torque()
                             print(f"---------------prior {i}, reward: {cumulative_reward}\n")
+                            print(f"quat weight: {turtle_node.tot_quat}")
+                            print(f"acc weight: {turtle_node.tot_acc}")
+                            print(f"tau weight: {turtle_node.tot_tau}")
+
                             break
                     try:
                         prior_time_data[:, i] = timestamps
@@ -217,7 +222,8 @@ def main(args=None):
                 print(f"k rewards: {k_rewards}")
                 mu = k_params[:, 0]
                 # mu = np.array(params["mu"])
-                sigma = np.ones(num_params) * 0.7
+                sigma = np.ones(num_params) * 0.15
+                
                 print(f"using this mu: {mu}\n")
                 prior_mu = mu
                 ## RESET CPG ##
@@ -313,6 +319,9 @@ def main(args=None):
                                 turtle_node.Joints.disable_torque()
                                 print("\n\n")
                                 print(f"---------------rollout reward: {cumulative_reward}\n\n\n\n")
+                                print(f"quat weight: {turtle_node.tot_quat}")
+                                print(f"acc weight: {turtle_node.tot_acc}")
+                                print(f"tau weight: {turtle_node.tot_tau}")
                                 break
                         try:
                         # record data from rollout
