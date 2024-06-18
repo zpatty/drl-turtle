@@ -11,6 +11,14 @@
     "upper_yellow": [30,70,100],
     "turn_thresh": 150,
     "dive_thresh": 100,
-    "num_cycles": 1
+    "num_cycles": 1,
+    "numDisparities": 128,
+    "blockSize": 77,
+    "MinDisparity": 0,
+    "TextureThreshold": 0,
+    "SpeckleRange": 2,
+    "SpeckleWindowSize": 5,
+    "UniquenessRatio": 5,
+    "Disp12MaxDiff": 2
 
 }

@@ -34,11 +34,11 @@ for i in range(len(leftimages)):
     # Find the chess board corners
     lret, lcorners = cv2.findChessboardCorners(leftgray, CHECKERBOARD, cv2.CALIB_CB_ADAPTIVE_THRESH+cv2.CALIB_CB_FAST_CHECK+cv2.CALIB_CB_NORMALIZE_IMAGE)
     rret, rcorners = cv2.findChessboardCorners(rightgray, CHECKERBOARD, cv2.CALIB_CB_ADAPTIVE_THRESH+cv2.CALIB_CB_FAST_CHECK+cv2.CALIB_CB_NORMALIZE_IMAGE)
-    cv2.drawChessboardCorners(leftimg, CHECKERBOARD, lcorners, lret)
-    cv2.imshow('img left', leftimg)
-    cv2.drawChessboardCorners(rightimg, CHECKERBOARD, rcorners, rret)
-    cv2.imshow('img right', rightimg)
-    cv2.waitKey()
+    # cv2.drawChessboardCorners(leftimg, CHECKERBOARD, lcorners, lret)
+    # cv2.imshow('img left', leftimg)
+    # cv2.drawChessboardCorners(rightimg, CHECKERBOARD, rcorners, rret)
+    # cv2.imshow('img right', rightimg)
+    # cv2.waitKey()
 
     # If found, add object points, image points (after refining them)
     if lret == True and rret==True:
@@ -94,3 +94,46 @@ print("KR=np.array(" + str(KR.tolist()) + ")")
 print("DR=np.array(" + str(DR.tolist()) + ")")
 print("R=np.array(" + str(R.tolist()) + ")")
 print("T=np.array(" + str(T.tolist()) + ")")
+
+R1,R2,P1,P2,Q = cv2.fisheye.stereoRectify(KL,DL,KR,DR,DIM,R,T, cv2.fisheye.CALIB_ZERO_DISPARITY)
+print(Q)
+L_undist_map=cv2.fisheye.initUndistortRectifyMap(KL,DL,np.identity(3),KL,DIM,cv2.CV_32FC1)
+R_undist_map=cv2.fisheye.initUndistortRectifyMap(KR,DR,np.identity(3),KR,DIM,cv2.CV_32FC1)
+left1, left2 = cv2.fisheye.initUndistortRectifyMap(KL, DL, R1, P1, DIM, cv2.CV_32FC1)
+right1, right2 = cv2.fisheye.initUndistortRectifyMap(KR,DR, R2, P2, DIM, cv2.CV_32FC1)
+stereo = cv2.StereoBM.create(numDisparities=128, blockSize=67)
+stereo.setMinDisparity(0)
+stereo.setTextureThreshold(0)
+
+#post filtering parameters: prevent false matches, help filter at boundaries
+stereo.setSpeckleRange(2)
+stereo.setSpeckleWindowSize(5)
+stereo.setUniquenessRatio(2)
+
+stereo.setDisp12MaxDiff(2)
+
+left = cv2.imread(leftname)
+right=cv2.imread(rightname)
+
+fixedLeft = cv2.remap(left, left1, left2, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+fixedRight = cv2.remap(right, right1, right2, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+# cv.imshow("fixedLeft", fixedLeft)
+# cv.imshow("fixedRight", fixedRight)
+
+grayLeft = cv2.cvtColor(fixedLeft, cv2.COLOR_BGR2GRAY)
+grayRight = cv2.cvtColor(fixedRight, cv2.COLOR_BGR2GRAY)
+disparity = stereo.compute(grayLeft,grayRight)
+# denoise = 5
+# noise=cv2.erode(disparity,np.ones((denoise,denoise)))
+# noise=cv2.dilate(noise,np.ones((denoise,denoise)))
+# blur = cv2.GaussianBlur(noise, (3,3), 1)
+# norm_disparity = cv2.normalize(disparity, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+valid_pixels = disparity > 0
+invalid_pixels = disparity < 0
+disparity[invalid_pixels] = 0.0001
+norm_disparity = np.array((disparity/16.0 - stereo.getMinDisparity())/stereo.getNumDisparities(), dtype='f')
+points3D = cv2.reprojectImageTo3D(np.array(disparity/16.0, dtype='f'),Q)
+depth = Q[2,3]/Q[3,2]/np.array(disparity/16.0, dtype='f')
+print(disparity/16.0)
+cv2.imshow('img', depth)
+cv2.waitKey()
