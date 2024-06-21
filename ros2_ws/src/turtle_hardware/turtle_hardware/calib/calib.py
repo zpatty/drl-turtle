@@ -3,6 +3,8 @@ import cv2
 import numpy as np
 import os
 import glob
+import matplotlib.pyplot as plt
+
 
 CHECKERBOARD = (6,9)
 subpix_criteria = (cv2.TERM_CRITERIA_EPS+cv2.TERM_CRITERIA_MAX_ITER, 30, 0.1)
@@ -95,25 +97,26 @@ print("DR=np.array(" + str(DR.tolist()) + ")")
 print("R=np.array(" + str(R.tolist()) + ")")
 print("T=np.array(" + str(T.tolist()) + ")")
 
+T = T*22
 R1,R2,P1,P2,Q = cv2.fisheye.stereoRectify(KL,DL,KR,DR,DIM,R,T, cv2.fisheye.CALIB_ZERO_DISPARITY)
 print(Q)
 L_undist_map=cv2.fisheye.initUndistortRectifyMap(KL,DL,np.identity(3),KL,DIM,cv2.CV_32FC1)
 R_undist_map=cv2.fisheye.initUndistortRectifyMap(KR,DR,np.identity(3),KR,DIM,cv2.CV_32FC1)
 left1, left2 = cv2.fisheye.initUndistortRectifyMap(KL, DL, R1, P1, DIM, cv2.CV_32FC1)
 right1, right2 = cv2.fisheye.initUndistortRectifyMap(KR,DR, R2, P2, DIM, cv2.CV_32FC1)
-stereo = cv2.StereoBM.create(numDisparities=128, blockSize=67)
+stereo = cv2.StereoBM.create(numDisparities=128, blockSize=77)
 stereo.setMinDisparity(0)
 stereo.setTextureThreshold(0)
 
 #post filtering parameters: prevent false matches, help filter at boundaries
 stereo.setSpeckleRange(2)
 stereo.setSpeckleWindowSize(5)
-stereo.setUniquenessRatio(2)
+stereo.setUniquenessRatio(5)
 
 stereo.setDisp12MaxDiff(2)
 
-left = cv2.imread(leftname)
-right=cv2.imread(rightname)
+left = cv2.imread("_left camera_screenshot_18.06.2024.png")
+right=cv2.imread("_right camera_screenshot_18.06.2024.png")
 
 fixedLeft = cv2.remap(left, left1, left2, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
 fixedRight = cv2.remap(right, right1, right2, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
@@ -126,14 +129,75 @@ disparity = stereo.compute(grayLeft,grayRight)
 # denoise = 5
 # noise=cv2.erode(disparity,np.ones((denoise,denoise)))
 # noise=cv2.dilate(noise,np.ones((denoise,denoise)))
-# blur = cv2.GaussianBlur(noise, (3,3), 1)
+# disparity = cv2.medianBlur(disparity, ksize=5)
 # norm_disparity = cv2.normalize(disparity, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-valid_pixels = disparity > 0
-invalid_pixels = disparity < 0
-disparity[invalid_pixels] = 0.0001
+valid_pixels = disparity > 0.0
+invalid_pixels = disparity < 0.0001
+# print(np.shape(invalid_pixels))
+# print(disparity)
+disparity[invalid_pixels] = 0
+# print(disparity)
+# disparity[disparity > 500] = 1
 norm_disparity = np.array((disparity/16.0 - stereo.getMinDisparity())/stereo.getNumDisparities(), dtype='f')
-points3D = cv2.reprojectImageTo3D(np.array(disparity/16.0, dtype='f'),Q)
-depth = Q[2,3]/Q[3,2]/np.array(disparity/16.0, dtype='f')
-print(disparity/16.0)
-cv2.imshow('img', depth)
+points3D = cv2.reprojectImageTo3D(np.array(disparity/16.0, dtype='f'), Q, handleMissingValues=True)/1000
+depth = Q[2,3]/Q[3,2]/np.array(disparity/16.0, dtype='f')/1000
+depth[np.isinf(depth)] = np.max(depth[np.isfinite(depth)])
+# print(Q[2,3])
+# print(1/Q[3,2])
+# print(np.min(disparity/16.0))
+# print(len(np.unique(disparity)))
+# finiteX = points3D[np.isfinite(points3D)]
+# print(finiteX[:,:,0])
+# print(np.min(depth[np.isfinite(depth)]))
+print(points3D[:,:,:])
+# print(points3D[200,200,1])
+# print(points3D[200,200,2])
+
+# plt.imshow((points3D[:,:,0]**2 + points3D[:,:,1]**2 + points3D[:,:,2]**2)/1000)
+# plt.imshow(disparity/16.0)
+# print(np.median(depth/1000))
+im = plt.imshow(depth)
+
+plt.show()
+
+# im.set_data(depth)
+# plt.hist(depth)
+# plt.show()
+
+depth_thresh = 1.2 # Threshold for SAFE distance (in cm)
+ 
+# Mask to segment regions with depth less than threshold
+mask = cv2.inRange(depth,0.1,depth_thresh)
+
+cv2.imshow('depth mask',mask)
+cv2.waitKey()
+ 
+# Check if a significantly large obstacle is present and filter out smaller noisy regions
+if np.sum(mask)/255.0 > 0.01*mask.shape[0]*mask.shape[1]:
+ 
+  # Contour detection 
+  contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+  cnts = sorted(contours, key=cv2.contourArea, reverse=True)
+   
+  # Check if detected contour is significantly large (to avoid multiple tiny regions)
+  if cv2.contourArea(cnts[0]) > 0.01*mask.shape[0]*mask.shape[1]:
+ 
+    x,y,w,h = cv2.boundingRect(cnts[0])
+ 
+    # finding average depth of region represented by the largest contour 
+    mask2 = np.zeros_like(mask)
+    cv2.drawContours(mask2, cnts, 0, (255), -1)
+    cv2.drawContours(fixedLeft, cnts, 0, (255), -1)
+    # Calculating the average depth of the object closer than the safe distance
+    depth_mean, _ = cv2.meanStdDev(depth, mask=mask2)
+     
+    # Display warning text
+    cv2.putText(fixedLeft, "WARNING !", (x+5,y-40), 1, 2, (0,0,255), 2, 2)
+    cv2.putText(fixedLeft, "Object at", (x+5,y), 1, 2, (100,10,25), 2, 2)
+    cv2.putText(fixedLeft, "%.2f cm"%depth_mean, (x+5,y+40), 1, 2, (100,10,25), 2, 2)
+ 
+else:
+  cv2.putText(fixedLeft, "SAFE!", (100,100),1,3,(0,255,0),2,3)
+ 
+cv2.imshow('output_canvas',fixedLeft)
 cv2.waitKey()
