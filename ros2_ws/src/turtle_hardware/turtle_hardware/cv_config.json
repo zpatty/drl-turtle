@@ -13,12 +13,12 @@
     "dive_thresh": 100,
     "num_cycles": 1,
     "numDisparities": 128,
-    "blockSize": 77,
+    "blockSize": 61,
     "MinDisparity": 0,
     "TextureThreshold": 0,
     "SpeckleRange": 2,
     "SpeckleWindowSize": 5,
-    "UniquenessRatio": 5,
+    "UniquenessRatio": 2,
     "Disp12MaxDiff": 2
 
 }

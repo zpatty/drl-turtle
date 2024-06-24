@@ -139,7 +139,7 @@ disparity[invalid_pixels] = 0
 # print(disparity)
 # disparity[disparity > 500] = 1
 norm_disparity = np.array((disparity/16.0 - stereo.getMinDisparity())/stereo.getNumDisparities(), dtype='f')
-points3D = cv2.reprojectImageTo3D(np.array(disparity/16.0, dtype='f'), Q, handleMissingValues=True)/1000
+points3D = cv2.reprojectImageTo3D(np.array(disparity/16.0/1000, dtype='f'), Q, handleMissingValues=True)
 depth = Q[2,3]/Q[3,2]/np.array(disparity/16.0, dtype='f')/1000
 depth[np.isinf(depth)] = np.max(depth[np.isfinite(depth)])
 # print(Q[2,3])
@@ -149,7 +149,7 @@ depth[np.isinf(depth)] = np.max(depth[np.isfinite(depth)])
 # finiteX = points3D[np.isfinite(points3D)]
 # print(finiteX[:,:,0])
 # print(np.min(depth[np.isfinite(depth)]))
-print(points3D[:,:,:])
+# print(points3D[:,:,:])
 # print(points3D[200,200,1])
 # print(points3D[200,200,2])
 
@@ -159,7 +159,49 @@ print(points3D[:,:,:])
 im = plt.imshow(depth)
 
 plt.show()
+print(np.shape(points3D))
+# opencv loads the image in BGR, so lets make it RGB
+colors = np.reshape(cv2.cvtColor(fixedLeft, cv2.COLOR_BGR2RGB), (-1,3))
+print(np.shape(colors))
 
+
+# points3D[:,:,2] = depth
+# X = points3D[:,:,0]
+# X[np.isinf(X)] = np.max(X[np.isfinite(X)])
+# Y = points3D[:,:,1]
+# Y[np.isinf(Y)] = np.max(Y[np.isfinite(Y)])
+# points3D[:,:,0] = X
+# points3D[:,:,1] = Y
+# print(np.shape(np.reshape(points3D, (-1,3))))
+points3D = np.array([[[10,20,30],[3,5,3.2]]], dtype='f')
+test_pts = np.reshape(points3D, (-1,3)).T
+projected_points,_ = cv2.projectPoints(np.reshape(points3D, (-1,3)), R, np.array(T/1000, dtype='f'), KL, DL)
+projected_points,_ = cv2.projectPoints(np.reshape(points3D, (-1,3)), np.identity(3), np.array([0., 0., 0.]), \
+                          KL, np.array([0., 0., 0., 0.]))
+print(projected_points)
+man_proj = KL @ test_pts
+man_proj = np.divide(man_proj,man_proj[-1,:])
+print(man_proj)
+# print(np.shape(projected_points.reshape(np.shape(points3D)[0], -1, 2)))
+# projected_img = projected_points.reshape(np.shape(points3D)[0], -1, 2)
+
+blank_img = np.zeros(fixedLeft.shape, 'uint8')
+
+for i, pt in enumerate(projected_points):
+    if np.isfinite(pt).all():
+        # print(i)
+        # print(pt.all())
+        # print(np.isfinite(pt).all())
+        pt_x = int(pt[0][0])
+        pt_y = int(pt[0][1])
+        if pt_x > 0 and pt_y > 0:
+            # use the BGR format to match the original image type
+            col = (int(colors[i, 2]), int(colors[i, 1]), int(colors[i, 0]))
+            cv2.circle(blank_img, (pt_x, pt_y), 1, col)
+
+
+cv2.imshow('colorized',blank_img)
+cv2.waitKey()
 # im.set_data(depth)
 # plt.hist(depth)
 # plt.show()

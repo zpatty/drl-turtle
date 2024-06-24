@@ -58,11 +58,12 @@ class CamStream():
         # R=np.array([[0.8468346068067919, 0.09196014378063505, 0.5238458558299675], [-0.09612880246461031, 0.9951817136007952, -0.01930311506739112], [-0.5230969337045535, -0.03401012893874326, 0.8515943336345446]])
         # T=np.array([[2.555600192469948], [-0.10876708731459717], [-0.8815627957762043]])
         KL=np.array([[415.3865625264921, 0.0, 340.2089884295033], [0.0, 414.97465263535884, 242.5868155566783], [0.0, 0.0, 1.0]])
+        self.cam_left_params = KL
         DL=np.array([[-0.04736548487859318], [-0.0610307853579702], [0.07719884723889463], [-0.03916741540522904]])
         KR=np.array([[416.7150603771628, 0.0, 334.41222209893743], [0.0, 415.87631065929355, 243.07735361304927], [0.0, 0.0, 1.0]])
         DR=np.array([[-0.05766925342572732], [-0.03805959476299588], [0.01818581757623005], [0.0050609238522335565]])
         R=np.array([[0.8468488902168668, -0.09608976792441304, -0.5230809819126417], [0.09196308292756036, 0.9951841743019882, -0.03393008395698958], [0.5238222489708887, -0.019370485773520248, 0.8516073248651506]])
-        T=np.array([[-2.6360517899826723], [-0.15711102688565556], [-0.5894243721990178]])
+        T=np.array([[-2.6360517899826723], [-0.15711102688565556], [-0.5894243721990178]])*22.0
         R1,R2,P1,P2,self.Q = cv2.fisheye.stereoRectify(KL,DL,KR,DR,DIM,R,T, cv2.fisheye.CALIB_ZERO_DISPARITY)
         print(self.Q)
         self.L_undist_map=cv2.fisheye.initUndistortRectifyMap(KL,DL,np.identity(3),KL,DIM,cv2.CV_32FC1)
@@ -237,16 +238,114 @@ def main(args=None):
             grayLeft = cv2.cvtColor(fixedLeft, cv2.COLOR_BGR2GRAY)
             grayRight = cv2.cvtColor(fixedRight, cv2.COLOR_BGR2GRAY)
             disparity = stream.stereo.compute(grayLeft,grayRight)
-            # denoise = 5
-            # noise=cv2.erode(disparity,np.ones((denoise,denoise)))
-            # noise=cv2.dilate(noise,np.ones((denoise,denoise)))
-            # blur = cv2.GaussianBlur(noise, (3,3), 1)
+            denoise = 5
+            noise=cv2.erode(disparity,np.ones((denoise,denoise)))
+            noise=cv2.dilate(noise,np.ones((denoise,denoise)))
+            disparity = cv2.medianBlur(noise, ksize=5)
             # norm_disparity = cv2.normalize(disparity, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+            invalid_pixels = disparity < 0.0001
+            disparity[invalid_pixels] = 0
             norm_disparity = np.array((disparity/16.0 - stream.stereo.getMinDisparity())/stream.stereo.getNumDisparities(), dtype='f')
-            points3D = cv2.reprojectImageTo3D(np.array(disparity/16.0, dtype='f'),stream.Q)
-            depth = stream.Q[2,3]/stream.Q[3,2]/np.array(disparity/16.0, dtype='f')
-            print(depth)
-            minimal_subscriber.publisher_depth.publish(minimal_subscriber.br.cv2_to_imgmsg(depth, encoding="passthrough"))
+            points3D = cv2.reprojectImageTo3D(np.array(disparity/16.0/1000.0, dtype='f'), stream.Q, handleMissingValues=True)
+            depth = stream.Q[2,3]/stream.Q[3,2]/np.array(disparity/16.0, dtype='f')/1000
+            x_bounds = [158,613]
+            y_bounds = [30,450]
+            depth_window = depth[30:450,158:613]
+            finite_depth = depth_window[np.isfinite(depth_window)]
+            stop_mean = np.median(finite_depth)
+            h_thresh = 80
+            w_thresh = 100
+            # middle_window = depth_window[h : depth_window.shape[1] - h, w : depth_window.shape[0] - w]
+            # left_window = depth_window[:, 0:int(depth_window.shape[1]/2)]
+            # right_window = depth_window[:, int(depth_window.shape[1]/2):]
+            # top_window = depth_window[0:int(depth_window.shape[0]/2), :]
+            # bottom_window = depth_window[int(depth_window.shape[0]/2):, :]
+
+            depth[np.isinf(depth)] = np.median(finite_depth)
+
+            # colors = np.reshape(cv2.cvtColor(fixedLeft, cv2.COLOR_BGR2RGB), (-1,3))
+
+            # projected_points,_ = cv2.projectPoints(np.reshape(points3D, (-1,3)), np.identity(3), np.array([0., 0., 0.]), \
+            #               stream.cam_left_params, np.array([0., 0., 0., 0.]))
+
+            # blank_img = np.zeros(norm_disparity.shape, 'uint8')
+
+            # for i, pt in enumerate(projected_points):
+            #     if np.isfinite(pt).all():
+            #         # print(i)
+            #         # print(pt.all())
+            #         # print(np.isfinite(pt).all())
+            #         pt_x = int(pt[0][0])
+            #         pt_y = int(pt[0][1])
+            #         if pt_x > 0 and pt_y > 0:
+            #             # use the BGR format to match the original image type
+            #             col = (int(colors[i, 2]), int(colors[i, 1]), int(colors[i, 0]))
+            #             cv2.circle(blank_img, (pt_x, pt_y), 1, col)
+
+            
+            depth_thresh = 0.5 # Threshold for SAFE distance (in cm)
+ 
+            # Mask to segment regions with depth less than threshold
+            mask = cv2.inRange(depth,0.1,depth_thresh)
+
+            # Check if a significantly large obstacle is present and filter out smaller noisy regions
+            if np.sum(mask)/255.0 > 0.01*mask.shape[0]*mask.shape[1]:
+             
+              # Contour detection 
+                contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                cnts = sorted(contours, key=cv2.contourArea, reverse=True)
+               
+              # Check if detected contour is significantly large (to avoid multiple tiny regions)
+                if cv2.contourArea(cnts[0]) > 0.01*mask.shape[0]*mask.shape[1]:
+                 
+                    x,y,w,h = cv2.boundingRect(cnts[0])
+                    x_center = int(x + w/2)
+                    y_center = int(y + h/2)
+                    # finding average depth of region represented by the largest contour 
+                    mask2 = np.zeros_like(mask)
+                    cv2.drawContours(mask2, cnts, 0, (255), -1)
+                    cv2.drawContours(norm_disparity, cnts, 0, (255), -1)
+                    # Calculating the average depth of the object closer than the safe distance
+                    depth_mean, _ = cv2.meanStdDev(depth, mask=mask2)
+                     
+                    # Display warning text
+                    cv2.putText(norm_disparity, "WARNING !", (x+5,y-40), 1, 2, (0,0,255), 2, 2)
+                    cv2.putText(norm_disparity, "Object at", (x+5,y), 1, 2, (100,10,25), 2, 2)
+                    cv2.putText(norm_disparity, "%.2f m"%depth_mean, (x+5,y+40), 1, 2, (100,10,25), 2, 2)
+
+                    if x_center > w_thresh + x_bounds[0] and x_center < x_bounds[1] - w_thresh and y_center > h_thresh + y_bounds[0] and y_center < y_bounds[1] - h_thresh:
+                        # dwell
+                        print("backwards...\n")
+                        msg.data = 'backwards'
+                        minimal_subscriber.cam_pub.publish(msg)
+                    elif x_center < w_thresh + x_bounds[0]:
+                        print("back right...\n")
+                        msg.data = 'backr'
+                        minimal_subscriber.cam_pub.publish(msg)
+                    elif x_center > x_bounds[1] - w_thresh:
+                        print("back left...\n")
+                        msg.data = 'backl'
+                        minimal_subscriber.cam_pub.publish(msg)
+                    elif y_center < h_thresh + y_bounds[0]:
+                        print("back down...\n")
+                        msg.data = 'backd'
+                        minimal_subscriber.cam_pub.publish(msg)
+                    elif y_center > y_bounds[1] - h_thresh:
+                        print("back up...\n")
+                        msg.data = 'backu'
+                        minimal_subscriber.cam_pub.publish(msg)
+                    print((x_center,y_center))
+                    stop = True
+                else:
+                    stop = False
+             
+            else:
+              cv2.putText(norm_disparity, "SAFE!", (100,100),1,3,(0,255,0),2,3)
+              stop = False
+            print(stop_mean)
+            # print(depth)
+            minimal_subscriber.publisher_depth.publish(minimal_subscriber.br.cv2_to_imgmsg(norm_disparity, encoding="passthrough"))
+            # minimal_subscriber.publisher_depth.publish(minimal_subscriber.br.cv2_to_imgmsg(depth[30:450,158:613], encoding="passthrough"))
             # local_max = disparity.max()
             # local_min = disparity.min()
             # disparity_visual = (disparity-local_min)*(1.0/(local_max-local_min))
@@ -299,63 +398,88 @@ def main(args=None):
             cnts, _ = cv2.findContours(mask_right, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             cnt_s = sorted(cnts, key=cv2.contourArea)
 
-            if not (len(cnts) == 0):
-                cnt = cnt_s[-1]
-                (x,y),radius = cv2.minEnclosingCircle(cnt)
-                center = (int(x),int(y))
-                radius = int(radius)
-                cv2.circle(mask,center,radius,10,2)
-                centerMask=cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
-                # minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(centerMask, encoding="bgr8"))
-                # minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(right, encoding="bgr8"))
+            if not stop:
+                if not (len(cnts) == 0):
+                # if stop_mean < 0.1:
+                #     # dwell
+                #     print("backwards...\n")
+                #     msg.data = 'backwards'
+                #     minimal_subscriber.cam_pub.publish(msg)
+                # elif np.median(left_window[np.isfinite(left_window)]) < 0.5:
+                #     print("back right...\n")
+                #     msg.data = 'backr'
+                #     minimal_subscriber.cam_pub.publish(msg)
+                # elif np.median(right_window[np.isfinite(right_window)]) < 0.5:
+                #     print("back left...\n")
+                #     msg.data = 'backl'
+                #     minimal_subscriber.cam_pub.publish(msg)
+                # elif np.median(top_window[np.isfinite(top_window)]) < 0.5:
+                #     print("back down...\n")
+                #     msg.data = 'backd'
+                #     minimal_subscriber.cam_pub.publish(msg)
+                # elif np.median(bottom_window[np.isfinite(bottom_window)]) < 0.5:
+                #     print("back up...\n")
+                #     msg.data = 'backu'
+                #     minimal_subscriber.cam_pub.publish(msg)
+                # else:
+                    cnt = cnt_s[-1]
+                    (x,y),radius = cv2.minEnclosingCircle(cnt)
+                    center = (int(x),int(y))
+                    radius = int(radius)
+                    cv2.circle(mask,center,radius,10,2)
+                    centerMask=cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
+                    # minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(centerMask, encoding="bgr8"))
+                    # minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(right, encoding="bgr8"))
 
 
-                # shesh = '/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
-                # print(f"check: {shesh}")
-                # cv2.imwrite(shesh + "images/frame%d.jpg" % count, centerMask)
-                # print("saved")
-                # count += 1
-                # cv2.imshow('Mask',centerMask)
-                # if cv2.waitKey(1) & 0xFF == ord('q'):
-                #     break
-                centroid = center
-                if abs(centroid[0] - DIM[0]/2) < stream.turn_thresh and abs(centroid[1] - DIM[1]/2) < stream.dive_thresh:
-                    # output straight primitive
-                    print("go straight...\n")
-                    msg.data = 'straight'
-                    minimal_subscriber.cam_pub.publish(msg)
-                elif centroid[0] > DIM[0] - (DIM[0]/2 - stream.turn_thresh):
-                    # turn right
-                    print("turn right...\n")
-                    msg.data = 'turnrf'
-                    minimal_subscriber.cam_pub.publish(msg)
-                elif centroid[0] < (DIM[0]/2 - stream.turn_thresh):
-                    # turn left
-                    print("turn left...\n")
-                    msg.data = 'turnlf'
-                    minimal_subscriber.cam_pub.publish(msg)
-                elif centroid[1] > DIM[1] - (DIM[1]/2 - stream.dive_thresh):
-                    # dive
-                    print("dive...\n")
-                    msg.data = 'dive'
-                    minimal_subscriber.cam_pub.publish(msg)
-                elif centroid[1] < (DIM[1]/2 - stream.dive_thresh): 
-                    # surface
-                    print("surface...\n")
-                    msg.data = 'surface'
-                    minimal_subscriber.cam_pub.publish(msg)
+                    # shesh = '/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
+                    # print(f"check: {shesh}")
+                    # cv2.imwrite(shesh + "images/frame%d.jpg" % count, centerMask)
+                    # print("saved")
+                    # count += 1
+                    # cv2.imshow('Mask',centerMask)
+                    # if cv2.waitKey(1) & 0xFF == ord('q'):
+                    #     break
+                    centroid = center
+                    if abs(centroid[0] - DIM[0]/2) < stream.turn_thresh and abs(centroid[1] - DIM[1]/2) < stream.dive_thresh:
+                        # output straight primitive
+                        print("go straight...\n")
+                        msg.data = 'straight'
+                        minimal_subscriber.cam_pub.publish(msg)
+                    elif centroid[0] > DIM[0] - (DIM[0]/2 - stream.turn_thresh):
+                        # turn right
+                        print("turn right...\n")
+                        msg.data = 'turnrf'
+                        minimal_subscriber.cam_pub.publish(msg)
+                    elif centroid[0] < (DIM[0]/2 - stream.turn_thresh):
+                        # turn left
+                        print("turn left...\n")
+                        msg.data = 'turnlf'
+                        minimal_subscriber.cam_pub.publish(msg)
+                    elif centroid[1] > DIM[1] - (DIM[1]/2 - stream.dive_thresh):
+                        # dive
+                        print("dive...\n")
+                        msg.data = 'dive'
+                        minimal_subscriber.cam_pub.publish(msg)
+                    elif centroid[1] < (DIM[1]/2 - stream.dive_thresh): 
+                        # surface
+                        print("surface...\n")
+                        msg.data = 'surface'
+                        minimal_subscriber.cam_pub.publish(msg)
+                    else:
+                        # dwell
+                        print("dwell...\n")
+                        msg.data = 'dwell'
+                        minimal_subscriber.cam_pub.publish(msg)                    
                 else:
-                    # dwell
-                    print("dwell...\n")
-                    msg.data = 'dwell'
-                    minimal_subscriber.cam_pub.publish(msg)
+                    print("no detection")
+                    # centerMask=cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
+                    # cv2.imshow('Mask',centerMask)
+                    # if cv2.waitKey(1) & 0xFF == ord('q'):
+                    #     break
+                print(minimal_subscriber.flag)    # cv2.destroyAllWindows()
             else:
-                print("no detection")
-                # centerMask=cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
-                # cv2.imshow('Mask',centerMask)
-                # if cv2.waitKey(1) & 0xFF == ord('q'):
-                #     break
-            print(minimal_subscriber.flag)    # cv2.destroyAllWindows()
+                print("obstacle detected")
     except KeyboardInterrupt:
         print("cntrl c input: shutting down...")
         stream.stop_process()

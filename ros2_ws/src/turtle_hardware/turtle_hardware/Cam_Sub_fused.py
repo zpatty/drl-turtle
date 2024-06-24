@@ -6,6 +6,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2 
 from matplotlib import pyplot as plt
+import time
 class CamSubscriber(Node):
 
     def __init__(self):
@@ -63,6 +64,8 @@ class CamSubscriber(Node):
         self.br = CvBridge()
         self.frames = []
         self.count = 0
+        self.first = 1
+        self.start_time = time.time()
 
     def img_callback(self, data):
         self.get_logger().info('Receiving video frame')
@@ -70,6 +73,7 @@ class CamSubscriber(Node):
         # shesh = '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
         # cv2.imwrite(shesh + "images/frame%d.jpg" % self.count, current_frame)
         # self.count += 1
+
         cv2.imshow("mask", current_frame)   
         cv2.waitKey(1)
 
@@ -88,6 +92,11 @@ class CamSubscriber(Node):
         # shesh = '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
         # cv2.imwrite(shesh + "images/frame%d.jpg" % self.count, current_frame)
         # self.count += 1
+        end_time = time.time()
+        seconds = end_time - self.start_time
+        fps = 1.0 / seconds
+        print("Estimated frames per second : {0}".format(fps))
+        self.start_time = end_time
         cv2.imshow("color", current_frame)   
         cv2.waitKey(1)
 
@@ -106,8 +115,15 @@ class CamSubscriber(Node):
         # shesh = '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
         # cv2.imwrite(shesh + "images/frame%d.jpg" % self.count, current_frame)
         # self.count += 1
-        cv2.imshow("depth", current_frame)   
-        cv2.waitKey(1)
+        if self.first:
+            plt.ion()
+            self.fig, ax = plt.subplots()
+            self.im = ax.imshow(current_frame)   
+            plt.show()
+            self.first = 0
+        else:
+            self.im.set_data(current_frame)
+            self.fig.canvas.flush_events()
 
     def keyboard_callback(self, msg):
         """

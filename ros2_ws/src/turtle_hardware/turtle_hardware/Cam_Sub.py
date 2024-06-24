@@ -5,6 +5,7 @@ from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2 
+import time
 class CamSubscriber(Node):
 
     def __init__(self):
@@ -55,6 +56,7 @@ class CamSubscriber(Node):
         self.br = CvBridge()
         self.frames = []
         self.count = 0
+        self.start_time = time.time()
 
     def img_callback(self, data):
         self.get_logger().info('Receiving video frame')
@@ -62,6 +64,11 @@ class CamSubscriber(Node):
         # shesh = '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
         # cv2.imwrite(shesh + "images/frame%d.jpg" % self.count, current_frame)
         # self.count += 1
+        end_time = time.time()
+        seconds = end_time - self.start_time
+        fps = 1.0 / seconds
+        print("Estimated frames per second : {0}".format(fps))
+        self.start_time = end_time
         cv2.imshow("camera", current_frame)   
         cv2.waitKey(1)
 

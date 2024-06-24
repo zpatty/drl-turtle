@@ -1,5 +1,6 @@
-frameRight = imread("left/left 6.png");
-frameLeft = imread("right/right 6.png");
+close all
+frameRight = imread("calib/_right camera_screenshot_18.06.2024.png");
+frameLeft = imread("calib/_left camera_screenshot_18.06.2024.png");
 
 [frameLeftRect, frameRightRect, reprojectionMatrix] = ...
     rectifyStereoImages(frameLeft, frameRight, stereoParams);
@@ -15,7 +16,8 @@ B = 1/reprojectionMatrix(4,3);
 f = reprojectionMatrix(3,4);
 disparityMap = disparitySGM(frameLeftGray, frameRightGray);
 figure;
-imshow(f*B*1./disparityMap./1000,[0 64]);
+dtest = f*B*1./disparityMap./1000;
+imshow(dtest,[0 64]);
 title("Disparity Map");
 colormap jet
 colorbar
