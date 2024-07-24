@@ -10,9 +10,9 @@ up = 190;
 down = 110;
 straight = [230 150 230];
 % front fins
-shoulder1 = [up down up];
+shoulder1 = [up down up];  % down + (up + down) / 2 + (up + down) / 2 * cos(w * t)
 shoulder2 = [straight];
-shoulder3 = [240 100 240];
+shoulder3 = [240 100 240]; % 150 + 40 * cos(w * t)
 shoulder4 = 180 + (180 - shoulder1);
 shoulder5 = 180 + (180 - shoulder2);
 shoulder6 = [120 260 120];

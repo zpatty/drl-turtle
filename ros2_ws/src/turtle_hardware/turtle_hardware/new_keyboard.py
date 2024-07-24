@@ -285,7 +285,12 @@ def main(args=None):
                 msg.data='turnrf'
                 tomotors.publish(msg)
                 log = "Turnrf Command Sent"
-                node.get_logger().info(log)        
+                node.get_logger().info(log)  
+            case _:
+                msg.data=key_input
+                tomotors.publish(msg)
+                log = "General Command Sent"
+                node.get_logger().info(log)  
 
     rclpy.shutdown()
 

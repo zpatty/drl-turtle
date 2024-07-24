@@ -82,6 +82,17 @@ class Dynamixel:
             print("%s" % self.packetHandler.getRxPacketError(dxl_error))
         else:
             print("Operating mode changed to current control mode.")
+    
+    def velocity_control_mode(self):
+        # Set operating mode to current control mode (used for torque control)
+        dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, self.ID, ADDR_OPERATING_MODE, VELOCITY_CONTROL_MODE)
+        if dxl_comm_result != COMM_SUCCESS:
+            print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+        elif dxl_error != 0:
+            print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+        else:
+            print("Operating mode changed to current control mode.")
+
     def set_max_velocity(self, velocity):
         # Set max velocity of dynamixel
         dxl_comm_result, dxl_error = self.packetHandler.write4ByteTxRx(self.portHandler, self.ID, ADDR_PROFILE_VELOCITY, velocity)
@@ -119,6 +130,18 @@ class Dynamixel:
         else:
             pass
             print("goal position has been set")
+    
+    def set_goal_velocity(self, goal_vel):
+        # Write goal position
+        dxl_comm_result, dxl_error = self.packetHandler.write4ByteTxRx(self.portHandler, self.ID, ADDR_GOAL_VELOCITY, goal_vel)
+        if dxl_comm_result != COMM_SUCCESS:
+            print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+        elif dxl_error != 0:
+            print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+        else:
+            pass
+            print("goal position has been set")
+
     def send_torque_cmd(self, torque):
         # Write current input --> in mA
         dxl_comm_result, dxl_error = self.packetHandler.write2ByteTxRx(self.portHandler, self.ID, ADDR_GOAL_CURRENT, torque)

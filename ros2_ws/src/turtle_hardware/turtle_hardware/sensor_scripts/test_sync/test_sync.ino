@@ -15,45 +15,56 @@
 *******************************************************************************/
 
 // Author: Ashe Kim
-
-#include <Dynamixel2Arduino.h>
+#include <DynamixelShield.h>
+// #include <Dynamixel2Arduino.h>
 
 // Please modify it to suit your hardware.
-#if defined(ARDUINO_AVR_UNO) || defined(ARDUINO_AVR_MEGA2560) // When using DynamixelShield
-  #include <SoftwareSerial.h>
-  SoftwareSerial soft_serial(7, 8); // DYNAMIXELShield UART RX/TX
-  #define DXL_SERIAL   Serial
-  #define DEBUG_SERIAL soft_serial
-  const int DXL_DIR_PIN = 2; // DYNAMIXEL Shield DIR PIN
-#elif defined(ARDUINO_SAM_DUE) // When using DynamixelShield
-  #define DXL_SERIAL   Serial
-  #define DEBUG_SERIAL SerialUSB
-  const int DXL_DIR_PIN = 2; // DYNAMIXEL Shield DIR PIN
-#elif defined(ARDUINO_SAM_ZERO) // When using DynamixelShield
-  #define DXL_SERIAL   Serial1
-  #define DEBUG_SERIAL SerialUSB
-  const int DXL_DIR_PIN = 2; // DYNAMIXEL Shield DIR PIN
-#elif defined(ARDUINO_OpenCM904) // When using official ROBOTIS board with DXL circuit.
-  #define DXL_SERIAL   Serial3 //OpenCM9.04 EXP Board's DXL port Serial. (Serial1 for the DXL port on the OpenCM 9.04 board)
-  #define DEBUG_SERIAL Serial
-  const int DXL_DIR_PIN = 22; //OpenCM9.04 EXP Board's DIR PIN. (28 for the DXL port on the OpenCM 9.04 board)
-#elif defined(ARDUINO_OpenCR) // When using official ROBOTIS board with DXL circuit.
-  // For OpenCR, there is a DXL Power Enable pin, so you must initialize and control it.
-  // Reference link : https://github.com/ROBOTIS-GIT/OpenCR/blob/master/arduino/opencr_arduino/opencr/libraries/DynamixelSDK/src/dynamixel_sdk/port_handler_arduino.cpp#L78
-  #define DXL_SERIAL   Serial3
-  #define DEBUG_SERIAL Serial
-  const int DXL_DIR_PIN = 84; // OpenCR Board's DIR PIN.    
-#elif defined(ARDUINO_OpenRB)  // When using OpenRB-150
-  //OpenRB does not require the DIR control pin.
-  #define DXL_SERIAL Serial1
-  #define DEBUG_SERIAL Serial
-  const int DXL_DIR_PIN = -1;
-#else // Other boards when using DynamixelShield
-  #define DXL_SERIAL   Serial1
-  #define DEBUG_SERIAL Serial
-  const int DXL_DIR_PIN = 2; // DYNAMIXEL Shield DIR PIN
+// #if defined(ARDUINO_AVR_UNO) || defined(ARDUINO_AVR_MEGA2560) // When using DynamixelShield
+//   #include <SoftwareSerial.h>
+//   SoftwareSerial soft_serial(7, 8); // DYNAMIXELShield UART RX/TX
+//   #define DXL_SERIAL   Serial
+//   #define DEBUG_SERIAL soft_serial
+//   const int DXL_DIR_PIN = 2; // DYNAMIXEL Shield DIR PIN
+// #elif defined(ARDUINO_SAM_DUE) // When using DynamixelShield
+//   #define DXL_SERIAL   Serial
+//   #define DEBUG_SERIAL SerialUSB
+//   const int DXL_DIR_PIN = 2; // DYNAMIXEL Shield DIR PIN
+// #elif defined(ARDUINO_SAM_ZERO) // When using DynamixelShield
+//   #define DXL_SERIAL   Serial1
+//   #define DEBUG_SERIAL SerialUSB
+//   const int DXL_DIR_PIN = 2; // DYNAMIXEL Shield DIR PIN
+// #elif defined(ARDUINO_OpenCM904) // When using official ROBOTIS board with DXL circuit.
+//   #define DXL_SERIAL   Serial3 //OpenCM9.04 EXP Board's DXL port Serial. (Serial1 for the DXL port on the OpenCM 9.04 board)
+//   #define DEBUG_SERIAL Serial
+//   const int DXL_DIR_PIN = 22; //OpenCM9.04 EXP Board's DIR PIN. (28 for the DXL port on the OpenCM 9.04 board)
+// #elif defined(ARDUINO_OpenCR) // When using official ROBOTIS board with DXL circuit.
+//   // For OpenCR, there is a DXL Power Enable pin, so you must initialize and control it.
+//   // Reference link : https://github.com/ROBOTIS-GIT/OpenCR/blob/master/arduino/opencr_arduino/opencr/libraries/DynamixelSDK/src/dynamixel_sdk/port_handler_arduino.cpp#L78
+//   #define DXL_SERIAL   Serial3
+//   #define DEBUG_SERIAL Serial
+//   const int DXL_DIR_PIN = 84; // OpenCR Board's DIR PIN.
+// #elif defined(ARDUINO_OpenRB)  // When using OpenRB-150
+//   //OpenRB does not require the DIR control pin.
+//   #define DXL_SERIAL Serial1
+//   #define DEBUG_SERIAL Serial
+//   const int DXL_DIR_PIN = -1;
+// #else // Other boards when using DynamixelShield
+//   #define DXL_SERIAL   Serial1
+//   #define DEBUG_SERIAL Serial
+//   const int DXL_DIR_PIN = 2; // DYNAMIXEL Shield DIR PIN
+// #endif
+
+#if defined(ARDUINO_AVR_UNO) || defined(ARDUINO_AVR_MEGA2560)
+#include <SoftwareSerial.h>
+SoftwareSerial soft_serial(7, 8);  // DYNAMIXELShield UART RX/TX
+#define DEBUG_SERIAL soft_serial
+#elif defined(ARDUINO_SAM_DUE) || defined(ARDUINO_SAM_ZERO)
+#define DEBUG_SERIAL SerialUSB
+#else
+#define DEBUG_SERIAL Serial
 #endif
-#define DXL_MOVING_STATUS_THRESHOLD  10
+
+#define DXL_MOVING_STATUS_THRESHOLD 10
 
 /* FastsyncRead
   DYNAMIXEL PROTOCOL 1.0 does NOT support Sync Read feature.
@@ -97,21 +108,22 @@
 const float DYNAMIXEL_PROTOCOL_VERSION = 2.0;
 const uint8_t BROADCAST_ID = 254;
 const uint8_t DXL_ID_CNT = 2;
-const uint8_t DXL_ID_LIST[DXL_ID_CNT] = {1, 2};
+const uint8_t DXL_ID_LIST[DXL_ID_CNT] = { 1, 2 };
 const uint16_t user_pkt_buf_cap = 128;
 uint8_t user_pkt_buf[user_pkt_buf_cap];
 
-const uint16_t SR_START_ADDR = 126; //Present position
+const uint16_t SR_START_ADDR = 126;  //Present position
 const uint16_t SR_ADDR_LEN = 2 + 4 + 4;
-const uint16_t SW_START_ADDR = 102; //Goal position
+const uint16_t SW_START_ADDR = 102;  //Goal position
 const uint16_t SW_ADDR_LEN = 2;
 
-typedef struct sr_data{
+typedef struct sr_data {
   int16_t present_current;
   int32_t present_velocity;
-  int32_t present_position;;
+  int32_t present_position;
+  ;
 } __attribute__((packed)) sr_data_t;
-typedef struct sw_data{
+typedef struct sw_data {
   int16_t goal_current;
 } __attribute__((packed)) sw_data_t;
 
@@ -131,23 +143,31 @@ using namespace ControlTableItem;
 
 int32_t dxl_goal_current = 0;
 
-int32_t goal_position[2] = {0, 0};
-int32_t goal_velocity[2] = {0, 0};
-int16_t goal_current_arr[2] = {0, 0};
+int32_t goal_position[2] = { 0, 0 };
+int32_t goal_velocity[2] = { 0, 0 };
+int16_t goal_current_arr[2] = { 0, 0 };
 
 int32_t e1;
 int32_t e2;
 
+int32_t max_current = 909;
+
 char keyboard;
+
+unsigned long start_time;
+unsigned long read_time;
+unsigned long write_time = 1;
+unsigned long end_time;
+unsigned long delay_time;
 
 void setup() {
   uint8_t i;
   pinMode(LED_BUILTIN, OUTPUT);
   DEBUG_SERIAL.begin(115200);
-  dxl.begin(1000000);
+  dxl.begin(2000000);
   dxl.setPortProtocolVersion(DYNAMIXEL_PROTOCOL_VERSION);
-  
-  for(i=0; i<DXL_ID_CNT; i++){
+
+  for (i = 0; i < DXL_ID_CNT; i++) {
     dxl.torqueOff(DXL_ID_LIST[i]);
     dxl.setOperatingMode(DXL_ID_LIST[i], OP_CURRENT);
   }
@@ -160,9 +180,9 @@ void setup() {
   sr_infos.addr = SR_START_ADDR;
   sr_infos.addr_length = SR_ADDR_LEN;
   sr_infos.p_xels = info_xels_sr;
-  sr_infos.xel_count = 0;  
+  sr_infos.xel_count = 0;
 
-  for(i=0; i<DXL_ID_CNT; i++){
+  for (i = 0; i < DXL_ID_CNT; i++) {
     info_xels_sr[i].id = DXL_ID_LIST[i];
     info_xels_sr[i].p_recv_buf = (uint8_t*)&sr_data[i];
     sr_infos.xel_count++;
@@ -179,11 +199,11 @@ void setup() {
   sw_infos.xel_count = 0;
 
   // Insert a initial Position to the syncWrite Packet
-  for(i = 0; i < DXL_ID_CNT; i++){
+  for (i = 0; i < DXL_ID_CNT; i++) {
     sw_data[i].goal_current = dxl_goal_current;
   }
-  
-  for(i=0; i<DXL_ID_CNT; i++){
+
+  for (i = 0; i < DXL_ID_CNT; i++) {
     info_xels_sw[i].id = DXL_ID_LIST[i];
     info_xels_sw[i].p_data = (uint8_t*)&sw_data[i].goal_current;
     sw_infos.xel_count++;
@@ -210,26 +230,49 @@ void loop() {
 
   // Transmit predefined fastSyncRead instruction packet
   // and receive a status packet from each DYNAMIXEL
-  recv_cnt = dxl.fastSyncRead(&sr_infos);
-  if(recv_cnt > 0){
-    DEBUG_SERIAL.print("[fastSyncRead] Success, Received ID Count: ");
-    DEBUG_SERIAL.println(recv_cnt);
-    for(i=0; i<recv_cnt; i++) {
+  
+  start_time = micros();
+  recv_cnt = dxl.syncRead(&sr_infos, 1);
+  read_time = micros() - start_time;
+  if (recv_cnt > 1) {
+    // DEBUG_SERIAL.print("[fastSyncRead] Success, Received ID Count: ");
+    // DEBUG_SERIAL.println(recv_cnt);
+    for (i = 0; i < recv_cnt; i++) {
       DEBUG_SERIAL.print("  ID: ");
       DEBUG_SERIAL.print(sr_infos.p_xels[i].id);
-      DEBUG_SERIAL.print("\t Present Position: ");
-      DEBUG_SERIAL.println(sr_data[i].present_position);
-      DEBUG_SERIAL.print("\t Present Velocity: ");
-      DEBUG_SERIAL.println(sr_data[i].present_velocity);
+      DEBUG_SERIAL.print(", \t Present Position: ");
+      DEBUG_SERIAL.print(sr_data[i].present_position);
+      DEBUG_SERIAL.print(", \t Present Velocity: ");
+      DEBUG_SERIAL.print(sr_data[i].present_velocity);
     }
+    DEBUG_SERIAL.print(", \t Time: ");
+    
+    
+    start_time = micros();
+    delay(1);
+    // delayMicroseconds(150);
+    delay_time = micros() - start_time;
+    DEBUG_SERIAL.print(micros() - end_time);
+    DEBUG_SERIAL.print(", \t Read Time: ");
+    DEBUG_SERIAL.print(read_time);
+    DEBUG_SERIAL.print(", \t Write Time: ");
+    DEBUG_SERIAL.print(write_time);
+    DEBUG_SERIAL.print(", \t Delay Time: ");
+    DEBUG_SERIAL.print(delay_time);
+    Serial.println("");
+    start_time = end_time;
+    end_time = micros();
+    
   } else {
-    DEBUG_SERIAL.print("[fastSyncRead] Fail, Lib error code: ");
-    DEBUG_SERIAL.println(dxl.getLastLibErrCode());
+    // DEBUG_SERIAL.print("[fastSyncRead] Fail, Lib error code: ");
+    // DEBUG_SERIAL.println(dxl.getLastLibErrCode());
   }
 
-  if(Serial.available()){
+
+
+  if (Serial.available()) {
     String rxString = "";
-    String strArr[2]; //Set the size of the array to equal the number of values you will be receiveing.
+    String strArr[2];  //Set the size of the array to equal the number of values you will be receiveing.
     //Keep looping until there is something in the buffer.
     while (Serial.available()) {
       //Delay to allow byte to arrive in input buffer.
@@ -237,19 +280,19 @@ void loop() {
       //Read a single character from the buffer.
       char ch = Serial.read();
       //Append that single character to a string.
-      rxString+= ch;
+      rxString += ch;
     }
     int stringStart = 0;
     int arrayIndex = 0;
-    for (int i=0; i < rxString.length(); i++){
+    for (int i = 0; i < rxString.length(); i++) {
       //Get character and check if it's our "special" character.
-      if(rxString.charAt(i) == ','){
+      if (rxString.charAt(i) == ',') {
         //Clear previous values from array.
         strArr[arrayIndex] = "";
         //Save substring into array.
         strArr[arrayIndex] = rxString.substring(stringStart, i);
         //Set new string starting point.
-        stringStart = (i+1);
+        stringStart = (i + 1);
         arrayIndex++;
       }
     }
@@ -264,24 +307,24 @@ void loop() {
 
   e1 = sr_data[0].present_position - goal_position[0];
   e2 = sr_data[1].present_position - goal_position[1];
-  int32_t goal_current_1 = -e1 - sr_data[0].present_velocity;
-  int32_t goal_current_2 = -e2 - sr_data[1].present_velocity;
+  int32_t goal_current_1 = - e1 - 0.5*sr_data[0].present_velocity;
+  int32_t goal_current_2 = - e2 - 0.5*sr_data[1].present_velocity;
 
-  if (abs(goal_current_1) > 909){
+  if (abs(goal_current_1) > max_current) {
     int8_t sign = (goal_current_1 > 0) - (goal_current_1 < 0);
-    goal_current_1 = 909 * sign;
+    goal_current_1 = max_current * sign;
   }
 
-  if (abs(goal_current_2) > 909){
+  if (abs(goal_current_2) > max_current) {
     int8_t sign = (goal_current_2 > 0) - (goal_current_2 < 0);
-    goal_current_2 = 909 * sign;
+    goal_current_2 = max_current * sign;
   }
 
   goal_current_arr[0] = goal_current_1;
   goal_current_arr[1] = goal_current_2;
 
   // Insert a new Goal Position to the syncWrite Packet
-  for(i = 0; i < DXL_ID_CNT; i++){
+  for (i = 0; i < DXL_ID_CNT; i++) {
     sw_data[i].goal_current = goal_current_arr[i];
   }
 
@@ -292,25 +335,27 @@ void loop() {
   // DEBUG_SERIAL.println(try_count++);
 
   // Build a syncWrite Packet and transmit to DYNAMIXEL
-  if(dxl.syncWrite(&sw_infos) == true){
+  start_time = micros();
+  if (dxl.syncWrite(&sw_infos) == true) {
     // DEBUG_SERIAL.println("[SyncWrite] Success");
-    for(i=0; i<sw_infos.xel_count; i++){
+    for (i = 0; i < sw_infos.xel_count; i++) {
       // DEBUG_SERIAL.print("  ID: ");DEBUG_SERIAL.print(sw_infos.p_xels[i].id);
       // DEBUG_SERIAL.print("\t Goal Current: ");DEBUG_SERIAL.println(sw_data[i].goal_current);
-    }   
-  }else{
+    }
+  } else {
     // DEBUG_SERIAL.print("[SyncWrite] Fail, Lib error code: ");
     // DEBUG_SERIAL.print(dxl.getLastLibErrCode());
   }
+  write_time = micros() - start_time;
   // DEBUG_SERIAL.println();
 
-  // delay(2);
-
-  
-
-  DEBUG_SERIAL.println();
-  DEBUG_SERIAL.println("=======================================================");
-
-  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
   // delay(1);
+
+
+
+  // DEBUG_SERIAL.println();
+  // DEBUG_SERIAL.println("=======================================================");
+
+  // digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  // delayMicroseconds(500);
 }

@@ -320,19 +320,19 @@ def main(args=None):
                         minimal_subscriber.cam_pub.publish(msg)
                     elif x_center < w_thresh + x_bounds[0]:
                         print("back right...\n")
-                        msg.data = 'backr'
+                        msg.data = 'backwards'
                         minimal_subscriber.cam_pub.publish(msg)
                     elif x_center > x_bounds[1] - w_thresh:
                         print("back left...\n")
-                        msg.data = 'backl'
+                        msg.data = 'backwards'
                         minimal_subscriber.cam_pub.publish(msg)
                     elif y_center < h_thresh + y_bounds[0]:
                         print("back down...\n")
-                        msg.data = 'backd'
+                        msg.data = 'backwards'
                         minimal_subscriber.cam_pub.publish(msg)
                     elif y_center > y_bounds[1] - h_thresh:
                         print("back up...\n")
-                        msg.data = 'backu'
+                        msg.data = 'backwards'
                         minimal_subscriber.cam_pub.publish(msg)
                     print((x_center,y_center))
                     stop = True
@@ -397,8 +397,8 @@ def main(args=None):
 
             cnts, _ = cv2.findContours(mask_right, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             cnt_s = sorted(cnts, key=cv2.contourArea)
-
-            if not stop:
+            ball_tracking = False
+            if not stop and ball_tracking:
                 if not (len(cnts) == 0):
                 # if stop_mean < 0.1:
                 #     # dwell
@@ -497,4 +497,5 @@ def main(args=None):
     # cap0.release()
 
 if __name__ == '__main__':
+
     main()

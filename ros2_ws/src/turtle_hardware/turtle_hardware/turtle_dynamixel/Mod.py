@@ -27,6 +27,8 @@ MAX_PROFILE_VELOCITY        = 50                # ranges from 0-32,767 [0.229 re
 LEN_PRESENT_POSITION        = 4                 # Data Byte Length
 LEN_GOAL_CURRENT            = 2                 # Byte Length for current
 LEN_GOAL_POSITION           = 4                 # Data Byte Length
+LEN_GOAL_VELOCITY          = 4                 # Data Byte Length
+
 from dynamixel_sdk import *                     # Uses Dynamixel SDK library
 # from packet_handling import *
 import math
@@ -178,6 +180,16 @@ class Mod:
                 print("%s" % self.packetHandler.getRxPacketError(dxl_error))
             else:
                 print(f"[STATUS] Motor {ID} operating mode changed to current control mode.")
+    def set_velocity_cntrl_mode(self):
+        # Set operating mode to current control mode (used for torque control)
+        for ID in self.IDS:
+            dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, ID, ADDR_OPERATING_MODE, VELOCITY_CONTROL_MODE)
+            if dxl_comm_result != COMM_SUCCESS:
+                print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+            elif dxl_error != 0:
+                print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+            else:
+                print(f"[STATUS] Motor {ID} operating mode changed to current control mode.")
     def set_current_cntrl_back_fins(self):
         # Set operating mode to current control mode (used for torque control)
         back_fins = [7,8,9,10]
@@ -271,6 +283,26 @@ class Mod:
             print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
         else:
             print("[STATUS] Pos command sent")
+        # Clear syncwrite parameter storage
+        self.groupSyncWrite.clearParam()
+    
+    def send_vel_cmd(self, vel):
+        velSyncWrite = GroupSyncWrite(self.portHandler, self.packetHandler, ADDR_GOAL_VELOCITY, LEN_GOAL_VELOCITY)
+        # num_motors = 6
+        for i in range(len(vel)):
+            # Allocate goal velocity value into byte array
+            p = [DXL_LOBYTE(DXL_LOWORD(vel[i])), DXL_HIBYTE(DXL_LOWORD(vel[i])), DXL_LOBYTE(DXL_HIWORD(vel[i])), DXL_HIBYTE(DXL_HIWORD(vel[i]))]
+            # Add parameter storage for Dynamixel present velocity value
+            dxl_addparam_result = velSyncWrite.addParam(self.IDS[i], p)
+            if dxl_addparam_result != True:
+                print(f"[ERROR] [ID:{self.ID[i]}] groupSyncRead addparam failed")
+                quit()
+        # Syncwrite goal velocity
+        dxl_comm_result = velSyncWrite.txPacket()
+        if dxl_comm_result != COMM_SUCCESS:
+            print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+        else:
+            print("[STATUS] Vel command sent")
         # Clear syncwrite parameter storage
         self.groupSyncWrite.clearParam()
 
