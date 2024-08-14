@@ -28,6 +28,8 @@ from turtle_interfaces.msg import TurtleTraj, TurtleSensors
 from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
 
+from datetime import datetime
+
 class CamStream():
     """
     Class that just reads from the camera
@@ -170,6 +172,15 @@ class MinimalSubscriber(Node):
         self.create_rate(100)
         self.subscription  # prevent unused variable warning
 
+        self.count = 0
+        t = datetime.today().strftime("%m_%d_%Y_%H_%M_%S")
+        folder_name =  "video/" + t
+        os.makedirs(folder_name + "/fused")
+        os.makedirs(folder_name + "/right")
+        os.makedirs(folder_name + "/left")
+        os.makedirs(folder_name + "/depth")
+        self.output_folder = folder_name
+
     def keyboard_callback(self, msg):
         """
         Callback function that updates the mode the turtle should be in.
@@ -222,6 +233,7 @@ def main(args=None):
             right = stream.frame1
             fused = fuse_feeds(left, right)
             minimal_subscriber.publisher_color.publish(minimal_subscriber.br.cv2_to_imgmsg(fused, encoding="bgr8"))
+            
             # minimal_subscriber.publisher_color_1.publish(minimal_subscriber.br.cv2_to_imgmsg(left, encoding="bgr8"))
 
                 # just undistorted, no stereo
@@ -320,19 +332,19 @@ def main(args=None):
                         minimal_subscriber.cam_pub.publish(msg)
                     elif x_center < w_thresh + x_bounds[0]:
                         print("back right...\n")
-                        msg.data = 'backwards'
+                        msg.data = 'backr'
                         minimal_subscriber.cam_pub.publish(msg)
                     elif x_center > x_bounds[1] - w_thresh:
                         print("back left...\n")
-                        msg.data = 'backwards'
+                        msg.data = 'backl'
                         minimal_subscriber.cam_pub.publish(msg)
                     elif y_center < h_thresh + y_bounds[0]:
                         print("back down...\n")
-                        msg.data = 'backwards'
+                        msg.data = 'backd'
                         minimal_subscriber.cam_pub.publish(msg)
                     elif y_center > y_bounds[1] - h_thresh:
                         print("back up...\n")
-                        msg.data = 'backwards'
+                        msg.data = 'backu'
                         minimal_subscriber.cam_pub.publish(msg)
                     print((x_center,y_center))
                     stop = True
@@ -345,6 +357,11 @@ def main(args=None):
             print(stop_mean)
             # print(depth)
             minimal_subscriber.publisher_depth.publish(minimal_subscriber.br.cv2_to_imgmsg(norm_disparity, encoding="passthrough"))
+            cv2.imwrite(minimal_subscriber.output_folder + "/left/frame%d.jpg" % minimal_subscriber.count, left)
+            cv2.imwrite(minimal_subscriber.output_folder + "/right/frame%d.jpg" % minimal_subscriber.count, right)
+            cv2.imwrite(minimal_subscriber.output_folder + "/fused/frame%d.jpg" % minimal_subscriber.count, fused)
+            cv2.imwrite(minimal_subscriber.output_folder + "/depth/frame%d.jpg" % minimal_subscriber.count, norm_disparity)
+            minimal_subscriber.count += 1
             # minimal_subscriber.publisher_depth.publish(minimal_subscriber.br.cv2_to_imgmsg(depth[30:450,158:613], encoding="passthrough"))
             # local_max = disparity.max()
             # local_min = disparity.min()
@@ -397,8 +414,8 @@ def main(args=None):
 
             cnts, _ = cv2.findContours(mask_right, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             cnt_s = sorted(cnts, key=cv2.contourArea)
-            ball_tracking = False
-            if not stop and ball_tracking:
+
+            if not stop:
                 if not (len(cnts) == 0):
                 # if stop_mean < 0.1:
                 #     # dwell
@@ -497,5 +514,4 @@ def main(args=None):
     # cap0.release()
 
 if __name__ == '__main__':
-
     main()

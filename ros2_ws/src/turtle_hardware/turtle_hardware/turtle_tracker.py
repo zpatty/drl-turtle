@@ -29,7 +29,7 @@ from turtle_interfaces.msg import TurtleTraj, TurtleSensors
 from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
 
-from tracking_class import Tracker
+from Tracker import Tracker
 
 
 global flag
@@ -79,6 +79,8 @@ class MinimalSubscriber(Node):
 
         self.cam_pub = self.create_publisher(String, 'primitive', buff_profile)
 
+        self.publisher_detect = self.create_publisher(Image, 'video_detect' , qos_profile)
+
         self.br = CvBridge()
 
         self.create_rate(100)
@@ -97,11 +99,15 @@ class MinimalSubscriber(Node):
         self.get_logger().info('Receiving other video frame')
         current_frame = self.br.imgmsg_to_cv2(data)
         # estimate position here
-        print("tracking")
+        # print("tracking")
         msg = String()
         DIM=(640, 480)
+        
         if self.first_detect:
-            rects = self.tracker.detect_and_track(current_frame)
+            # rects = self.tracker.detect_and_track(current_frame)
+            rects, img, preds = self.tracker.detect_and_track(current_frame)
+            # print(preds)
+            self.publisher_detect.publish(self.br.cv2_to_imgmsg(np.transpose(np.squeeze(img), (1, 2, 0)), encoding="passthrough"))
             if not rects:
                 self.first_detect = True
                 print("No detection, dwell...\n")
@@ -109,6 +115,7 @@ class MinimalSubscriber(Node):
                 self.cam_pub.publish(msg)
             else:
                 self.first_detect = False
+                print("Turtle Detected!\n")
                 self.tracker.tracker.init(current_frame, rects[0])
         
         

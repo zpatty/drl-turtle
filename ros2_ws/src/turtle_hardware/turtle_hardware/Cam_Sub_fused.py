@@ -7,6 +7,9 @@ from cv_bridge import CvBridge
 import cv2 
 from matplotlib import pyplot as plt
 import time
+import os
+from datetime import datetime
+
 class CamSubscriber(Node):
 
     def __init__(self):
@@ -31,12 +34,12 @@ class CamSubscriber(Node):
         # qos_profile
         # )
 
-        self.cam_color = self.create_subscription(
-            Image,
-            'video_frames_color',
-            self.img_callback_color,
-            qos_profile
-            )
+        # self.cam_color = self.create_subscription(
+        #     Image,
+        #     'video_frames_color',
+        #     self.img_callback_color,
+        #     qos_profile
+        #     )
 
         # self.cam_color_1 = self.create_subscription(
         #     Image,
@@ -49,6 +52,14 @@ class CamSubscriber(Node):
             Image,
             'video_frames_depth',
             self.img_callback_depth,
+            qos_profile
+            )
+    
+
+        self.cam_detect = self.create_subscription(
+            Image,
+            'video_detect',
+            self.img_callback_detect,
             qos_profile
             )
 
@@ -66,6 +77,11 @@ class CamSubscriber(Node):
         self.count = 0
         self.first = 1
         self.start_time = time.time()
+        
+        t = datetime.today().strftime("%m_%d_%Y_%H_%M_%S")
+        folder_name =  "video/" + t
+        os.makedirs(folder_name)
+        self.output_folder = folder_name
 
     def img_callback(self, data):
         self.get_logger().info('Receiving video frame')
@@ -75,6 +91,17 @@ class CamSubscriber(Node):
         # self.count += 1
 
         cv2.imshow("mask", current_frame)   
+        cv2.waitKey(1)
+
+    def img_callback_detect(self, data):
+        self.get_logger().info('Receiving video frame')
+        # print(data.shape)
+        current_frame = self.br.imgmsg_to_cv2(data)
+        # shesh = '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
+        # cv2.imwrite(shesh + "images/frame%d.jpg" % self.count, current_frame)
+        # self.count += 1
+        # print(current_frame.shape)
+        cv2.imshow("detection", current_frame)   
         cv2.waitKey(1)
 
     # def img_callback_1(self, data):
@@ -89,9 +116,9 @@ class CamSubscriber(Node):
     def img_callback_color(self, data):
         self.get_logger().info('Receiving other video frame')
         current_frame = self.br.imgmsg_to_cv2(data)
-        # shesh = '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
-        # cv2.imwrite(shesh + "images/frame%d.jpg" % self.count, current_frame)
-        # self.count += 1
+        # shesh = '/home/zach/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
+        cv2.imwrite(self.output_folder + "/frame%d.jpg" % self.count, current_frame)
+        self.count += 1
         end_time = time.time()
         seconds = end_time - self.start_time
         fps = 1.0 / seconds
