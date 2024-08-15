@@ -400,6 +400,8 @@ def main():
     focals = []
     for cam in cameras:
         focals.append(cam.focal)
+        print(cam.focal)
+        print(cam.R)
     focals.sort()
     if len(focals) % 2 == 1:
         warped_image_scale = focals[len(focals) // 2]
@@ -409,6 +411,7 @@ def main():
         rmats = []
         for cam in cameras:
             rmats.append(np.copy(cam.R))
+
         rmats = cv.detail.waveCorrect(rmats, wave_correct)
         for idx, cam in enumerate(cameras):
             cam.R = rmats[idx]

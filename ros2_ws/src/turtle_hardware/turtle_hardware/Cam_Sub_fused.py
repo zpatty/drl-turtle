@@ -34,12 +34,12 @@ class CamSubscriber(Node):
         # qos_profile
         # )
 
-        # self.cam_color = self.create_subscription(
-        #     Image,
-        #     'video_frames_color',
-        #     self.img_callback_color,
-        #     qos_profile
-        #     )
+        self.cam_color = self.create_subscription(
+            Image,
+            'video_frames_color',
+            self.img_callback_color,
+            qos_profile
+            )
 
         # self.cam_color_1 = self.create_subscription(
         #     Image,

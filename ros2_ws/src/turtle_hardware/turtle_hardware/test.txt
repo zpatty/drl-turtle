@@ -1,4 +1,3 @@
 graph matches_graph{
-"right.png";
-"left.png";
+"frame6.jpg" -- "frame6.jpg"[label="Nm=103, Ni=30, C=0.771208"];
 }

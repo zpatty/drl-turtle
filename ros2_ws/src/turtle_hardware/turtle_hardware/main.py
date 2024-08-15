@@ -210,7 +210,7 @@ def execute_primitive_vel(turtle_node, primitive, t_0):
     vd_ticks = np.clip(ud * 30.0 / np.pi / 0.229, -160., 160.).astype(int).squeeze().tolist()
 
     # print((ud * 30.0 / np.pi / 0.229).astype(int).squeeze().tolist())
-    # turtle_node.Joints.send_vel_cmd(vd_ticks)
+    turtle_node.Joints.send_vel_cmd(vd_ticks)
     turtle_node.log_time(t)
     turtle_node.log_u(ud)
     return t_0
@@ -408,7 +408,7 @@ def main(args=None):
                     turtle_node.log_joints()
                     
                     t_0 = execution(turtle_node, primitive, t_0)
-                    turtle_node.publish_turtle_data()
+                    # turtle_node.publish_turtle_data()
                     
                 
                 # turtle_node.publish_turtle_data()

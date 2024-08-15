@@ -69,13 +69,14 @@ def convert_q_to_motors(q, qd, qdd):
 
 # q_off = np.array([0.0, 0.0 / 180 * np.pi, -.0 / 180 * np.pi])
 q_off = None
+q_off = np.array([0.0, 30.0 / 180 * np.pi, -22.0 / 180 * np.pi, 0.0, 30.0 / 180 * np.pi, -22.0 / 180 * np.pi])
 sw = 2.0
 kp=[1] * 6
-use_learned_motion_primitive = False
-synchronize_flippers = False
+use_learned_motion_primitive = True
+synchronize_flippers = True
 if use_learned_motion_primitive:
     joint_space_control_fn = cornelia_joint_space_motion_primitive_control_factory(
-        q_off=q_off, sw=sw, synchronize_phase_kp=5e-1 if synchronize_flippers else 0.0
+        q_off=q_off, sw=sw, phase_sync_kp=5e-1 if synchronize_flippers else 0.0
     )
 else:
     joint_space_control_fn = cornelia_joint_space_control_factory(kp=kp, q_off=q_off, sw=sw)

@@ -275,7 +275,7 @@ def get_compensator():
     return compensator
 
 
-def fuse_feeds(right,left):
+def fuse_feeds(left,right):
     # args = parser.parse_args()
     # img_names = args.img_names
     # print(img_names)
@@ -357,19 +357,32 @@ def fuse_feeds(right,left):
         print("Need more images")
         exit()
     cameras = [cv.detail.CameraParams(), cv.detail.CameraParams()]
-    cameras[0].focal = 7352.266231877733
-    cameras[1].focal = 7486.566801198457
+    # cameras[0].focal = 7352.266231877733
+    # cameras[1].focal = 7486.566801198457
+    # cameras[0].R = np.array([[ 1.0,  0.0,  0.0], [0.0,  1.0,  0.0],[ 0.0,  0.0,  1.0]], dtype='f')
+    # cameras[1].R = np.array([[ 9.9828649e-01,  4.6657793e-02,  3.5316914e-02],
+    #                         [-4.6680171e-02,  9.9890995e-01, -1.9140542e-04],
+    #                         [-3.5287343e-02, -1.4575273e-03,  9.9937606e-01]], dtype='f')
+    # Ks = []
+    # Ks.append(np.array([[7.352266e+03, 0.000000e+00, 3.200000e+02],
+    #                     [0.000000e+00, 7.352266e+03, 2.400000e+02],
+    #                     [0.000000e+00, 0.000000e+00, 1.000000e+00]], dtype='f'))
+    # Ks.append(np.array([[7.486567e+03, 0.000000e+00, 3.200000e+02],
+    #                     [0.000000e+00, 7.486567e+03, 2.400000e+02],
+    #                     [0.000000e+00, 0.000000e+00, 1.000000e+00]], dtype='f'))
+    cameras[0].focal = 7728.105826077042
+    cameras[1].focal = 7367.667612254842
     cameras[0].R = np.array([[ 1.0,  0.0,  0.0], [0.0,  1.0,  0.0],[ 0.0,  0.0,  1.0]], dtype='f')
-    cameras[1].R = np.array([[ 9.9828649e-01,  4.6657793e-02,  3.5316914e-02],
-                            [-4.6680171e-02,  9.9890995e-01, -1.9140542e-04],
-                            [-3.5287343e-02, -1.4575273e-03,  9.9937606e-01]], dtype='f')
+    cameras[1].R = np.array([[ 9.9798644e-01,  5.4141980e-02, -3.3038124e-02],
+                             [-5.4147899e-02,  9.9853265e-01,  7.1609020e-04],
+                             [ 3.3028431e-02,  1.0742694e-03,  9.9945384e-01]], dtype='f')
     Ks = []
-    Ks.append(np.array([[7.352266e+03, 0.000000e+00, 3.200000e+02],
-                        [0.000000e+00, 7.352266e+03, 2.400000e+02],
-                        [0.000000e+00, 0.000000e+00, 1.000000e+00]], dtype='f'))
-    Ks.append(np.array([[7.486567e+03, 0.000000e+00, 3.200000e+02],
-                        [0.000000e+00, 7.486567e+03, 2.400000e+02],
-                        [0.000000e+00, 0.000000e+00, 1.000000e+00]], dtype='f'))
+    Ks.append(np.array([[7.728106e+03, 0.000000e+00, 3.200000e+02],
+                         [0.000000e+00, 7.728106e+03, 2.400000e+02],
+                         [0.000000e+00, 0.000000e+00, 1.000000e+00]], dtype='f'))
+    Ks.append(np.array([[7.3676675e+03, 0.0000000e+00, 3.2000000e+02],
+                         [0.0000000e+00, 7.3676675e+03, 2.4000000e+02],
+                         [0.0000000e+00, 0.0000000e+00, 1.0000000e+00]], dtype='f'))
     cameras[0].aspect = 1.0
     cameras[1].aspect = 1.0
     cameras[0].ppx = 320.0
@@ -386,7 +399,7 @@ def fuse_feeds(right,left):
         warped_image_scale = focals[len(focals) // 2]
     else:
         warped_image_scale = (focals[len(focals) // 2] + focals[len(focals) // 2 - 1]) / 2
-    warped_image_scale = 7419.416516538095
+    warped_image_scale = (cameras[0].focal + cameras[1].focal)/2.0
     # if wave_correct is not None:
     #     rmats = []
     #     for cam in cameras:
