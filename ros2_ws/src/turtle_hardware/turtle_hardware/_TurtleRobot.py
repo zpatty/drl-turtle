@@ -16,6 +16,9 @@ from turtle_dynamixel.Constants import *                        # File of consta
 from turtle_dynamixel.Mod import *
 from turtle_dynamixel.utilities import *
 from turtle_dynamixel.utilities import *
+from rclpy.executors import MultiThreadedExecutor
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
+
 
 
 
@@ -31,7 +34,7 @@ class TurtleRobot(Node):
     """
 
     def __init__(self, topic, params=None):
-        super().__init__('turtle_rl_node')
+        super().__init__('turtle_hardware_node')
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
@@ -44,14 +47,17 @@ class TurtleRobot(Node):
             history=HistoryPolicy.KEEP_LAST,
             depth=10
         )
+        timer_cb_group = None
+        self.call_timer = self.create_timer(1, self._timer_cb, callback_group=timer_cb_group)
 
-        self.declare_parameter('an_int_param', 0)
+
+        self.declare_parameter('mode', 'rest')
 
         self.handler = ParameterEventHandler(self)
 
         self.callback_handle = self.handler.add_parameter_callback(
-            parameter_name="an_int_param",
-            node_name="turtle_rl_node",
+            parameter_name="mode",
+            node_name="turtle_hardware_node",
             callback=self.callback,
         )
         # subscribes to keyboard setting different turtle modes 
@@ -60,13 +66,6 @@ class TurtleRobot(Node):
             topic,
             self.turtle_mode_callback,
             qos_profile)
-        # for case when trajectory mode, receives trajectory msg
-        self.motor_traj_sub = self.create_subscription(
-            TurtleTraj,
-            'turtle_traj',
-            self.trajectory_callback,
-            qos_profile
-        )
         # for case camera mode, receives motion primitive
         self.cam_sub = self.create_subscription(
             String,
@@ -128,18 +127,13 @@ class TurtleRobot(Node):
         self.epsilon = 0.1
         self.min_threshold = np.array([1.60, 3.0, 2.4, 2.43, 1.2, 1.7, 1.45, 1.2, 3.0, 2.3])
         self.max_threshold = np.array([3.45, 5.0, 4.2, 4.5, 4.15, 3.8, 3.2, 4.0, 4.0, 4.7])
-        # for PD control
-        self.Kp = np.diag([0.6, 0.3, 0.4, 0.8, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4])*4
-        self.Kpv = [1] * 6
-        self.KD = 0.1
-        self.turtle_trajs = ["dive", "straight", "surface", "turnlf", "turnrf"]
         self.voltage_threshold = 11.3
 
         self.amplitude = np.pi / 180 * np.array([40, 40, 70]).reshape(-1,1)
         self.center = np.pi / 180 * np.array([-30, 10, -10])
         self.yaw = 0.5
         self.pitch = 0.5
-        self.freq_offset = 0.1
+        self.freq_offset = 0.5
         self.period = 2
         self.ctrl_flag = False
         self.print_sensors = True
@@ -154,24 +148,36 @@ class TurtleRobot(Node):
         self.ud = [0]*6
         self.td = 0
 
-    def read_params(self, params):
-        self.ax_weight = params["ax_weight"]
-        self.ay_weight = params["ay_weight"]
-        self.az_weight = params["az_weight"]
 
-        self.tau_weight = params["tau_weight"]
-        self.quat_weight = params["quat_weight"]
+    def _timer_cb(self):
+        self.get_logger().info('Sending request')
+        print("in timer")
+        self.get_logger().info('Received response')
 
 
     def callback(self, p: rclpy.parameter.Parameter) -> None:
-        self.get_logger().info(f"Received an update to parameter: {p.name}: {rclpy.parameter.parameter_value_to_python(p.value)}")
-        self.end_program = True
-        self.check_end()
-        cmd_msg = String()
-        cmd_msg.data = "stop_received"
-        self.cmd_received_pub.publish(cmd_msg)
-        print("sent stop received msg")
-        rclpy.shutdown()
+        self.mode = rclpy.parameter.parameter_value_to_python(p.value)
+        self.get_logger().info(f"Received an update to parameter: {p.name}: {self.mode}")
+        match self.mode:
+            case "rest":
+                self.shutdown_motors()
+                cmd_msg = String()
+                cmd_msg.data = 'rest mode'
+                self.cmd_received_pub.publish(cmd_msg)
+            case "v":
+                self.Joints.disable_torque()
+                self.Joints.set_velocity_cntrl_mode()
+                self.Joints.enable_torque()
+                cmd_msg = String()
+                cmd_msg.data = 'velocity ctrl'
+                self.cmd_received_pub.publish(cmd_msg)
+            case "p":
+                self.Joints.disable_torque()
+                self.Joints.set_current_cntrl_mode()
+                self.Joints.enable_torque()
+                cmd_msg = String()
+                cmd_msg.data = 'compliant position ctrl'
+                self.cmd_received_pub.publish(cmd_msg)
 
     def turtle_mode_callback(self, msg):
         """
@@ -205,159 +211,6 @@ class TurtleRobot(Node):
         Callback function that updates the desired behavior based on the computer vision module. 
         """
         self.primitives.append(msg.data)
-        
-
-    def create_data_structs(self):
-        """
-        Create initial data structs to hold turtle data
-        """
-        # data structs for recording each rollout
-        self.acc_data = np.zeros((self.n_axis,1))
-        self.gyr_data = np.zeros((self.n_axis,1))
-        self.quat_data = np.zeros((4,1))
-        self.tau_data = np.zeros((10,1))
-        self.voltage_data = np.zeros((1,1))
-
-        # to store individual contributions of rewards 
-        self.a_rewards = np.zeros((1,1))
-        self.x_rewards = np.zeros((1,1))
-        self.y_rewards = np.zeros((1,1))
-        self.z_rewards = np.zeros((1,1))
-        self.tau_rewards = np.zeros((1,1))
-
-    def reset(self):
-        print("resetting turtle...\n")
-        self.Joints.disable_torque()
-        self.Joints.enable_torque()
-        q = self.Joints.get_position()
-        v = self.Joints.get_velocity()
-        acc = self.acc_data[:, -1]
-        quat = self.quat_data[:, -1]
-        observation = np.concatenate((q, v), axis=0)
-        return observation, "reset"
-    def quatL(self,q):
-        qs = q[0]
-        if qs == 0:
-            print("f QS: {qs}\n\n\n\n\n")
-        qv = q[1:]
-        o = qs*np.identity(3) + self.skew(qv)
-        # qv = qv.reshape((3,1))
-        first_row = np.hstack((qs, -qv.T)).reshape(((1,4)))
-        second_row = np.hstack((qv.reshape((3,1)), qs*np.identity(3) + self.skew(qv)))
-        # return np.array([[qs, -qv.T],[qv, qs*np.identity(3) + self.skew(qv)]])
-        return np.vstack((first_row, second_row))
-
-    def inv_q(self,q):
-        return np.diag([1, -1, -1, -1]) @ q
-
-    def inv_cayley(self,q):
-        print(f"q: {q}")
-        return q[1:]/q[0]
-
-    def skew(self,x):
-        return np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]])
-    
-    def _get_reward(self, tau):
-        q = self.quat_data[:, -1]
-        acc = self.acc_data[:, -1]
-        R = self.ay_weight*acc[1]**2 - self.ax_weight*acc[0]**2 - self.az_weight*acc[2]**2 -self.tau_weight* np.linalg.norm(tau)**2 - self.quat_weight * (1 - np.linalg.norm(self.orientation.T @ q))
-        return R
-    
-    def _get_reward_weighted(self, tau):
-        reward = 0
-        return reward
-    
-    def step(self, action, PD=False, mode='None'):
-        """
-        action is tau which we pass into the turtle
-        OR its position in radians when PD flag is set to True
-        """
-        keep_trying = True
-        while keep_trying:
-            try:
-                observation = np.array(self.Joints.get_position())
-                v = np.array(self.Joints.get_velocity())
-                keep_trying = False
-            except:
-                print("failed to read from motors")
-        if mode == 'SAC':
-            qd = np.where(action < self.max_threshold - self.epsilon, action, self.max_threshold - self.epsilon)
-            qd = np.where(qd > self.min_threshold + self.epsilon, qd, self.min_threshold + self.epsilon)
-            dqd = np.zeros((self.nq,1))
-            ddqd = np.zeros((self.nq,1))
-            # print(f"dqd shape: {dqd.shape}")
-            tau = turtle_controller(observation.reshape((10,1)),v.reshape((10,1)),qd.reshape((10,1)),dqd,ddqd,self.Kp,self.KD)
-            clipped = grab_arm_current(tau, min_torque, max_torque)
-
-            terminated = False
-            truncated = False
-            info = [v, clipped]
-            self.read_sensors()
-            reward = self._get_reward(tau)
-            obs = self.acc_data[:, -1]
-            return [obs, reward, terminated, truncated, info]
-        if PD:
-            # print(f"action shape: {action.shape}")
-            # position control 
-            qd = np.where(action < self.max_threshold - self.epsilon, action, self.max_threshold - self.epsilon)
-            qd = np.where(qd > self.min_threshold + self.epsilon, qd, self.min_threshold + self.epsilon)
-            dqd = np.zeros((self.nq,1))
-            ddqd = np.zeros((self.nq,1))
-            # print(f"dqd shape: {dqd.shape}")
-            tau = turtle_controller(observation.reshape((10,1)),v.reshape((10,1)),qd.reshape((10,1)),dqd,ddqd,self.Kp,self.KD)
-            avg_tau = np.mean(abs(tau))
-            clipped = grab_arm_current(tau, min_torque, max_torque)
-        else:
-            # print(f"action: {action}")
-            action = 10e3 * action
-            # print(f"action: {action}")
-
-            inputt = grab_arm_current(action, min_torque, max_torque)
-            # print(f"observation: {observation}\n")
-            clipped = np.where(observation < self.max_threshold - self.epsilon, inputt, np.minimum(np.zeros(len(inputt)), inputt))
-            # print(f"clipped1: {clipped}")
-            clipped = np.where(observation > self.min_threshold + self.epsilon, clipped, np.maximum(np.zeros(len(inputt)), clipped)).astype('int')
-            # print(f"clipped: {clipped}")
-            avg_tau = np.mean(abs(clipped))
-        # print(f"torque: {clipped}")
-        # self.Joints.send_torque_cmd(clipped)
-        self.read_sensors()
-        reward = self._get_reward(avg_tau)
-        terminated = False
-        truncated = False
-        # return velocity and clipped tau (or radians) passed into motors
-        info = [v, clipped]
-        return observation, reward, terminated, truncated, info
-
-    def trajectory_callback(self, msg):
-        """
-        Callback function that takes in list of squeezed arrays
-        msg: [qd, dqd, ddqd, tvec]
-        """    
-        # n = len(msg.tvec)
-        # self.qds = np.array(msg.qd).reshape(10,n)
-        # self.tvec = np.array(msg.tvec).reshape(1,n)
-        # if len(msg.dqd) < 1:
-        #     self.mode = 'position_control_mode'
-        # else:
-        #     self.dqds = np.array(msg.dqd).reshape(10,n)
-        #     self.ddqds = np.array(msg.ddqd).reshape(10,n)
-        #     self.mode = 'traj_input'
-        # self.td
-        self.ud = msg.u
-        self.td = msg.t
-
-    def teacher_callback(self, msg):
-        """
-        Has the robot turtle follow the teacher trajectory
-        
-        """
-        n = len(msg.tvec)
-        self.qds = np.array(msg.qd).reshape(10,n)
-        self.tvec = np.array(msg.tvec).reshape(1,n)
-        self.dqds = np.array(msg.dqd).reshape(10,n)
-        self.ddqds = np.array(msg.ddqd).reshape(10,n)
-        self.mode = 'teacher_traj_input'
 
     def np2msg(self, mat):
         """
@@ -512,10 +365,10 @@ class TurtleRobot(Node):
         self.dq_data.append(self.dq)
     
     def log_time(self, t):
-        self.timestamps.append(t)
+        self.timestamps = t
     
     def log_u(self, u):
-        self.tau_data.append(u)
+        self.tau_data = u
 
     def log_desired_state(self, qd, dqd):
         self.qd_data = qd
@@ -574,8 +427,13 @@ class TurtleRobot(Node):
 def turtle_main():
     rclpy.init()
     turtle_node = TurtleRobot('turtle_mode_cmd')
-    rclpy.spin(turtle_node)
-    rclpy.shutdown()
+    try:
+        rclpy.spin(turtle_node)
+        rclpy.shutdown()
+    except:
+        turtle_node.shutdown_motors()
+        print("error: shutting down")
+    
 
 if __name__ == '__main__':
     turtle_main()

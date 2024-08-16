@@ -50,7 +50,7 @@ os.system('sudo /home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hard
 # mode = 'rest'
 
 
-def execute_data_primitive(turtle_node, primitive, t_0, dt):
+def execute_data_primitive(turtle_node, primitive, t_0):
     if primitive != "dwell":
         print(f"---------------------------------------PRIMITIVE: {primitive}\n\n")
         folder = '/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/'
@@ -118,47 +118,52 @@ def execute_data_primitive(turtle_node, primitive, t_0, dt):
 
     return t_0
 
-def execute_primitive_pos(turtle_node, primitive, t_0, dt):
+def execute_primitive_pos(turtle_node, primitive, t_0):
+    
+    input_history = np.zeros((turtle_node.nq,10))
+    q_data = np.zeros((turtle_node.nq,1))
+    dq_data = np.zeros((turtle_node.nq,1))
+    
+    if turtle_node.voltage < turtle_node.voltage_threshold:
+        print("voltage too low--powering off...")
+        turtle_node.Joints.disable_torque()
+        return
+    rclpy.spin_once(turtle_node)
+    if turtle_node.mode == 'rest' or turtle_node.mode == 'stop':
+        turtle_node.Joints.send_torque_cmd(turtle_node.nq * [0])
+        turtle_node.Joints.disable_torque()
+        first_time = True
+        return
 
     # check for new trajectory information
     
     q, dq = turtle_node.get_state()
     # if first_loop:]
-    q = np.array(q)
-    dq = np.array(dq)
+    q_prim, _ = convert_motors_to_q(q, q)
 
     # if turtle_node.ctrl_flag:
     t = time.time() - t_0
     
     w = 2 * np.pi / turtle_node.period
-    q_prim, _ = convert_motors_to_q(q, q)
-    if primitive.__name__ == 'sinusoidal_primitive':
-        qd, dqd, ddqd = primitive(t, q_prim, w, turtle_node.amplitude, turtle_node.center, turtle_node.yaw, turtle_node.freq_offset, turtle_node.pitch)
-        qd, dqd, ddqd = convert_q_to_motors(qd, dqd, ddqd)
-    else:
-        u, aux = primitive(t, q_prim[:6])
-        _, dqd, ddqd = convert_q_to_motors(u, u, u * 0.0)
-        # print(f"[DEBUG] q: {q * 180 / np.pi}\n")
-        # print(f"[DEBUG] dqd: {dqd * 180 / np.pi}\n")
-        qd = np.array(q).reshape(-1,1) + dqd * dt
+    qd, dqd, ddqd = primitive(t, q_prim, w, turtle_node.amplitude, turtle_node.center, turtle_node.yaw, turtle_node.freq_offset, turtle_node.pitch)
+    qd, dqd, ddqd = convert_q_to_motors(qd, dqd, ddqd)
     # # print(f"[DEBUG] qdata: {q_data}\n")
-    
+    # print(f"[DEBUG] qd: {qd * 180 / np.pi}\n")
     
     # # At the first iteration velocity is 0  
     
     # # calculate errors
-    err = q.reshape(-1,1) - qd
+    err = q - qd
     # # print(f"[DEBUG] e: {err}\n")
     # # print(f"[DEBUG] q: {q * 180/3.14}\n")
     # # print(f"[DEBUG] qd: {qd * 180/3.14}\n")
-    err_dot = dq.reshape(-1,1)
-    tau = turtle_controller(q.reshape(-1,1),dq.reshape(-1,1),qd,dqd,ddqd,turtle_node.Kp * 5,turtle_node.KD)
-
+    err_dot = dq
+    tau = turtle_controller(q,dq,qd,dqd,ddqd,turtle_node.Kp * 5,turtle_node.KD)
     # publish motor data, tau data, 
     
-    # input_history = np.append(input_history[:,1:], tau,axis=1)
-    # input_mean = np.mean(input_history, axis = 1)
-    curr = grab_arm_current(tau, min_torque, max_torque)
+    input_history = np.append(input_history[:,1:], tau,axis=1)
+    input_mean = np.mean(input_history, axis = 1)
+    curr = grab_arm_current(input_mean, min_torque, max_torque)
     turtle_node.Joints.send_torque_cmd(curr)
     turtle_node.log_time(t)
     turtle_node.log_u(tau)
@@ -166,7 +171,7 @@ def execute_primitive_pos(turtle_node, primitive, t_0, dt):
     
     return t_0
 
-def execute_primitive_vel(turtle_node, primitive, t_0, dt):
+def execute_primitive_vel(turtle_node, primitive, t_0):
     input_history = np.zeros((turtle_node.nq,10))
     # q_data = np.zeros((turtle_node.nq,1))
     # dq_data = np.zeros((turtle_node.nq,1))
@@ -210,7 +215,7 @@ def execute_primitive_vel(turtle_node, primitive, t_0, dt):
     turtle_node.log_u(ud)
     return t_0
 
-def execute_primitive_learned(turtle_node, primitive, t_0, dt):
+def execute_primitive_learned(turtle_node, primitive, t_0):
     input_history = np.zeros((turtle_node.nq,10))
     # q_data = np.zeros((turtle_node.nq,1))
     # dq_data = np.zeros((turtle_node.nq,1))
@@ -292,18 +297,6 @@ def get_primitive_and_execution(turtle_node, first_time):
 
             execution = execute_primitive_vel
 
-        case 'pjsms':
-            """
-            Randomly pick a motion primitive and run it 4-5 times
-            """
-            if first_time:
-                turtle_node.Joints.disable_torque()
-                turtle_node.Joints.set_current_cntrl_mode()
-                turtle_node.Joints.enable_torque()
-            primitive = joint_space_control_fn
-
-            execution = execute_primitive_pos
-
         case 'tsms':
             """
             Randomly pick a motion primitive and run it 4-5 times
@@ -381,7 +374,6 @@ def main(args=None):
         turtle_node.folder_name =  "data/" + t
         os.makedirs(turtle_node.folder_name)
 
-    outfile = turtle_node.folder_name + "np_data"
     
     last_mode = ''
     best_reward = 0
@@ -407,21 +399,18 @@ def main(args=None):
                     # turtle_node.read_voltage()
                     primitive, execution = get_primitive_and_execution(turtle_node, first_time)
                     t = time.time()
-                    dt = t - t_last
                     print(f"[DEBUG] dt: {t - t_last}\n")
                     t_last = t
                     if primitive == 'rest':
                         break
                     first_time = False
                     turtle_node.read_joints()
-
                     turtle_node.log_joints()
                     
-                    t_0 = execution(turtle_node, primitive, t_0, dt)
-
-                    # turtle_node.publish_turtle_data()
-                if not first_time:
-                    np.savez(outfile, q=turtle_node.q_data, dq=turtle_node.dq_data, t=turtle_node.timestamps, u=turtle_node.tau_data)
+                    t_0 = execution(turtle_node, primitive, t_0)
+                    turtle_node.publish_turtle_data()
+                    
+                
                 # turtle_node.publish_turtle_data()
                 turtle_node.shutdown_motors()
 
