@@ -15,6 +15,8 @@ double q0 = 0;
 
 double base_time = 0;
 double now_time = 0;
+double last_time = 0;
+double loop_time = 0;
 
 double depth_val = 0;
 
@@ -169,18 +171,23 @@ void printFormattedFloat(float val, uint8_t leading, uint8_t decimals) {
 
 void printIMUData(ICM_20948_I2C *sensor, Adafruit_INA219 * volt_sensor){
   icm.readDMPdataFromFIFO(&data);
+  
   now_time = millis();
-  if (now_time - base_time > 50) {
-    ms_depth.read();
-    // Serial.print("Depth: "); 
-    depth_val = ms_depth.depth();
-    // Serial.print(ms_depth.depth()); 
-    // Serial.println(" m");
-    base_time = millis();
-  }
-  else {
-    depth_val = NAN;
-  }
+  loop_time = now_time - last_time;
+  last_time = now_time;
+  ms_depth.read();
+  depth_val = ms_depth.depth();
+  // if (now_time - base_time > 50) {
+  //   ms_depth.read();
+  //   // Serial.print("Depth: "); 
+  //   depth_val = ms_depth.depth();
+  //   // Serial.print(ms_depth.depth()); 
+  //   // Serial.println(" m");
+  //   base_time = millis();
+  // }
+  // else {
+  //   depth_val = NAN;
+  // }
   
   float busvoltage = 0;
 
@@ -234,10 +241,18 @@ void printIMUData(ICM_20948_I2C *sensor, Adafruit_INA219 * volt_sensor){
       busvoltage = volt_sensor->getBusVoltage_V();
       Serial.print("\"Voltage\": [ ");
       Serial.print(busvoltage);
+
+      // // Time
+      // Serial.print(" ], \"Time\" :[ ");
+      // printFormattedFloat(loop_time, 5, 2);
       Serial.print(" ]}");
       Serial.println("");
 
     }
   }
+  else{
+    Serial.println("no data");
+  }
+  delay(3);
 
 } 

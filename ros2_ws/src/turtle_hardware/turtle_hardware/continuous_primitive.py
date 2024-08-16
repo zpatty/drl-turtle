@@ -76,22 +76,40 @@ use_learned_motion_primitive = True
 synchronize_flippers = True
 if use_learned_motion_primitive:
     joint_space_control_fn = cornelia_joint_space_motion_primitive_control_factory(
-        q_off=q_off, sw=sw, phase_sync_kp=5e-1 if synchronize_flippers else 0.0
+        q_off=q_off, sw=sw, phase_sync_kp=4e0 if synchronize_flippers else 0.0
     )
 else:
     joint_space_control_fn = cornelia_joint_space_control_factory(kp=kp, q_off=q_off, sw=sw)
 
-kp = [1e1]*6
+kp = 5e0 * np.ones(6) 
 x_oracle_off = np.array(
 [0.33998568104510646, -0.18310844284512637, 0.09731318136873592]
 )
-sf = 0.5998352409885269  # spatial scaling factor
+sf = np.array([0.3636890603138822, 0.3636890603138822, 0.3636890603138822, 0.3636890603138822])  # spatial scaling factor
 sw = 1.0  # time scaling factor of oracle
-pinv_damping = 2e-2
+pinv_damping = 2e-3
+
+kp_th = 5e0 * np.ones(2)  # Proportional gain for twist
+w_th = 1e-3  # weight for the twist tracking in the Jacobian product
+
+use_straight_flipper=False
+use_learned_motion_primitive=False
+track_twist = True
 
 task_space_control_fn = green_sea_turtle_task_space_control_factory(
-    kp=kp, x_off=x_oracle_off, sf=sf, sw=sw, use_straight_flipper=False, pinv_damping=pinv_damping, use_learned_motion_primitive=False
+    x_off=x_oracle_off,
+    sf=sf,
+    sw=sw,
+    kp=kp,
+    kp_th=kp_th,
+    w_th=w_th if track_twist else None,
+    pinv_damping=pinv_damping,
+    use_learned_motion_primitive=use_learned_motion_primitive,
+    use_straight_flipper=use_straight_flipper,
+    phase_sync_kp=5e-1 if synchronize_flippers else 0.0,
 )
+
+
 kp = [0e0]*6
 pinv_damping = 2.1e-2
 sw = 0.5
@@ -102,6 +120,12 @@ sw = 0.5
 if __name__ == '__main__':
     while True:
         start_time = time.time()
-        q,qux = joint_space_control_fn(start_time,np.zeros(6,))
+        A = np.pi / 180 * np.array([40, 40, 20]).reshape(-1, 1)
+        C = np.pi / 180 * np.array([-20, 10, 30])
+        yaw = 0.5
+        freq_offset = 0.1
+        pitch = 0.5
+        # q,qux = joint_space_control_fn(start_time,np.zeros(6,))
+        _,_,_ = sinusoidal_primitive(start_time,np.zeros(6,), 2 * np.pi, A, C, yaw, freq_offset, pitch)
         print(time.time() - start_time)
 

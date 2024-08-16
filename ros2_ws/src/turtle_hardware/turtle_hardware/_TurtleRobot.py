@@ -109,7 +109,7 @@ class TurtleRobot(Node):
         else:
             print("[ERROR] Failed to change baudrate")
 
-
+        self.t0 = time.time()
         # dynamixel setup
         self.IDs = [1,2,3,4,5,6,7,8,9,10]
         self.nq = 10
@@ -117,8 +117,18 @@ class TurtleRobot(Node):
         self.Joints.disable_torque()
         self.Joints.set_current_cntrl_mode()
         self.Joints.enable_torque()
+
+        # sensors and actuators
         self.q = np.array(self.Joints.get_position()).reshape(-1,1)
         self.dq = np.array(self.Joints.get_velocity()).reshape(-1,1)
+        self.u = [0]*10
+        self.t = 0
+        self.acc = np.zeros((3,1))
+        self.gyr = np.zeros((3,1))
+        self.quat_vec = np.zeros((4,1))
+
+
+
         self.xiao = serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
         self.xiao.reset_input_buffer()
         self.input_history = np.zeros((self.nq,10))
@@ -139,20 +149,32 @@ class TurtleRobot(Node):
         self.print_sensors = True
         self.end_program = False
 
+        # arrays to store trajectories if desired
         self.q_data = []
         self.dq_data = []
         self.tau_data = []
         self.timestamps = []
         self.qd_data = []
         self.dqd_data = []
-        self.ud = [0]*6
-        self.td = 0
+        
 
 
     def _timer_cb(self):
-        self.get_logger().info('Sending request')
-        print("in timer")
-        self.get_logger().info('Received response')
+        self.get_logger().info('Timer')
+        self.read_joints()
+        self.read_sensors()
+        if self.voltage < self.voltage_threshold:
+            self.get_logger().info('Battery Low, Please Charge')
+            self.mode = "rest"
+        self.t = time.time() - self.t0
+        if self.mode == 'p':
+            curr = grab_arm_current(self.u, min_torque, max_torque)
+            self.Joints.send_torque_cmd(curr)
+        elif self.mode == 'v':
+            vd_ticks = np.clip(self.u * 30.0 / np.pi / 0.229, -160., 160.).astype(int).squeeze().tolist()
+            self.Joints.send_vel_cmd(vd_ticks)
+        self.publish_turtle_data()
+        # self.get_logger().info('Received response')
 
 
     def callback(self, p: rclpy.parameter.Parameter) -> None:
@@ -222,88 +244,17 @@ class TurtleRobot(Node):
     
     def publish_turtle_data(self):
         """
-        At the end of a trajectory (i.e when we set the turtle into a rest state or stop state), turtle node needs to 
-        package all the sensor and motor data collected during that trajectory and publish it to the turtle_sensors node
-        That way, it can be the local machine and not the turtle machine carrying all the data
-        TODO: perhaps look into having turtle save data locally on raspi as well just in case?
+        Send data out
         """
         turtle_msg = TurtleSensors()
-        
-        # # extract and flatten numpy arrays
-        # print("quat")
-        # quat_x = self.quat_data[0, :]
-        # quat_y = self.quat_data[1, :]
-        # quat_z = self.quat_data[2, :]
-        # quat_w = self.quat_data[3, :]
-
-        # # print("acc")
-        # acc_x = self.acc_data[0, :]
-        # acc_y = self.acc_data[1, :]
-        # acc_z = self.acc_data[2, :]
-
-        # # print("gyr")
-        # gyr_x = self.gyr_data[0, :]
-        # gyr_y = self.gyr_data[1, :]
-        # gyr_z = self.gyr_data[2, :]
-
-        # # print("wuat msg")
-        # # # quaternion 
-        # # print(f"quat x: {quat_x}\n")
-        # quatx = quat_x.tolist()
-        # # print(f"quat x: {quatx}\n")
-        # # print(f"element type: {type(quatx[0])}")
-        # turtle_msg.imu.quat_x = quat_x.tolist()
-        # turtle_msg.imu.quat_y = quat_y.tolist()
-        # turtle_msg.imu.quat_z = quat_z.tolist()
-        # turtle_msg.imu.quat_w = quat_w.tolist()
-        # # print("gyr msg")
-        # # # angular velocity
-        # turtle_msg.imu.gyr_x = gyr_x.tolist()
-        # turtle_msg.imu.gyr_y = gyr_y.tolist()
-        # turtle_msg.imu.gyr_z = gyr_z.tolist()
-        # # print("acc msg")
-        # # # linear acceleration
-        # turtle_msg.imu.acc_x = acc_x.tolist()
-        # turtle_msg.imu.acc_y = acc_y.tolist()
-        # turtle_msg.imu.acc_z = acc_z.tolist()
-        
-        # print("volt msg")
-        # print(f"voltage data: {self.voltage_data.tolist()}")
-        # # voltage
-        # volt_data = self.voltage_data.tolist()
-        # print(f"voltage data: {volt_data}")
-        # turtle_msg.voltage = volt_data  
-
-        # timestamps and t_0
-        # if len(timestamps) > 0:
-        #     turtle_msg.timestamps = timestamps.tolist()
-        # turtle_msg.t_0 = t_0
-
-        # # motor positions, desired positions and tau data
-        # if len(q_data) > 0:
-        #     turtle_msg.q = self.np2msg(q_data) 
-        # if len(q_data) > 0:
-        #     turtle_msg.dq = self.np2msg(dq_data)
-        # if len(ddq_data) > 0:
-        #     turtle_msg.ddq = self.np2msg(ddq_data)
-        # qd_squeezed = self.np2msg(self.qds)
-        # turtle_msg.qd = qd_squeezed
-        # if len(tau_data) > 0:
-        #     turtle_msg.tau = self.np2msg(tau_data)
-        # print(self.q_data)
+        # print(turtle_msg)
         turtle_msg.q = self.q
         turtle_msg.dq = self.dq
-        turtle_msg.timestamps = self.timestamps
-        turtle_msg.tau = self.tau_data
+        turtle_msg.timestamps = self.t
+        turtle_msg.tau = self.u
 
         # publish msg 
         self.sensors_pub.publish(turtle_msg)
-        print(f"published....")
-        # reset the sensor variables for next trajectory recording
-        # self.q_data = []
-        # self.dq_data = []
-        # self.timestamps = []
-        # self.tau_data = []
 
 # { "Quat": [ 0.008, 0.015, -0.766, 0.642 ],"Acc": [-264.00, -118.00, 8414.00 ],"Gyr": [-17.00, 10.00, 1.00 ],"Voltage": [ 11.77 ]}
     def read_voltage(self):
@@ -326,20 +277,7 @@ class TurtleRobot(Node):
         except:
             self.voltage = self.voltage
         
-        if self.voltage < self.voltage_threshold:
-            print("[WARNING] volt reading too low--closing program....")
-            self.Joints.disable_torque()
-            self.end_program = True
-            
 
-    def add_place_holder(self):
-        acc = self.acc_data[:, -1].reshape((3,1))
-        gyr = self.gyr_data[:, -1].reshape((3,1))
-        quat_vec = self.quat_data[:, -1].reshape((4,1))
-        self.acc_data = np.append(self.acc_data, acc, axis=1)
-        self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
-        self.quat_data = np.append(self.quat_data, quat_vec, axis=1)
-        self.voltage_data = np.append(self.voltage_data, self.voltage_data[-1])
 
     def check_end(self):
         if self.end_program:
@@ -349,9 +287,7 @@ class TurtleRobot(Node):
             return False
         
     def shutdown_motors(self):
-        # self.Joints.disable_torque()
-        # self.Joints.set_current_cntrl_mode()
-        # self.Joints.enable_torque()
+
         self.Joints.send_torque_cmd([0] *len(self.IDs))
         self.Joints.disable_torque()
         # print("Motors Off")
@@ -379,6 +315,8 @@ class TurtleRobot(Node):
 
     def get_state_np(self):
         return np.array(self.q).reshape(-1,1), np.array(self.dq).reshape(-1,1)
+
+        
     
     def read_sensors(self):
         """
@@ -388,13 +326,13 @@ class TurtleRobot(Node):
         keep_trying = True
         attempts = 0
         while keep_trying:
-            if attempts >= 3:
-                print("adding place holder")
-                self.add_place_holder()
+            if attempts >= 1:
+                # print("adding place holder")
+                # self.add_place_holder()
                 break
             self.xiao.reset_input_buffer()
             sensors = self.xiao.readline()
-            # print(sensors)
+            print(sensors)
             # make sure it's a valid byte that's read
             if len(sensors) != 0:
                 # this ensures the right json string format
@@ -408,19 +346,22 @@ class TurtleRobot(Node):
                         sensor_keys = ('Acc', 'Gyr', 'Quat', 'Voltage')
                         if set(sensor_keys).issubset(sensor_dict):
                             a = np.array(sensor_dict['Acc']).reshape((3,1)) * 9.81
-                            gyr = np.array(sensor_dict['Gyr']).reshape((3,1))
+                            self.gyr = np.array(sensor_dict['Gyr']).reshape((3,1))
                             q = np.array(sensor_dict["Quat"])
                             R = quat.quat2mat(q)
                             g_w = np.array([[0], [0], [9.81]])
                             g_local = np.dot(R.T, g_w)
-                            acc = a - g_local           # acc without gravity 
-                            quat_vec = q.reshape((4,1))
+                            self.acc = a - g_local           # acc without gravity 
+                            self.quat_vec = q.reshape((4,1))
                             volt = sensor_dict['Voltage'][0]
-                            self.acc_data = np.append(self.acc_data, acc, axis=1)
-                            self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
-                            self.quat_data = np.append(self.quat_data, quat_vec, axis=1)
-                            self.voltage_data = np.append(self.voltage_data, volt)
+                            # self.acc_data = np.append(self.acc_data, acc, axis=1)
+                            # self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
+                            # self.quat_data = np.append(self.quat_data, quat_vec, axis=1)
+                            # self.voltage_data = np.append(self.voltage_data, volt)
                             self.voltage = volt
+                            if self.voltage < self.voltage_threshold:
+                                print("[WARNING] volt reading too low--closing program....")
+                                self.shutdown_motors()
                             keep_trying = False
             attempts += 1
 
@@ -430,9 +371,14 @@ def turtle_main():
     try:
         rclpy.spin(turtle_node)
         rclpy.shutdown()
-    except:
+    except Exception as e:
         turtle_node.shutdown_motors()
-        print("error: shutting down")
+        print("some error occurred")
+        # turtle_node.shutdown_motors()
+        exec_type, obj, tb = sys.exc_info()
+        fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
+        print(exec_type, fname, tb.tb_lineno)
+        print(e)
     
 
 if __name__ == '__main__':

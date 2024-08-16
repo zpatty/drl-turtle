@@ -129,17 +129,17 @@ class TurtleRobot(Node):
         self.min_threshold = np.array([1.60, 3.0, 2.4, 2.43, 1.2, 1.7, 1.45, 1.2, 3.0, 2.3])
         self.max_threshold = np.array([3.45, 5.0, 4.2, 4.5, 4.15, 3.8, 3.2, 4.0, 4.0, 4.7])
         # for PD control
-        self.Kp = np.diag([0.6, 0.3, 0.4, 0.8, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4])*4
+        self.Kp = np.diag([0.8, 0.4, 0.4, 0.8, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4])*2
         self.Kpv = [1] * 6
         self.KD = 0.1
         self.turtle_trajs = ["dive", "straight", "surface", "turnlf", "turnrf"]
         self.voltage_threshold = 11.3
 
-        self.amplitude = np.pi / 180 * np.array([40, 40, 70]).reshape(-1,1)
-        self.center = np.pi / 180 * np.array([-30, 10, -10])
-        self.yaw = 0.5
+        self.amplitude = np.pi / 180 * np.array([40, 40, 40]).reshape(-1,1)
+        self.center = np.pi / 180 * np.array([0, 10, 10])
+        self.yaw = 0.8
         self.pitch = 0.5
-        self.freq_offset = 0.1
+        self.freq_offset = 0.3
         self.period = 2
         self.ctrl_flag = False
         self.print_sensors = True

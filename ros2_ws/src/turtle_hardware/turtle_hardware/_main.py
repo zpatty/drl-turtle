@@ -37,13 +37,13 @@ import json
 import serial
 import random
 import traceback
-from TurtleRobot import TurtleRobot
+from _TurtleRobot import TurtleRobot
 
 from statistics import mode as md
 # print(f"sec import toc: {time.time()-tic}")
 
 # tic = time.time()
-os.system('sudo /home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_dynamixel/latency_write.sh')
+os.system('sudo' + submodule + '/turtle_dynamixel/latency_write.sh')
 
 # global variable was set in the callback function directly
 # global mode
@@ -53,7 +53,7 @@ os.system('sudo /home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hard
 def execute_data_primitive(turtle_node, primitive, t_0):
     if primitive != "dwell":
         print(f"---------------------------------------PRIMITIVE: {primitive}\n\n")
-        folder = '/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory/'
+        folder = submodule + '/turtle_trajectory/'
         qd_mat = mat2np(f'{folder + primitive}/qd.mat', 'qd')
         dqd_mat = mat2np(f'{folder + primitive}/dqd.mat', 'dqd')
         ddqd_mat = mat2np(f'{folder + primitive}/ddqd.mat', 'ddqd')
