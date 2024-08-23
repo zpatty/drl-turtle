@@ -9,8 +9,8 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
-            "args":["right.png", "left.png", "--work_megapix" "0.6", "--features", "orb", "--matcher", "homography", "--estimator", "homography", "--match_conf", "0.3", "--conf_thresh", "0.2", "--ba", "ray", "--ba_refine_mask", "xxxxx", "--save_graph", "test.txt", "--wave_correct", "no", "--warp", "spherical", "--blend", "multiband", "--expos_comp", "no", "--seam", "voronoi"]
-            "console": "integratedTerminal"
+            // "args":["right.png", "left.png", "--work_megapix" "0.6", "--features", "orb", "--matcher", "homography", "--estimator", "homography", "--match_conf", "0.3", "--conf_thresh", "0.2", "--ba", "ray", "--ba_refine_mask", "xxxxx", "--save_graph", "test.txt", "--wave_correct", "no", "--warp", "spherical", "--blend", "multiband", "--expos_comp", "no", "--seam", "voronoi"]
+            // "console": "integratedTerminal"
         }
     ]
 }

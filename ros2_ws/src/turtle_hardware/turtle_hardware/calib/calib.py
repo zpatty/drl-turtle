@@ -80,7 +80,7 @@ DIM=(640, 480)
 # tvecs = [np.zeros((1, 1, 3), dtype=np.float64) for i in range(N_OK)]
 # flags = cv.CALIB_FIX_INTRINSIC
 
-rms, KL, DL, KR, DR, R, T = cv2.fisheye.stereoCalibrate(
+rms, KL, DL, KR, DR, R, T, rvecs, tvecs = cv2.fisheye.stereoCalibrate(
         objpoints,
         leftimgpoints,
         rightimgpoints,

@@ -1,3 +1,0 @@
-graph matches_graph{
-"frame6.jpg" -- "frame6.jpg"[label="Nm=103, Ni=30, C=0.771208"];
-}

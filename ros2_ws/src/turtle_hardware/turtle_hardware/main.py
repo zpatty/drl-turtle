@@ -370,18 +370,20 @@ def main(args=None):
 
 
     # create folders 
-    try:
-        typed_name =  input("give folder a name: ")
-        turtle_node.folder_name = "data/" + typed_name
-        os.makedirs(turtle_node.folder_name, exist_ok=False)
+    record =  input("do you want to record? (y if yes): ")
+    if record == "y":
+        try:
+            typed_name =  input("give folder a name: ")
+            turtle_node.folder_name = "data/" + typed_name
+            os.makedirs(turtle_node.folder_name, exist_ok=False)
 
-    except:
-        print("received weird input or folder already exists-- naming folder with timestamp")
-        t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
-        turtle_node.folder_name =  "data/" + t
-        os.makedirs(turtle_node.folder_name)
+        except:
+            print("received weird input or folder already exists-- naming folder with timestamp")
+            t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+            turtle_node.folder_name =  "data/" + t
+            os.makedirs(turtle_node.folder_name)
 
-    outfile = turtle_node.folder_name + "np_data"
+        outfile = turtle_node.folder_name + "np_data"
     
     last_mode = ''
     best_reward = 0
@@ -420,7 +422,8 @@ def main(args=None):
                     t_0 = execution(turtle_node, primitive, t_0, dt)
 
                     # turtle_node.publish_turtle_data()
-                if not first_time:
+
+                if not first_time and record == "y":
                     np.savez(outfile, q=turtle_node.q_data, dq=turtle_node.dq_data, t=turtle_node.timestamps, u=turtle_node.tau_data)
                 # turtle_node.publish_turtle_data()
                 turtle_node.shutdown_motors()

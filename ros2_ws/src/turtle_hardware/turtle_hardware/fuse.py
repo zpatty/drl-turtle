@@ -531,9 +531,9 @@ def fuse_feeds(left,right):
 
 
 if __name__ == '__main__':
-    right = cv.imread('right.png')
-    left = cv.imread('left.png')
+    rightimages = sorted(glob.glob('right/*.jpg'))
+    leftimages = sorted(glob.glob('left/*.jpg'))
     im = fuse_feeds(right, left)
     cv.imshow("fused", im)
-    cv.waitKey()
+    cv.waitKey(1000)
     cv.destroyAllWindows()

@@ -23,7 +23,7 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPo
 
 from fuse import fuse_feeds
 from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
-from turtle_interfaces.msg import TurtleTraj, TurtleSensors
+from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl
 
 from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
@@ -72,6 +72,12 @@ class CamStream():
         DR=np.array([[0.003736892852052395], [-0.331577509789992], [0.5990981643072193], [-0.3837158104256219]])
         R=np.array([[0.8484938703183661, -0.053646440984050164, -0.5264790702410727], [0.060883267910572095, 0.9981384545889453, -0.00358513030742383], [0.5256913350253065, -0.029011805192654422, 0.8501805310866477]])
         T=np.array([[-2.178632057371688], [-0.03710693058315735], [-0.6477466090945703]])*25.4
+        # KL=np.array([[437.65175618625943, 0.0, 348.10412611585775], [0.0, 438.68611277500435, 227.28273806606106], [0.0, 0.0, 1.0]])
+        # DL=np.array([[0.40710802279973235], [-4.031851081747705], [12.736317227900324], [-14.451371023674877]])
+        # KR=np.array([[433.8604094028341, 0.0, 344.2195093058017], [0.0, 435.51271126081525, 258.76699434635947], [0.0, 0.0, 1.0]])
+        # DR=np.array([[-0.09427354595798153], [0.45346534123933957], [-1.1240971495817562], [0.7987348190256787]])
+        # R=np.array([[0.8644851499241174, -0.04181721521970628, -0.5009159071859718], [-6.494375914131711e-05, 0.9965242270368072, -0.08330342556583148], [0.5026583544943667, 0.07204710570149672, 0.8614776800457764]])
+        # T=np.array([[-2.31076384657127], [0.16919286141914647], [-0.9322760232359139]])
 
         R1,R2,P1,P2,self.Q = cv2.fisheye.stereoRectify(KL,DL,KR,DR,DIM,R,T, cv2.fisheye.CALIB_ZERO_DISPARITY)
         print(self.Q)
@@ -167,6 +173,12 @@ class MinimalSubscriber(Node):
             'turtle_mode_cmd',
             self.keyboard_callback,
             qos_profile)
+        
+        self.config_pub = self.create_publisher(
+            TurtleCtrl,
+            'turtle_ctrl_params',
+            qos_profile
+        )
         self.cam_pub = self.create_publisher(String, 'primitive', buff_profile)
         self.publisher_ = self.create_publisher(Image, 'video_frames' , qos_profile)
         # self.publisher_1 = self.create_publisher(Image, 'video_frames_1' , qos_profile)
@@ -238,7 +250,8 @@ def main(args=None):
             ret0 = stream.ret1
             left = stream.frame
             right = stream.frame1
-            fused = fuse_feeds(left, right)
+            # fused = fuse_feeds(left, right)
+            fused = np.concatenate((left[:,0:230], right), axis=1)
             minimal_subscriber.publisher_color.publish(minimal_subscriber.br.cv2_to_imgmsg(fused, encoding="bgr8"))
             
             # minimal_subscriber.publisher_color_1.publish(minimal_subscriber.br.cv2_to_imgmsg(left, encoding="bgr8"))
@@ -424,46 +437,12 @@ def main(args=None):
 
             if not stop:
                 if not (len(cnts) == 0):
-                # if stop_mean < 0.1:
-                #     # dwell
-                #     print("backwards...\n")
-                #     msg.data = 'backwards'
-                #     minimal_subscriber.cam_pub.publish(msg)
-                # elif np.median(left_window[np.isfinite(left_window)]) < 0.5:
-                #     print("back right...\n")
-                #     msg.data = 'backr'
-                #     minimal_subscriber.cam_pub.publish(msg)
-                # elif np.median(right_window[np.isfinite(right_window)]) < 0.5:
-                #     print("back left...\n")
-                #     msg.data = 'backl'
-                #     minimal_subscriber.cam_pub.publish(msg)
-                # elif np.median(top_window[np.isfinite(top_window)]) < 0.5:
-                #     print("back down...\n")
-                #     msg.data = 'backd'
-                #     minimal_subscriber.cam_pub.publish(msg)
-                # elif np.median(bottom_window[np.isfinite(bottom_window)]) < 0.5:
-                #     print("back up...\n")
-                #     msg.data = 'backu'
-                #     minimal_subscriber.cam_pub.publish(msg)
-                # else:
                     cnt = cnt_s[-1]
                     (x,y),radius = cv2.minEnclosingCircle(cnt)
                     center = (int(x),int(y))
                     radius = int(radius)
                     cv2.circle(mask,center,radius,10,2)
                     centerMask=cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
-                    # minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(centerMask, encoding="bgr8"))
-                    # minimal_subscriber.publisher_.publish(minimal_subscriber.br.cv2_to_imgmsg(right, encoding="bgr8"))
-
-
-                    # shesh = '/home/crush/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/'
-                    # print(f"check: {shesh}")
-                    # cv2.imwrite(shesh + "images/frame%d.jpg" % count, centerMask)
-                    # print("saved")
-                    # count += 1
-                    # cv2.imshow('Mask',centerMask)
-                    # if cv2.waitKey(1) & 0xFF == ord('q'):
-                    #     break
                     centroid = center
                     if abs(centroid[0] - DIM[0]/2) < stream.turn_thresh and abs(centroid[1] - DIM[1]/2) < stream.dive_thresh:
                         # output straight primitive

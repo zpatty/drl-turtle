@@ -69,31 +69,34 @@ def convert_q_to_motors(q, qd, qdd):
 
 # q_off = np.array([0.0, 0.0 / 180 * np.pi, -.0 / 180 * np.pi])
 q_off = None
-q_off = np.array([0.0, 30.0 / 180 * np.pi, -22.0 / 180 * np.pi, 0.0, 30.0 / 180 * np.pi, -22.0 / 180 * np.pi])
-sw = 2.0
+q_off = np.array([0.0, 0.0 / 180 * np.pi, -0.0 / 180 * np.pi, 0.0, 0.0 / 180 * np.pi, -0.0 / 180 * np.pi])
+sw = 1.0
 kp=[1] * 6
 use_learned_motion_primitive = True
 synchronize_flippers = True
 if use_learned_motion_primitive:
     joint_space_control_fn = cornelia_joint_space_motion_primitive_control_factory(
-        q_off=q_off, sw=sw, phase_sync_kp=4e0 if synchronize_flippers else 0.0
+        q_off=q_off, sw=sw, limit_cycle_kp=1.0e0, phase_sync_kp=4e0 if synchronize_flippers else 0.0
     )
 else:
     joint_space_control_fn = cornelia_joint_space_control_factory(kp=kp, q_off=q_off, sw=sw)
 
-kp = 5e0 * np.ones(6) 
-x_oracle_off = np.array(
-[0.33998568104510646, -0.18310844284512637, 0.09731318136873592]
+
+pinv_damping = 1e-2  # damping factor for the pseudo-inverse
+x_oracle_off_ra = np.array(
+    [0.34808895, -0.08884996, 0.00209812]
 )
-sf = np.array([0.3636890603138822, 0.3636890603138822, 0.3636890603138822, 0.3636890603138822])  # spatial scaling factor
-sw = 1.0  # time scaling factor of oracle
-pinv_damping = 2e-3
+x_oracle_off = x_oracle_off_ra * np.array([-1.0, 1.0, 1.0])
+# spatial scaling factor
+# sf = 1.0097261718101995
+# sf = np.array([1.0097261718101995, 1.0097261718101995, 1.0097261718101995, 1.0])
+sf = 1.0
+kp = 2e0 * np.ones(6)  # Proportional gain
+kp_th = 1e1 * np.ones(2)  # Proportional gain for twist
+w_th = 1e0  # weight for the twist tracking in the Jacobian product
 
-kp_th = 5e0 * np.ones(2)  # Proportional gain for twist
-w_th = 1e-3  # weight for the twist tracking in the Jacobian product
-
-use_straight_flipper=False
-use_learned_motion_primitive=False
+use_straight_flipper=True
+use_learned_motion_primitive=True
 track_twist = True
 
 task_space_control_fn = green_sea_turtle_task_space_control_factory(
