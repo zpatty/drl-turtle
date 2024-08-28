@@ -100,6 +100,8 @@ class TurtleRemote(Node):
             cfg_msg.center = params["center"]
             cfg_msg.yaw = params["yaw"]
             cfg_msg.pitch = params["pitch"]
+            cfg_msg.fwd = params["fwd"]
+            cfg_msg.roll = params["roll"]
             cfg_msg.frequency_offset = params["frequency_offset"]
             cfg_msg.period = params["period"]
 
@@ -113,13 +115,14 @@ class TurtleRemote(Node):
             cfg_msg.kp_th = params["kp_th"]
             cfg_msg.offset = params["offset"]
             cfg_msg.sw = params["sw"]
-            print(cfg_msg)
-            self.config_pub.publish(cfg_msg)
+            # print(cfg_msg)
             self.mode_pub.publish(mode_msg)
+            self.config_pub.publish(cfg_msg)
+            
             self.get_logger().info('Updated Config')
-            t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
-            with open("data/" + t + "_config.json", 'w') as config:
-                json.dump(params, config, ensure_ascii=False, indent=4)
+            # t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+            # with open("data/" + t + "_config.json", 'w') as config:
+            #     json.dump(params, config, ensure_ascii=False, indent=4)
 
             
 

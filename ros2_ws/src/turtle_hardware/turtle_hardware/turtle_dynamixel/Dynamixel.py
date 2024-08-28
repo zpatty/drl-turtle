@@ -8,6 +8,7 @@ ADDR_POS_D_GAIN             = 80
 ADDR_POS_I_GAIN             = 82
 ADDR_POS_P_GAIN             = 84
 ADDR_TORQUE_ENABLE          = 64
+ADDR_WATCHDOG               = 98
 ADDR_GOAL_CURRENT           = 102
 ADDR_GOAL_POSITION          = 116
 ADDR_GOAL_VELOCITY          = 104
@@ -24,6 +25,7 @@ MAX_POSITION_VALUE          = 4095           # Of MX with firmware 2.0 and X-Ser
 MIN_POSITION_VALUE          = 0          # important to note that this is for EXTENDED position mode
 DXL_MOVING_STATUS_THRESHOLD = 20                # Dynamixel will rotate between this value
 MAX_PROFILE_VELOCITY        = 50                # ranges from 0-32,767 [0.229 rev/min]
+WATCHDOG_TIME               = 3
 
 from dynamixel_sdk import *                    # Uses Dynamixel SDK library
 # from packet_handling import *

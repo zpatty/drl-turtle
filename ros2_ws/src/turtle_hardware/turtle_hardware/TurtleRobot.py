@@ -50,7 +50,7 @@ class TurtleRobot(Node):
             depth=10
         )
         timer_cb_group = None
-        self.call_timer = self.create_timer(0.02, self._timer_cb, callback_group=timer_cb_group)
+        self.call_timer = self.create_timer(0.001, self._timer_cb, callback_group=timer_cb_group)
 
         self.watchdog_timer = self.create_timer(0.04, self._watchdog_cb, callback_group=timer_cb_group)
 
@@ -76,8 +76,9 @@ class TurtleRobot(Node):
             qos_profile
         )
 
-        self.create_rate(100)
+        self.create_rate(1000)
         self.mode = 'rest'      # initialize motors mode to rest state
+        self.last_mode = self.mode
         self.primitives = ['dwell']
         self.voltage = 12.0
 
@@ -98,13 +99,19 @@ class TurtleRobot(Node):
             print("[ERROR] Failed to change baudrate")
 
         self.Joints = Mod(packetHandlerJoint, portHandlerJoint, self.IDs)
+        self.Joints.all_reboot()
         self.Joints.disable_torque()
-        self.Joints.set_current_cntrl_mode()
-        self.Joints.enable_torque()
-
+        self.Joints.set_vel_gains(1920, 500)
+        # self.Joints.set_current_cntrl_mode()
+        # self.Joints.enable_torque()
+        self.Joints.reset_watchdog()
+        self.Joints.set_watchdog(10)
         # # sensors and actuators
         self.q = np.array(self.Joints.get_position()).reshape(-1,1)
         self.dq = np.array(self.Joints.get_velocity()).reshape(-1,1)
+
+        self.min_threshold = np.array([1.60, 2.5, 1.0, 1.35, 1.2, 1.0, 1.45, 1.2, 3.0, 2.3])/1.25
+        self.max_threshold = np.array([4.75, 5.0, 5.0, 4.5, 4.15, 5.0, 3.2, 4.0, 4.0, 4.7])*1.25
 
         # self.q = np.zeros((self.nq,1))
         # self.dq = np.zeros((self.nq,1))
@@ -116,7 +123,7 @@ class TurtleRobot(Node):
         self.acc = np.zeros((3,1))
         self.gyr = np.zeros((3,1))
         self.quat_vec = np.zeros((4,1))
-
+        self.off_flag = False
 
         self.xiao = serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
         self.xiao.reset_input_buffer()
@@ -145,41 +152,85 @@ class TurtleRobot(Node):
 
 
     def _timer_cb(self):
-        
+        # print(self.mode)
         self.read_joints()
         self.read_sensors()
+        # print(self.mode)
         if self.voltage < self.voltage_threshold:
             self.get_logger().info('Battery Low, Please Charge')
             self.mode = "rest"
         self.t = time.time() - self.t0
-        if self.mode == 'p':
-            
-            self.input = grab_arm_current(self.u, min_torque, max_torque)
-            # self.Joints.send_torque_cmd(self.input)
-        elif self.mode == 'v':
-            self.input = np.clip(self.u * 30.0 / np.pi / 0.229, -160., 160.).astype(int).squeeze().tolist()
-            # self.Joints.send_vel_cmd(self.input)
+        if not self.off_flag:
+            if self.mode == 'p':
+
+                u = np.squeeze(self.u)
+                q = np.array(self.q)
+                dq = np.array(self.dq)
+
+                lower = q < self.min_threshold
+                l_limit = np.logical_and(u<0,lower)
+                u[l_limit] = 150 * ((lower[l_limit] - q[l_limit]) - 0.1*dq[l_limit])
+
+                upper = q > self.max_threshold
+                u_limit = np.logical_and(u>0,upper)
+                u[u_limit] = 150 * ((upper[u_limit] - q[u_limit]) - 0.1*dq[u_limit])
+                
+                self.input = grab_arm_current(self.u, min_torque, max_torque)
+                
+                self.Joints.send_torque_cmd(self.input)
+            elif self.mode == 'v':
+                
+                lower = self.q < self.min_threshold
+                u = np.squeeze(self.u)
+                l_limit = np.logical_and(u<0,lower)
+                q = np.array(self.q)
+                print(f"[DEBUG] lower: {l_limit}\n")
+
+
+                u[l_limit] = 0.5 * ((lower[l_limit] - q[l_limit]))
+                upper = q > self.max_threshold
+                u_limit = np.logical_and(u>0,upper)
+                u[u_limit] = 0.5 * ((upper[u_limit] - q[u_limit]))
+                print(f"[DEBUG] upper: {u_limit}\n")
+                self.input = np.clip(self.u * 30.0 / np.pi / 0.229, -999., 999.).astype(int).squeeze().tolist()
+                print(self.u)
+                self.Joints.send_vel_cmd(self.input)
+        else:
+            self.Joints.disable_torque()
+
         self.publish_turtle_data()
         # self.get_logger().info('Received response')
         self.log_data()
 
     def turtle_input_callback(self, msg):
         self.u = self.convert_u_to_motors(np.array(msg.u))
+        # print(self.u)
         self.qd = np.array(msg.qd)
+        
         self.dqd = np.array(msg.dqd)
         self.food = True
 
     def _watchdog_cb(self):
         if not self.food:
+            # print(f"[DEBUG] q: {self.q}\n")
             self.get_logger().info('Bark Bark!')
             self.mode = "rest"
-            self.shutdown_motors()
+            # self.shutdown_motors()
+            self.off_flag = True
+        elif self.off_flag and self.food:
+            self.off_flag = False
+            self.mode = self.last_mode
+            self.activate_mode()
+
         self.food = False
         self.first_bark = False
 
     def turtle_mode_callback(self, msg):
         self.mode = msg.mode
-        print(self.mode)
+        self.last_mode = self.mode
+        self.activate_mode()
+
+    def activate_mode(self):
         match self.mode:
             case "rest":
                 self.shutdown_motors()
@@ -255,12 +306,12 @@ class TurtleRobot(Node):
 
         
     def shutdown_motors(self):
-        if self.mode == 'p':
-            self.Joints.send_torque_cmd([0] *len(self.IDs))
-        elif self.mode == 'v':
-            self.Joints.send_vel_cmd([0] *len(self.IDs))
         self.Joints.disable_torque()
-        # print("Motors Off")
+        self.Joints.set_current_cntrl_mode()
+        self.Joints.enable_torque()
+        self.Joints.send_torque_cmd([0] *len(self.IDs))
+        self.Joints.disable_torque()
+        print("Motors Off")
         pass
     
     def read_joints(self):
@@ -347,6 +398,7 @@ class TurtleRobot(Node):
             attempts += 1
 
 def main():
+    os.system('sudo ' + submodule + '/latency_write.sh')
     rclpy.init()
     turtle_node = TurtleRobot()
     try:
@@ -364,7 +416,7 @@ def main():
         print(exec_type, fname, tb.tb_lineno)
         print(e)
     # turtle_node.save_data()
-    
+    turtle_node.shutdown_motors()
 
 if __name__ == '__main__':
     main()

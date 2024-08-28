@@ -8,6 +8,9 @@ DDR_POS_D_GAIN              = 80
 ADDR_POS_I_GAIN             = 82
 ADDR_POS_P_GAIN             = 84
 ADDR_TORQUE_ENABLE          = 64
+ADDR_VEL_I                  = 76
+ADDR_VEL_P                  = 78
+ADDR_WATCHDOG               = 98
 ADDR_GOAL_CURRENT           = 102
 ADDR_GOAL_POSITION          = 116
 ADDR_GOAL_VELOCITY          = 104
@@ -57,6 +60,7 @@ class Mod:
         self.packetHandler  = packetHandler
         self.portHandler    = portHandler
         self.IDS            = IDS
+        # self.watchdog_time = watchdog_time
         # Initialize GroupSyncRead instance for Present Position
         self.groupSyncRead = GroupSyncRead(portHandler, packetHandler, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
         # Initialize GroupSyncRead instance for Present Velocity
@@ -70,6 +74,7 @@ class Mod:
             if dxl_addparam_result != True:
                 print("[ERROR] [ID:%03d] groupSyncRead addparam failed" %ID)
                 quit()
+        # self.set_watchdog()
         print(f"[STATUS] Mod initialized with IDS: {self.IDS}\n")
     def enable_torque(self):
         #Enable Dynamixel Torques
@@ -91,7 +96,48 @@ class Mod:
                 print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
             elif dxl_error != 0:
                 print("%s" % self.packetHandler.getRxPacketError(dxl_error))
-        
+
+    def all_reboot(self):
+        for ID in self.IDS:
+            dxl_comm_result, dxl_error = self.packetHandler.reboot(self.portHandler, ID)
+            if dxl_comm_result != COMM_SUCCESS:
+                print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+            elif dxl_error != 0:
+                print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+    
+    def set_watchdog(self, watchdog_time):
+        # watchdog units 1 = 20ms
+        for ID in self.IDS:
+            dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, ID, ADDR_WATCHDOG, watchdog_time)
+            if dxl_comm_result != COMM_SUCCESS:
+                print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+            elif dxl_error != 0:
+                print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+
+    def set_vel_gains(self, I, P):
+        # watchdog units 1 = 20ms
+        for ID in self.IDS:
+            dxl_comm_result, dxl_error = self.packetHandler.write2ByteTxRx(self.portHandler, ID, ADDR_VEL_I, I)
+            if dxl_comm_result != COMM_SUCCESS:
+                print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+            elif dxl_error != 0:
+                print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+            dxl_comm_result, dxl_error = self.packetHandler.write2ByteTxRx(self.portHandler, ID, ADDR_VEL_P, P)
+            if dxl_comm_result != COMM_SUCCESS:
+                print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+            elif dxl_error != 0:
+                print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+    
+    def reset_watchdog(self):
+        # watchdog units 1 = 20ms
+        for ID in self.IDS:
+            dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, ID, ADDR_WATCHDOG, 0)
+            if dxl_comm_result != COMM_SUCCESS:
+                print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+            elif dxl_error != 0:
+                print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+        # self.set_watchdog()
+
     def get_position(self):
         '''
         Returns position in radians
