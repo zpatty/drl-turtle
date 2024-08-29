@@ -2,6 +2,8 @@ float32[] amplitude
 float32[] center
 float32 yaw
 float32 pitch
+float32 fwd
+float32 roll
 float32 period
 float32 frequency_offset
 float32 d_pinv

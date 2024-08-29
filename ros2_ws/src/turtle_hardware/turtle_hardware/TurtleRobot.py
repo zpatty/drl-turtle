@@ -9,7 +9,7 @@ import os, sys
 submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/install/turtle_hardware/lib/python3.12/site-packages/turtle_hardware/"
 sys.path.append(submodule)
 import transforms3d.quaternions as quat
-from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl, TurtleMode
+from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl, TurtleMode, TurtleState
 from std_msgs.msg import String, Float32MultiArray
 from dynamixel_sdk import *                                     # Uses Dynamixel SDK library
 from turtle_dynamixel.Dynamixel import *                        # Dynamixel motor class                                  
@@ -71,8 +71,16 @@ class TurtleRobot(Node):
 
         # continously reads from all the sensors and publishes data at end of trajectory
         self.sensors_pub = self.create_publisher(
-            TurtleSensors,
+            TurtleState,
             'turtle_sensors',
+            qos_profile
+        )
+
+        # continously reads from all the sensors and publishes data at end of trajectory
+        self.sensors_sub = self.create_subscription(
+            TurtleSensors,
+            'turtle_imu',
+            self.turtle_sensors_callback,
             qos_profile
         )
 
@@ -153,13 +161,15 @@ class TurtleRobot(Node):
 
     def _timer_cb(self):
         # print(self.mode)
+        t_meas = time.time() - self.t0
         self.read_joints()
-        self.read_sensors()
+        # self.read_sensors()
         # print(self.mode)
         if self.voltage < self.voltage_threshold:
             self.get_logger().info('Battery Low, Please Charge')
             self.mode = "rest"
         self.t = time.time() - self.t0
+        # print(f"[DEBUG] dt_read: {self.t - t_meas}\n")
         if not self.off_flag:
             if self.mode == 'p':
 
@@ -271,7 +281,7 @@ class TurtleRobot(Node):
         """
         Send data out
         """
-        turtle_msg = TurtleSensors()
+        turtle_msg = TurtleState()
         # turtle_msg.q = self.q
         # turtle_msg.dq = self.dq
         turtle_msg.q, turtle_msg.dq = self.convert_motors_to_q(self.q, self.dq)
@@ -351,7 +361,19 @@ class TurtleRobot(Node):
     def get_state_np(self):
         return np.array(self.q).reshape(-1,1), np.array(self.dq).reshape(-1,1)
 
-        
+    
+    def turtle_sensors_callback(self, msg):
+
+        # turtle_msg.q = self.q
+        # turtle_msg.dq = self.dq
+        self.quat_vec = msg.imu.quat
+        # # angular velocity
+        self.gyr = msg.imu.gyr
+        # print("acc msg")
+        # # linear acceleration
+        self.acc = msg.imu.acc
+        self.voltage = msg.voltage
+        self.depth = msg.depth
     
     def read_sensors(self):
         """

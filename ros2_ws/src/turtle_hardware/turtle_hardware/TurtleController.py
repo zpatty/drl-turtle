@@ -245,9 +245,9 @@ class TurtleController(Node):
                 self.construct_ts_control()
                 self.traj = self.task_space_traj
             case "nav":
-                self.construct_nav_control()
+                # self.construct_nav_control()
                 self.traj = self.nav_traj
-                self.nav_u = np.array([self.fwd, self.roll, self.pitch, self.yaw])
+                # self.nav_u = np.array([self.fwd, self.roll, self.pitch, self.yaw])
             case _:
                 self.mode = "rest"
         # print(self.traj_str)

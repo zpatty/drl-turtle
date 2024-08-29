@@ -1,5 +1,4 @@
 from setuptools import find_packages, setup
-from glob import glob
 
 package_name = 'turtle_hardware'
 
@@ -12,8 +11,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/turtle_hardware/launch', ['launch/cv_launch.py', 'launch/cv_window_launch.py', 'launch/cv_interface_launch.py', 'launch/turtle_launch.py'])
-        # (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*launch.[pxy][yma]*')))
-        # ('share/' + package_name + '/launch/', ['cv_launch.py'])
+
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -26,7 +24,8 @@ setup(
         'console_scripts': [
             'turtle_ctrl_node = turtle_hardware.TurtleController:main',
             'log_node = turtle_hardware.Logger:main',
-            'turtle_hardware_node = turtle_hardware.TurtleRobotDummy:main',
+            'turtle_hardware_node = turtle_hardware.TurtleRobot:main',
+            'turtle_sensors_node = turtle_hardware.TurtleSensorsNode:main',
             'turtle_tracker = turtle_hardware.turtle_tracker:main',
             'turtle_motor = turtle_hardware.main:main',
             'dual_cv_fused = turtle_hardware.dual_cv_fused:main',

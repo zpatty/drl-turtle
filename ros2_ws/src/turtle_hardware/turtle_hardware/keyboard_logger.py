@@ -105,6 +105,9 @@ class TurtleRemote(Node):
         self.w_th_data = []
         self.kp_s_data = []
 
+        self.mode = "rest"
+        self.traj = ""
+
 
     def parse_ctrl_params(self):
         with open('ctrl_config.json') as config:
@@ -183,8 +186,12 @@ class TurtleRemote(Node):
             cfg_msg.offset = params["offset"]
             cfg_msg.sw = params["sw"]
             # print(cfg_msg)
-            self.mode_pub.publish(mode_msg)
+            if mode_msg.traj != self.traj or mode_msg.mode != self.mode:
+                self.mode_pub.publish(mode_msg)
+                print("sent mode message")
             self.config_pub.publish(cfg_msg)
+            self.traj = mode_msg.traj
+            self.mode = mode_msg.mode
             
             self.get_logger().info('Updated Config')
             # t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
@@ -228,7 +235,7 @@ class TurtleRemote(Node):
             
 
     def save_config(self):  
-        print(self.kpv_data)
+        # print(self.kpv_data)
         np.savez(self.folder_name + "_np_config", amplitude=self.amplitude_data, 
                  center=self.center_data, yaw=self.yaw_data, pitch=self.pitch_data, fwd=self.fwd_data, roll=self.roll_data, 
                  frequency_offset=self.freq_offset_data, period=self.period_data, offset=self.q_off_data,
