@@ -5,7 +5,7 @@ from pathlib import Path
 from osmp.datasets import *
 
 experiment_date = "/home/zach/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/data/"
-experiment_id = "08_28_2024_18_06_13_np_data.npz"
+experiment_id = "js_learned_10_lc4_08_29_2024_15_07_53_np_data.npz"
 oracle_name = "CorneliaTurtleRobotJointSpace"
 
 match experiment_date:

@@ -13,7 +13,7 @@ from rclpy.executors import Executor, MultiThreadedExecutor
 import numpy as np
 from matplotlib import pyplot as plt
 from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
-from turtle_interfaces.msg import TurtleTraj, TurtleSensors
+from turtle_interfaces.msg import TurtleTraj, TurtleState
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 
 from std_msgs.msg import String
@@ -66,7 +66,7 @@ class TurtleRemote(Node):
 
         # for case when trajectory mode, receives trajectory msg
         self.sensors_sub = self.create_subscription(
-            TurtleSensors,
+            TurtleState,
             'turtle_sensors',
             self.sensors_callback,
             qos_profile

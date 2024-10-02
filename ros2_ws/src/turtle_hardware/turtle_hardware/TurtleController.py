@@ -9,7 +9,7 @@ import sys
 import os
 from rclpy.parameter_event_handler import ParameterEventHandler
 
-from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl, TurtleMode
+from turtle_interfaces.msg import TurtleTraj, TurtleCtrl, TurtleMode, TurtleState
 from std_msgs.msg import String, Float32MultiArray
 
 import numpy as np
@@ -60,7 +60,7 @@ class TurtleController(Node):
             depth=10
         )
 
-        self.dt = 0.005
+        self.dt = 0.001
         timer_cb_group = None
         self.call_timer = self.create_timer(self.dt, self._ctrl_cb, callback_group=timer_cb_group)
 
@@ -82,7 +82,7 @@ class TurtleController(Node):
         
         # for case when trajectory mode, receives trajectory msg
         self.sensors_sub = self.create_subscription(
-            TurtleSensors,
+            TurtleState,
             'turtle_sensors',
             self.sensors_callback,
             qos_profile
@@ -265,6 +265,7 @@ class TurtleController(Node):
         # self.get_logger().info(f"Received update to q")
         self.q = np.array(msg.q).reshape(-1,1)
         self.dq = np.array(msg.dq).reshape(-1,1)
+        self.quat = np.array(msg.imu.quat)
 
     def publish_u(self, u):
         cmd_msg = TurtleTraj()
@@ -276,12 +277,13 @@ class TurtleController(Node):
 
     def get_u(self, qd, dqd, ddqd):
         # qd = np.zeros((10,1))
-        # qd = np.zeros((10,1))
+        # dqd = np.zeros((10,1))
         match self.mode:
             case 'rest':
                 u = [0]*10
             case 'v':
                 u = dqd
+                u[6:] = -0.1 * (self.q[6:])
             case 'p':
                 
                 u = (self.Kp.dot((qd - self.q)) + self.KD.dot((dqd - self.dq))) * 150

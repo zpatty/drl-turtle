@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 import time
 import os
 from datetime import datetime
-
+import sys
 class CamSubscriber(Node):
 
     def __init__(self):
@@ -34,12 +34,12 @@ class CamSubscriber(Node):
         # qos_profile
         # )
 
-        self.cam_color = self.create_subscription(
-            Image,
-            'video_frames_color',
-            self.img_callback_color,
-            qos_profile
-            )
+        # self.cam_color = self.create_subscription(
+        #     Image,
+        #     'video_frames_color',
+        #     self.img_callback_color,
+        #     qos_profile
+        #     )
 
         # self.cam_color_1 = self.create_subscription(
         #     Image,
@@ -165,10 +165,17 @@ def main(args=None):
     rclpy.init(args=args)
     print("yo")
     cam_sub = CamSubscriber()
-    while(cam_sub.flag != 'stop'):
-        rclpy.spin_once(cam_sub)
-    cam_sub.destroy_node()
-    rclpy.shutdown()
-
+    try:
+        rclpy.spin(cam_sub)
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        # rclpy.shutdown()
+        print("some error occurred")
+        # turtle_node.shutdown_motors()
+        exec_type, obj, tb = sys.exc_info()
+        fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
+        print(exec_type, fname, tb.tb_lineno)
+        print(e)
 if __name__ == '__main__':
   main()

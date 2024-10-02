@@ -24,11 +24,12 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPo
 
 from fuse import fuse_feeds
 from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
-from turtle_interfaces.msg import TurtleTraj, TurtleSensors
+from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl
 
 from std_msgs.msg import String
 from std_msgs.msg import Float64MultiArray
 
+import random
 from Tracker import Tracker
 
 
@@ -38,7 +39,7 @@ turn_thresh = 150
 dive_thresh = 100
 
 
-class MinimalSubscriber(Node):
+class TrackerNode(Node):
 
     def __init__(self, tracker = Tracker()):
         super().__init__('cam_node')
@@ -61,11 +62,6 @@ class MinimalSubscriber(Node):
             history=HistoryPolicy.KEEP_LAST,
             depth=1
         )
-        self.subscription = self.create_subscription(
-            String,
-            'turtle_mode_cmd',
-            self.keyboard_callback,
-            qos_profile)
 
         self.cam_color = self.create_subscription(
             Image,
@@ -73,6 +69,12 @@ class MinimalSubscriber(Node):
             self.img_callback_color,
             img_profile
             )
+
+        self.config_pub = self.create_publisher(
+            TurtleCtrl,
+            'turtle_ctrl_params',
+            qos_profile
+        )
         
         self.tracker = tracker
         self.first_detect = True
@@ -84,35 +86,30 @@ class MinimalSubscriber(Node):
         self.br = CvBridge()
 
         self.create_rate(100)
-        self.subscription  # prevent unused variable warning
-
-    def keyboard_callback(self, msg):
-        """
-        Callback function that updates the mode the turtle should be in.
-        This method is what enables us to set "emergency stops" mid-trajectory. 
-        """
-        # global mode
-        if msg.data == 'stop':
-            self.flag = 'stop'
+        # self.subscription  # prevent unused variable warning
+        self.yaw_thresh = 870/2
+        self.pitch_thresh = 480/2
+        self.last_ctrl = [1.0, 0.0, 0.0, 0.0]
 
     def img_callback_color(self, data):
         self.get_logger().info('Receiving other video frame')
         current_frame = self.br.imgmsg_to_cv2(data)
         # estimate position here
         # print("tracking")
-        msg = String()
+        msg = TurtleCtrl()
         DIM=(640, 480)
         
         if self.first_detect:
             # rects = self.tracker.detect_and_track(current_frame)
-            rects, img, preds = self.tracker.detect_and_track(current_frame)
+            rects, img, preds, frame = self.tracker.detect_and_track(current_frame)
             # print(preds)
-            self.publisher_detect.publish(self.br.cv2_to_imgmsg(np.transpose(np.squeeze(img), (1, 2, 0)), encoding="passthrough"))
+            self.publisher_detect.publish(self.br.cv2_to_imgmsg(frame, encoding="passthrough"))
             if not rects:
                 self.first_detect = True
-                print("No detection, dwell...\n")
-                msg.data = 'dwell'
-                self.cam_pub.publish(msg)
+                print("No detection, random walk...\n")
+                # if random.uniform(0.0, 1.0) < 0.9:
+                    
+                # self.cam_pub.publish(msg)
             else:
                 self.first_detect = False
                 print("Turtle Detected!\n")
@@ -120,70 +117,71 @@ class MinimalSubscriber(Node):
         
         
         if not self.first_detect:
-            centroids = []
-            for rect in rects:
-                centroids.append(self.tracker.track(current_frame))
-            if not centroids:
+            # centroids = []
+            # for rect in rects:
+            centroids, frame = self.tracker.track(current_frame)
+            self.publisher_detect.publish(self.br.cv2_to_imgmsg(frame, encoding="passthrough"))
+            if not centroids.any():
                 self.first_detect = True
-                print("No detection, dwell...\n")
-                msg.data = 'dwell'
-                self.cam_pub.publish(msg)
+                print("No detection, random walk...\n")
+                # msg.data = 'dwell'
+                # self.cam_pub.publish(msg)
             else:
-                centroid = centroids[0]
-                print(centroid)
-                if abs(centroid[0] - DIM[0]/2) < turn_thresh and abs(centroid[1] - DIM[1]/2) < dive_thresh:
-                    # output straight primitive
-                    print("go straight...\n")
-                    msg.data = 'straight'
-                    self.cam_pub.publish(msg)
-                elif centroid[0] > DIM[0] - (DIM[0]/2 - turn_thresh):
-                    # turn right
-                    print("turn right...\n")
-                    msg.data = 'turnrf'
-                    self.cam_pub.publish(msg)
-                elif centroid[0] < (DIM[0]/2 - turn_thresh):
-                    # turn left
-                    print("turn left...\n")
-                    msg.data = 'turnlf'
-                    self.cam_pub.publish(msg)
-                elif centroid[1] > DIM[1] - (DIM[1]/2 - dive_thresh):
-                    # dive
-                    print("dive...\n")
-                    msg.data = 'dive'
-                    self.cam_pub.publish(msg)
-                elif centroid[1] < (DIM[1]/2 - dive_thresh): 
-                    # surface
-                    print("surface...\n")
-                    msg.data = 'surface'
-                    self.cam_pub.publish(msg)
-                else:
-                    # dwell
-                    print("dwell...\n")
-                    msg.data = 'dwell'
-                    self.cam_pub.publish(msg)
-def main(args=None):
-    global flag
-    home_dir = os.path.expanduser("~")
+                # centroid = centroids[0]
+                print(centroids)
+                msg.yaw = centroids[0]/870 * 2 - 1
+                msg.pitch = 1 - centroids[1]/480 * 2
+                msg.roll = 1000.0
+                msg.fwd = 1000.0
+                self.config_pub.publish(msg)
+                
+                # if abs(centroid[0] - DIM[0]/2) < turn_thresh and abs(centroid[1] - DIM[1]/2) < dive_thresh:
+                #     # output straight primitive
+                #     print("go straight...\n")
+                #     msg.data = 'straight'
+                #     self.cam_pub.publish(msg)
+                # elif centroid[0] > DIM[0] - (DIM[0]/2 - turn_thresh):
+                #     # turn right
+                #     print("turn right...\n")
+                #     msg.data = 'turnrf'
+                #     self.cam_pub.publish(msg)
+                # elif centroid[0] < (DIM[0]/2 - turn_thresh):
+                #     # turn left
+                #     print("turn left...\n")
+                #     msg.data = 'turnlf'
+                #     self.cam_pub.publish(msg)
+                # elif centroid[1] > DIM[1] - (DIM[1]/2 - dive_thresh):
+                #     # dive
+                #     print("dive...\n")
+                #     msg.data = 'dive'
+                #     self.cam_pub.publish(msg)
+                # elif centroid[1] < (DIM[1]/2 - dive_thresh): 
+                #     # surface
+                #     print("surface...\n")
+                #     msg.data = 'surface'
+                #     self.cam_pub.publish(msg)
+                # else:
+                #     # dwell
+                #     print("dwell...\n")
+                #     msg.data = 'dwell'
+                #     self.cam_pub.publish(msg)
 
-    rclpy.init(args=args)
-
-    minimal_subscriber = MinimalSubscriber()
-
-    # node = rclpy.create_node('cam_node')
-
-    
-
-    print("created subscriber")
-    
-
-
-
-    while(minimal_subscriber.flag != 'stop'):
-        rclpy.spin_once(minimal_subscriber)
-    print("closing")
-    minimal_subscriber.destroy_node()
-    rclpy.shutdown()
-    # cap0.release()
+def main():
+    rclpy.init()
+    tracker_node = TrackerNode()
+    try:
+        rclpy.spin(tracker_node)
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        # rclpy.shutdown()
+        print("some error occurred")
+        # turtle_node.shutdown_motors()
+        exec_type, obj, tb = sys.exc_info()
+        fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
+        print(exec_type, fname, tb.tb_lineno)
+        print(e)
+    # control_node.save_data()
 
 
 
