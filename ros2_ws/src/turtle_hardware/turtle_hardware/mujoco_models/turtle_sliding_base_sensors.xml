@@ -1,0 +1,17 @@
+<mujoco model="turtle_sliding_base_sensors">
+    <sensor>
+        <framepos name="base_pos" objtype="site" objname="base_cog" />
+        <velocimeter name="base_vel" site="base_cog" />
+        <accelerometer name="base_acc" site="base_cog" />
+        <force name="base_force" site="base_cog" />
+        <torque name="base_torque" site="base_cog" />
+        <framepos name="arm_right_base_pos" objtype="site" objname="arm_right_base" />
+        <framequat name="arm_right_base_quat" objtype="site" objname="arm_right_base" />
+        <framepos name="arm_left_base_pos" objtype="site" objname="arm_left_base" />
+        <framequat name="arm_left_base_quat" objtype="site" objname="arm_left_base" />
+        <framepos name="leg_right_base_pos" objtype="site" objname="leg_right_base" />
+        <framequat name="leg_right_base_quat" objtype="site" objname="leg_right_base" />
+        <framepos name="leg_left_base_pos" objtype="site" objname="leg_left_base" />
+        <framequat name="leg_left_base_quat" objtype="site" objname="leg_left_base" />
+    </sensor>
+</mujoco>

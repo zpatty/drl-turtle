@@ -5,7 +5,6 @@ from __future__ import unicode_literals
 import sys
 import os
 sys.path.append(os.path.expanduser("~") + "/tortuga_tracker/Yolo-FastestV2/pysot/pysot")
-
 import cv2
 import time
 import argparse
@@ -33,17 +32,17 @@ import utils.utils
 import utils.datasets
 
 class Tracker:
-    def __init__(self, use_tracker = 0):
+    def __init__(self, use_tracker = 1):
         folder = os.path.expanduser("~") + "/tortuga_tracker/Yolo-FastestV2"
         self.data = folder + '/turtle.data'
-        self.detector_weights = folder + '/turtle-30-epoch-0.917089ap-model.pth'
+        self.detector_weights = folder + '/weights/turtle_new-110-epoch-0.606119ap-model.pth'
         self.tracker_config = folder + '/pysot/pysot/experiments/siamrpn_alex_dwxcorr_otb/config.yaml'
         self.tracker_snapshot = folder + '/pysot/pysot/experiments/siamrpn_alex_dwxcorr_otb/model.pth'
         self.use_tracker = use_tracker
         #Load label names
         self.LABEL_NAMES = []
         self.cfg = utils.utils.load_datafile(self.data)
-        self.cfg["names"] = folder + self.cfg["names"]
+        self.cfg["names"] = folder + "/" + self.cfg["names"]
         with open(self.cfg["names"], 'r') as f:
             for line in f.readlines():
                 self.LABEL_NAMES.append(line.strip())
@@ -111,7 +110,7 @@ class Tracker:
             mask = mask.astype(np.uint8)
             mask = np.stack([mask, mask*255, mask]).transpose(1, 2, 0)
             frame = cv2.addWeighted(frame, 0.77, mask, 0.23, -1)
-            return polygon
+            return polygon, frame
         else:
             bbox = list(map(int, outputs['bbox']))
             points = np.array([[bbox[0], bbox[1]],[bbox[0]+bbox[2], bbox[1]+bbox[3]]])
@@ -119,7 +118,7 @@ class Tracker:
             cv2.rectangle(frame, (bbox[0], bbox[1]),
                         (bbox[0]+bbox[2], bbox[1]+bbox[3]),
                         (0, 255, 0), 3)
-            return centroid
+            return centroid, frame
             #cv2.imshow("Object Detection", frame)
             #cv2.waitKey(40)
     def detect_and_track(self, frame):
@@ -163,14 +162,14 @@ class Tracker:
             frame = cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 255, 0), 2)
             frame = cv2.putText(frame, '%.2f' % obj_score, (x1, y1 - 5), 0, 0.7, (0, 255, 0), 2)  
             frame = cv2.putText(frame, category, (x1, y1 - 25), 0, 0.7, (0, 255, 0), 2)
-            #cv2.imshow("Object Detection", frame)
+            # cv2.imshow("Object Detection", frame)
             if obj_score>0.8:
-                #cv2.imshow("Object Detection", frame)
-                #cv2.imwrite(f"{d}.png", frame)
+                # cv2.imshow("Object Detection", frame)
+                # cv2.imwrite(f"{d}.png", frame)
                 d+=1
                 if self.use_tracker:
                     #input_char = input("track?")
-                    #cv2.imshow("Object Detection", frame)
+                    # cv2.imshow("Object Detection", frame)
                     #if input_char == "y":
                     #  centroid = self.track([x1, y1, x2-x1, y2-y1], frame)
                     rects.append([x1, y1, x2-x1, y2-y1])
@@ -180,7 +179,7 @@ class Tracker:
         img = img.numpy().copy()
         # print(preds)
         # preds = preds.numpy().copy()
-        return rects, img, preds
+        return rects, img, preds, frame
         
 
 

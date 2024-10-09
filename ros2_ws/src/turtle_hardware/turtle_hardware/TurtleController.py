@@ -71,6 +71,12 @@ class TurtleController(Node):
         self.ctrl_sub = self.create_subscription(
             TurtleCtrl,
             'turtle_ctrl_params',
+            self.turtle_script_callback,
+            qos_profile)
+        
+        self.ctrl_sub = self.create_subscription(
+            Float32MultiArray,
+            'turtle_4dof',
             self.turtle_ctrl_callback,
             qos_profile)
         
@@ -198,7 +204,7 @@ class TurtleController(Node):
         
 
     
-    def turtle_ctrl_callback(self, msg):
+    def turtle_script_callback(self, msg):
 
         print(msg)
         kp = msg.kp
@@ -255,7 +261,9 @@ class TurtleController(Node):
             self.nav_u = np.array([self.fwd, self.roll, self.pitch, self.yaw])
         else:
             self.nav_u = None
-        
+    
+    def turtle_script_callback(self, msg):
+        self.nav_u = msg.data
 
     def sensors_callback(self, msg):
         """
@@ -440,5 +448,6 @@ def main():
     # control_node.save_data()
     # control_node.construct_ts_control()
     control_node.traj(control_node.t, control_node.q, control_node.nav_u)
+    control_node.publish_u([0]*10)
 if __name__ == '__main__':
     main()

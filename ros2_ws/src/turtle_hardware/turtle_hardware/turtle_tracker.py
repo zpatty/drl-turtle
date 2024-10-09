@@ -7,7 +7,7 @@ import traceback
 
 # Standard imports
 import cv2
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CompressedImage
 from cv_bridge import CvBridge
 import numpy as np
 import json 
@@ -24,10 +24,10 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPo
 
 from fuse import fuse_feeds
 from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
-from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl
+from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl, TurtleCam
 
 from std_msgs.msg import String
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float32MultiArray
 
 import random
 from Tracker import Tracker
@@ -60,28 +60,26 @@ class TrackerNode(Node):
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
             history=HistoryPolicy.KEEP_LAST,
-            depth=1
+            depth=2
         )
 
-        self.cam_color = self.create_subscription(
-            Image,
-            'video_frames_color',
-            self.img_callback_color,
+        self.frames_sub = self.create_subscription(
+            TurtleCam,
+            'frames',
+            self.img_callback,
             img_profile
             )
 
         self.config_pub = self.create_publisher(
-            TurtleCtrl,
-            'turtle_ctrl_params',
+            Float32MultiArray,
+            'centroids',
             qos_profile
         )
         
         self.tracker = tracker
         self.first_detect = True
 
-        self.cam_pub = self.create_publisher(String, 'primitive', buff_profile)
-
-        self.publisher_detect = self.create_publisher(Image, 'video_detect' , qos_profile)
+        self.publisher_detect = self.create_publisher(CompressedImage, 'video_detect' , qos_profile)
 
         self.br = CvBridge()
 
@@ -90,50 +88,63 @@ class TrackerNode(Node):
         self.yaw_thresh = 870/2
         self.pitch_thresh = 480/2
         self.last_ctrl = [1.0, 0.0, 0.0, 0.0]
+        self.count = 0
+        t = datetime.today().strftime("%m_%d_%Y_%H_%M_%S")
+        folder_name =  "video/" + t
+        os.makedirs(folder_name)
 
-    def img_callback_color(self, data):
+        self.output_folder = folder_name
+
+    def img_callback(self, msg):
         self.get_logger().info('Receiving other video frame')
-        current_frame = self.br.imgmsg_to_cv2(data)
+        left = self.br.compressed_imgmsg_to_cv2(msg.data[0])
+        right = self.br.compressed_imgmsg_to_cv2(msg.data[1])
+        frame = np.concatenate((left[:,0:230], right), axis=1)
         # estimate position here
         # print("tracking")
-        msg = TurtleCtrl()
         DIM=(640, 480)
-        
+        # print(self.output_folder + "/frame%d.jpg" % self.count)
+        # cv2.imwrite(self.output_folder + "/frame%d.jpg" % self.count, frame)
+        self.count += 1
         if self.first_detect:
             # rects = self.tracker.detect_and_track(current_frame)
-            rects, img, preds, frame = self.tracker.detect_and_track(current_frame)
+            rects, img, preds, frame = self.tracker.detect_and_track(frame)
             # print(preds)
-            self.publisher_detect.publish(self.br.cv2_to_imgmsg(frame, encoding="passthrough"))
             if not rects:
                 self.first_detect = True
                 print("No detection, random walk...\n")
+                self.config_pub.publish(Float32MultiArray(data=[]))
                 # if random.uniform(0.0, 1.0) < 0.9:
                     
                 # self.cam_pub.publish(msg)
             else:
                 self.first_detect = False
                 print("Turtle Detected!\n")
-                self.tracker.tracker.init(current_frame, rects[0])
+                self.tracker.tracker.init(frame, rects[0])
+                print("Tracker Initialized\n")
         
         
         if not self.first_detect:
-            # centroids = []
+            centroids = []
             # for rect in rects:
-            centroids, frame = self.tracker.track(current_frame)
-            self.publisher_detect.publish(self.br.cv2_to_imgmsg(frame, encoding="passthrough"))
-            if not centroids.any():
+            centroids, frame = self.tracker.track(frame)
+            centroids = centroids.tolist()
+            if not centroids:
                 self.first_detect = True
                 print("No detection, random walk...\n")
+                self.config_pub.publish(Float32MultiArray(data=[]))
                 # msg.data = 'dwell'
                 # self.cam_pub.publish(msg)
             else:
                 # centroid = centroids[0]
+
                 print(centroids)
-                msg.yaw = centroids[0]/870 * 2 - 1
-                msg.pitch = 1 - centroids[1]/480 * 2
-                msg.roll = 1000.0
-                msg.fwd = 1000.0
-                self.config_pub.publish(msg)
+                msg.data = centroids
+                # msg.yaw = centroids[0]/870 * 2 - 1
+                # msg.pitch = 1 - centroids[1]/480 * 2
+                # msg.roll = 1000.0
+                # msg.fwd = 1000.0
+                self.config_pub.publish(Float32MultiArray(data=centroids))
                 
                 # if abs(centroid[0] - DIM[0]/2) < turn_thresh and abs(centroid[1] - DIM[1]/2) < dive_thresh:
                 #     # output straight primitive
@@ -165,6 +176,10 @@ class TrackerNode(Node):
                 #     print("dwell...\n")
                 #     msg.data = 'dwell'
                 #     self.cam_pub.publish(msg)
+        self.publisher_detect.publish(self.br.cv2_to_compressed_imgmsg(frame))
+        
+        # cv2.imwrite(self.output_folder + "/right/frame%d.jpg" % self.count, self.stream.right)
+
 
 def main():
     rclpy.init()

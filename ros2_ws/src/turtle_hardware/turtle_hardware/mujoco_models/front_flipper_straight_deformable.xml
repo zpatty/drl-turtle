@@ -1,0 +1,26 @@
+<mujoco model="deformable_straight_flipper">
+    <compiler angle="radian" meshdir="meshes/" autolimits="true" />
+    <option integrator="implicit" timestep="0.0001" density="1000" viscosity="0.0009" cone="elliptic"></option>
+    <extension>
+        <plugin plugin="mujoco.elasticity.solid"/>
+    </extension>
+    <size memory="10G"/>
+    <worldbody>
+        <geom name="floor" type="plane" size="0 0 .1"/>
+        <light diffuse=".6 .6 .6" specular="0.2 0.2 0.2" pos="0 0 4" dir="0 0 -1"/>
+        <body name="pin2" pos="0 0 1.5">
+            <flexcomp type="gmsh" dim="3" file="front_flipper_straight_simplified_vol.msh" mass="5" name="flipper" radius="0.001">
+                <contact condim="1" selfcollide="none" solimp=".95 .95 .95"></contact>
+                <edge equality="true" damping="1.0"/>
+                <plugin plugin="mujoco.elasticity.solid">
+                    <config key="poisson" value="0"/>
+                    <!-- Units are in Pa (SI) -->
+                    <config key="young" value="3e7"/>
+                </plugin>
+            </flexcomp>
+        </body>
+    </worldbody>
+    <equality>
+        <connect body1="flipper_0" anchor="0 0 0"/>
+    </equality>
+</mujoco>

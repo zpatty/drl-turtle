@@ -1,3 +1,23 @@
 {
-    "ros.distro": "jazzy"
+    "ros.distro": "jazzy",
+    "python.autoComplete.extraPaths": [
+        "/home/zach/drl-turtle/ros2_ws/install/turtle_rl/lib/python3.12/site-packages",
+        "/home/zach/drl-turtle/ros2_ws/install/turtle_interfaces/lib/python3.12/site-packages",
+        "/home/zach/drl-turtle/ros2_ws/install/turtle_hardware/lib/python3.12/site-packages",
+        "/home/zach/drl-turtle/ros2_ws/install/turtle_actions/lib/python3.12/site-packages",
+        "/home/zach/drl-turtle/ros2_ws/install/opencv_tests/lib/python3.12/site-packages",
+        "/home/zach/drl-turtle/ros2_ws/install/image_geometry/lib/python3.12/site-packages",
+        "/home/zach/drl-turtle/ros2_ws/install/cv_bridge/lib/python3.12/site-packages",
+        "/opt/ros/jazzy/lib/python3.12/site-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/zach/drl-turtle/ros2_ws/install/turtle_rl/lib/python3.12/site-packages",
+        "/home/zach/drl-turtle/ros2_ws/install/turtle_interfaces/lib/python3.12/site-packages",
+        "/home/zach/drl-turtle/ros2_ws/install/turtle_hardware/lib/python3.12/site-packages",
+        "/home/zach/drl-turtle/ros2_ws/install/turtle_actions/lib/python3.12/site-packages",
+        "/home/zach/drl-turtle/ros2_ws/install/opencv_tests/lib/python3.12/site-packages",
+        "/home/zach/drl-turtle/ros2_ws/install/image_geometry/lib/python3.12/site-packages",
+        "/home/zach/drl-turtle/ros2_ws/install/cv_bridge/lib/python3.12/site-packages",
+        "/opt/ros/jazzy/lib/python3.12/site-packages"
+    ]
 }

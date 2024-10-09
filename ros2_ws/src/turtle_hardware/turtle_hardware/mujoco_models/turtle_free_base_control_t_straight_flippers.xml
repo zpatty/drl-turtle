@@ -1,0 +1,9 @@
+<mujoco model="turtle_free_base_control_vel_straight_flippers">
+    <compiler angle="radian" meshdir="meshes/" autolimits="true" />
+    <option integrator="implicit" timestep="0.002" gravity="0 0 0" density="1000" viscosity="0.0009" cone="elliptic">
+<!--        <flag contact="disable" />-->
+    </option>
+    <include file="turtle_free_base_body_straight_flippers.xml" />
+    <include file="turtle_actuators_t.xml" />
+    <include file="turtle_sliding_base_sensors.xml" />
+</mujoco>
