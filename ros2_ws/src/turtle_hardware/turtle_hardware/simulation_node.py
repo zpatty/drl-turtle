@@ -51,14 +51,14 @@ class Simulator(Node):
         self.pitch_d = 0.0
         # motion primitive settings
         limit_cycle_kp = 1e0
-        # sliding_mode_params = dict(sigma=0.1, plateau_width=0.1)
+        # sliding_mode_params = dict(sigma=0.05, plateau_width=0.05)
         sliding_mode_params = None
         synchronize_flippers = True
         phase_sync_method = "sine"  # "sine", "normalized_error", or "master_slaves"
         phase_sync_kp = 1e0 if synchronize_flippers else 0.0
 
         # reference trajectory settings
-        sw = 1.0  # s
+        sw = 1.3  # s
         q_off = np.zeros((6,))
         # joint space control function
         self.joint_space_control_fn = navigation_joint_space_motion_primitive_control_factory(

@@ -30,10 +30,12 @@ from datetime import datetime
 from turtle_dynamixel.torque_control import torque_control  
 # from turtle_dynamixel import torque_control
 
-from mjc_turtle_robot.controllers.joint_space_controllers import cornelia_joint_space_control_factory, cornelia_joint_space_motion_primitive_control_factory
-from mjc_turtle_robot.controllers.task_space_controller import green_sea_turtle_task_space_control_factory
-from mjc_turtle_robot.controllers.joint_space_controllers import navigation_joint_space_motion_primitive_control_factory
-
+# from mjc_turtle_robot.controllers.joint_space_controllers import cornelia_joint_space_control_factory, cornelia_joint_space_motion_primitive_control_factory
+# from mjc_turtle_robot.controllers.task_space_controller import green_sea_turtle_task_space_control_factory
+# from mjc_turtle_robot.controllers.joint_space_controllers import navigation_joint_space_motion_primitive_control_factory
+from turtle_robot_motion_control.controllers.joint_space_controllers import (
+    navigation_joint_space_motion_primitive_control_factory
+)
 class TurtleController(Node):
 
 # class TurtleRobot(Node, gym.Env):
@@ -68,10 +70,10 @@ class TurtleController(Node):
 
         
         # subscribes to keyboard setting different turtle modes 
-        self.ctrl_sub = self.create_subscription(
+        self.ctrl_params_sub = self.create_subscription(
             TurtleCtrl,
             'turtle_ctrl_params',
-            self.turtle_script_callback,
+            self.turtle_ctrl_params_callback,
             qos_profile)
         
         self.ctrl_sub = self.create_subscription(
@@ -110,9 +112,8 @@ class TurtleController(Node):
         # self.mode_cmd_sub       # prevent unused variable warning
         self.create_rate(1000)
         self.mode = 'rest'      # initialize motors mode to rest state
-        self.traj = self.joint_space_traj
-        self.traj_str = 'js'
-        self.primitives = ['dwell']
+        self.traj = self.nav_traj
+        self.traj_str = 'nav'
         self.voltage = 12.0
         self.n_axis = 3
 
@@ -160,9 +161,9 @@ class TurtleController(Node):
         self.w_th = 1e-3  # weight for the twist tracking in the Jacobian product
         self.kp_s = 20
 
-        self.construct_js_control()
-        self.nav_u = None
-
+        self.construct_nav_control()
+        self.nav_u = [0.0, 0.0, 0.0, 0.0]
+        self.rear_pitch = 0.0
         
 
     def _ctrl_cb(self):
@@ -173,38 +174,47 @@ class TurtleController(Node):
         # print(qd_clipped)
         print(f"[DEBUG] q: {(np.squeeze(self.q))}\n")
         # print(f"[DEBUG] qd: {(np.squeeze(self.qd))}\n")
+        # print(f"[DEBUG] dqd: {(np.squeeze(self.dqd))}\n")
         u = self.get_u(self.qd.reshape(-1,1), self.dqd.reshape(-1,1), self.dqdd.reshape(-1,1))
         print(f"[DEBUG] u: {u}\n")
         self.publish_u(u)
+        # print(f"[DEBUG] navu: {self.nav_u}\n")
         # self.get_logger().info(f'Time to compute control: {time.time() - self.t - self.t0}\n')
 
     def turtle_mode_callback(self,msg):
         if self.traj_str != msg.traj or self.mode != msg.mode:
             self.t0 = time.time()
         self.mode = msg.mode
-        print(self.mode)
+        # print(self.mode)
         match msg.traj:
             case "sin":
                 self.traj = self.sinusoidal_traj
+                self.traj_str = msg.traj
             case "js":
                 self.construct_js_control()
                 self.traj = self.joint_space_traj
+                self.traj_str = msg.traj
             case "ts":
                 self.construct_ts_control()
                 self.traj = self.task_space_traj
+                self.traj_str = msg.traj
             case "nav":
                 self.construct_nav_control()
                 self.traj = self.nav_traj
-                self.nav_u = np.array([self.fwd, self.roll, self.pitch, self.yaw])
+                self.traj_str = msg.traj
+                # self.nav_u = np.array([self.fwd, self.roll, self.pitch, self.yaw])
             case _:
-                self.mode = "rest"
-        self.traj_str = msg.traj
-        print("here")
+                self.mode = self.mode
+                self.traj_str = self.traj_str
+        
+        # print(self.mode)
 
         
-
+    def turtle_ctrl_callback(self, msg):
+        self.nav_u = np.array(msg.data[:-1])
+        self.rear_pitch = msg.data[-1]
     
-    def turtle_script_callback(self, msg):
+    def turtle_ctrl_params_callback(self, msg):
 
         print(msg)
         kp = msg.kp
@@ -224,10 +234,10 @@ class TurtleController(Node):
         # these should be messages instead of parameters
         self.A = np.array(msg.amplitude) * np.pi/180
         self.C = np.array(msg.center) * np.pi/180
-        self.yaw = msg.yaw
-        self.pitch = msg.pitch
-        self.fwd = msg.fwd
-        self.roll = msg.roll
+        # self.yaw = msg.yaw
+        # self.pitch = msg.pitch
+        # self.fwd = msg.fwd
+        # self.roll = msg.roll
         self.freq_offset = msg.frequency_offset
         self.T = msg.period
         self.w = 2 * np.pi / self.T
@@ -257,13 +267,8 @@ class TurtleController(Node):
             case _:
                 self.mode = "rest"
         # print(self.traj_str)
-        if self.traj_str == 'nav':
-            self.nav_u = np.array([self.fwd, self.roll, self.pitch, self.yaw])
-        else:
+        if self.traj_str != 'nav':
             self.nav_u = None
-    
-    def turtle_script_callback(self, msg):
-        self.nav_u = msg.data
 
     def sensors_callback(self, msg):
         """
@@ -292,6 +297,13 @@ class TurtleController(Node):
             case 'v':
                 u = dqd
                 u[6:] = -0.1 * (self.q[6:])
+                u_rear = 700 * self.rear_pitch
+                # print(u_rear)
+                # apply the control signal
+                k_r = 10.0
+                u[7] =  - k_r * (self.q[7] - 10 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) - np.clip(u_rear, -40.0, 40.0) * np.pi / 180)
+                u[9] = - k_r * (self.q[9] + 10 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) + np.clip(u_rear, -40.0, 40.0) * np.pi / 180)
+
             case 'p':
                 
                 u = (self.Kp.dot((qd - self.q)) + self.KD.dot((dqd - self.dq))) * 150
@@ -384,9 +396,10 @@ class TurtleController(Node):
     
     def construct_nav_control(self):
         nav_control_fn = navigation_joint_space_motion_primitive_control_factory(
-            sw=self.sw, q_off=self.q_off, phase_sync_kp=self.kp_s, limit_cycle_kp=self.kpv[0], sliding_mode_params = dict(sigma=0.05, plateau_width=0.05)
+            sw=self.sw, q_off=self.q_off, phase_sync_kp=self.kp_s, limit_cycle_kp=self.kpv[0], sliding_mode_params = None
         )
         self.nav_control_fn = nav_control_fn
+
     
     def construct_js_control(self):
         if self.use_learned_motion_primitive:
@@ -448,6 +461,9 @@ def main():
     # control_node.save_data()
     # control_node.construct_ts_control()
     control_node.traj(control_node.t, control_node.q, control_node.nav_u)
-    control_node.publish_u([0]*10)
+    try:
+        control_node.publish_u([0]*10)
+    except:
+        print("Kill command failed, check connection.")
 if __name__ == '__main__':
     main()

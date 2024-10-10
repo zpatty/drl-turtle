@@ -92,6 +92,14 @@ class TurtlePlanner(Node):
             qos_profile
         )
 
+        # gamepad
+        self.gamepad_sub = self.create_subscription(
+            Float32MultiArray,
+            'gamepad',
+            self.gamepad_callback,
+            qos_profile
+        )
+
         # Depth frames
         self.publisher_depth = self.create_publisher(
             CompressedImage, 
@@ -114,7 +122,8 @@ class TurtlePlanner(Node):
         self.qd = np.array([1.0, 0.0, 0.0, 0.0])
 
         self.centroids = []
-        self.pilot = "auto"
+        self.pilot = "remote"
+        self.remote_v = [0.0, 0.0, 0.0]
 
         self.stereo = StereoProcessor()
         self.br = CvBridge()
@@ -157,9 +166,10 @@ class TurtlePlanner(Node):
                 print(f"[DEBUG] euler: ", np.array(euler.quat2euler(self.quat)), "\n")
         elif self.pilot == "remote":
             v = self.remote_v
-            u_pitch = v[0]
-            u_yaw = v[1]
-            u_fwd = v[2]
+            u_euler = euler.quat2euler(self.quat)
+            u_pitch = v[1]
+            u_yaw = v[2]
+            u_fwd = v[0]
             u_roll = v[3]
             u = [u_fwd, u_roll, u_pitch, u_yaw, u_pitch]
 
@@ -173,7 +183,7 @@ class TurtlePlanner(Node):
             u[2:] = [u_pitch, u_yaw, u_pitch]
             print(f"[DEBUG] depth: ", self.depth, "\n")
         # print("[DEBUG] quat: ", np.array(self.quat), "desired: ", self.qd, "\n")
-        
+        print(f"[DEBUG] quat: ", np.array(self.quat), "\n")
         print(f"[DEBUG] u: {np.array(u)}\n")
         self.config_pub.publish(Float32MultiArray(data=u))
         
@@ -198,6 +208,13 @@ class TurtlePlanner(Node):
     
     def tracker_callback(self, msg):
         self.centroids = msg.data
+
+    def gamepad_callback(self, msg):
+        if msg.data[-1] == 0:
+            self.pilot = "remote"
+        else:
+            self.pilot = "auto"
+        self.remote_v = msg.data[:-1]
         
     def img_callback(self, msg):
         left = self.br.compressed_imgmsg_to_cv2(msg.data[0])
