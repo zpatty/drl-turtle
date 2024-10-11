@@ -185,6 +185,8 @@ class TurtleController(Node):
         if self.traj_str != msg.traj or self.mode != msg.mode:
             self.t0 = time.time()
         self.mode = msg.mode
+        if msg.mode == "kill":
+            raise KeyboardInterrupt
         # print(self.mode)
         match msg.traj:
             case "sin":

@@ -22,9 +22,9 @@ from rclpy.node import Node
 from rclpy.executors import Executor, MultiThreadedExecutor
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 
-from fuse import fuse_feeds
+# from fuse import fuse_feeds
 from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
-from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl, TurtleCam
+from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl, TurtleCam, TurtleMode
 
 from std_msgs.msg import String
 from std_msgs.msg import Float32MultiArray
@@ -75,6 +75,11 @@ class TrackerNode(Node):
             'centroids',
             qos_profile
         )
+        self.mode_sub = self.create_subscription(
+            TurtleMode,
+            'turtle_mode',
+            self.turtle_mode_callback,
+            qos_profile)
         
         self.tracker = tracker
         self.first_detect = True
@@ -94,6 +99,10 @@ class TrackerNode(Node):
         os.makedirs(folder_name)
 
         self.output_folder = folder_name
+        
+    def turtle_mode_callback(self, msg):
+        if msg.mode == "kill":
+            raise KeyboardInterrupt
 
     def img_callback(self, msg):
         self.get_logger().info('Receiving other video frame')

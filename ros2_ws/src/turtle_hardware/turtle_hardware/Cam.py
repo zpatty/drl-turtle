@@ -20,8 +20,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.executors import Executor, MultiThreadedExecutor
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
-from turtle_interfaces.msg import TurtleCam
-from fuse import fuse_feeds
+from turtle_interfaces.msg import TurtleCam, TurtleMode
 from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
 
 from sensor_msgs.msg import CompressedImage
@@ -75,6 +74,12 @@ class CamNode(Node):
             depth=10
         )
 
+        self.mode_sub = self.create_subscription(
+            TurtleMode,
+            'turtle_mode',
+            self.turtle_mode_callback,
+            qos_profile)
+
         self.stream = stream
         self.cam_publisher = self.create_publisher(TurtleCam, 'frames' , qos_profile)
 
@@ -89,7 +94,7 @@ class CamNode(Node):
         os.makedirs(folder_name + "/left")
         self.output_folder = folder_name
         timer_cb_group = None
-        self.call_timer = self.create_timer(0.05, self._cam_cb, callback_group=timer_cb_group)
+        self.call_timer = self.create_timer(0.1, self._cam_cb, callback_group=timer_cb_group)
     def _cam_cb(self):
         msg = TurtleCam()
         msg.data[0] = self.br.cv2_to_compressed_imgmsg(self.stream.left)
@@ -98,6 +103,9 @@ class CamNode(Node):
         # cv2.imwrite(self.output_folder + "/left/frame%d.jpg" % self.count, self.stream.left)
         # cv2.imwrite(self.output_folder + "/right/frame%d.jpg" % self.count, self.stream.right)
         self.count += 1
+    def turtle_mode_callback(self, msg):
+        if msg.mode == "kill":
+            raise KeyboardInterrupt
 
 
 def main():

@@ -119,6 +119,12 @@ class Simulator(Node):
             qos_profile
         )
 
+        self.mode_sub = self.create_subscription(
+            TurtleMode,
+            'turtle_mode',
+            self.turtle_mode_callback,
+            qos_profile)
+
         timer_cb_group = None
         self.call_timer = self.create_timer(0.001, self._timer_cb, callback_group=timer_cb_group)
 
@@ -203,6 +209,10 @@ class Simulator(Node):
         else: 
             print("sim closed")
             raise SystemExit
+        
+    def turtle_mode_callback(self, msg):
+        if msg.mode == "kill":
+            raise KeyboardInterrupt
 
 def main():
     

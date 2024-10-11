@@ -11,7 +11,7 @@ sys.path.append(submodule)
 import transforms3d.quaternions as quat
 from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl, TurtleMode, TurtleState
 from std_msgs.msg import String, Float32MultiArray
-from dynamixel_sdk import *                                     # Uses Dynamixel SDK library
+from turtle_dynamixel.dynamixel_sdk import *                                     # Uses Dynamixel SDK library
 from turtle_dynamixel.Dynamixel import *                        # Dynamixel motor class                                  
 from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
 from turtle_dynamixel.Constants import *                        # File of constant variables
@@ -109,7 +109,8 @@ class TurtleRobot(Node):
         self.Joints = Mod(packetHandlerJoint, portHandlerJoint, self.IDs)
         self.Joints.all_reboot()
         self.Joints.disable_torque()
-        self.Joints.set_vel_gains(1920, 500)
+        # self.Joints.set_vel_gains(1920, 500)
+        self.Joints.set_max_velocity(1000)
         # self.Joints.set_current_cntrl_mode()
         # self.Joints.enable_torque()
         self.Joints.reset_watchdog()
@@ -161,7 +162,7 @@ class TurtleRobot(Node):
 
     def _timer_cb(self):
         # print(self.mode)
-        t_meas = time.time() - self.t0
+        # t_meas = time.time() - self.t0
         self.read_joints()
         # self.read_sensors()
         # print(self.mode)
@@ -185,9 +186,9 @@ class TurtleRobot(Node):
                 u_limit = np.logical_and(u>0,upper)
                 u[u_limit] = 150 * ((upper[u_limit] - q[u_limit]) - 0.1*dq[u_limit])
                 
-                self.input = grab_arm_current(self.u, min_torque, max_torque)
+                self.input = grab_arm_current(self.u, xw_min_torque, xw_max_torque)
                 
-                self.Joints.send_torque_cmd(self.input)
+                # self.Joints.send_torque_cmd(self.input)
             elif self.mode == 'v':
                 
                 lower = self.q < self.min_threshold
@@ -204,7 +205,7 @@ class TurtleRobot(Node):
                 print(f"[DEBUG] upper: {u_limit}\n")
                 self.input = np.clip(self.u * 30.0 / np.pi / 0.229, -999., 999.).astype(int).squeeze().tolist()
                 print(self.u)
-                self.Joints.send_vel_cmd(self.input)
+                # self.Joints.send_vel_cmd(self.input)
         else:
             self.Joints.disable_torque()
 
@@ -238,6 +239,8 @@ class TurtleRobot(Node):
     def turtle_mode_callback(self, msg):
         self.mode = msg.mode
         self.last_mode = self.mode
+        if msg.mode == "kill":
+            raise KeyboardInterrupt
         self.activate_mode()
 
     def activate_mode(self):
@@ -374,50 +377,7 @@ class TurtleRobot(Node):
         self.acc = msg.imu.acc
         self.voltage = msg.voltage
         self.depth = msg.depth
-    
-    def read_sensors(self):
-        """
-        Appends current sensor reading to the turtle node's sensor data structs
-        """        
-        no_check = False
-        keep_trying = True
-        attempts = 0
-        while keep_trying:
-            if attempts >= 1:
-                # print("adding place holder")
-                # self.add_place_holder()
-                break
-            self.xiao.reset_input_buffer()
-            sensors = self.xiao.readline()
-            # self.get_logger().info(sensors)
-            # make sure it's a valid byte that's read
-            if len(sensors) != 0:
-                # this ensures the right json string format
-                if sensors[0] == 32 and sensors[-1] == 10:
-                    try:
-                        sensor_dict = json.loads(sensors.decode('utf-8'))
-                    except:
-                        no_check = True
-                    # add sensor data
-                    if no_check == False:
-                        sensor_keys = ('Acc', 'Gyr', 'Quat', 'Voltage')
-                        if set(sensor_keys).issubset(sensor_dict):
-                            a = np.array(sensor_dict['Acc']).reshape((3,1)) * 9.81
-                            self.gyr = np.array(sensor_dict['Gyr']).reshape((3,1))
-                            q = np.array(sensor_dict["Quat"])
-                            R = quat.quat2mat(q)
-                            g_w = np.array([[0], [0], [9.81]])
-                            g_local = np.dot(R.T, g_w)
-                            self.acc = a - g_local           # acc without gravity 
-                            self.quat_vec = q.reshape((4,1))
-                            volt = sensor_dict['Voltage'][0]
-                            # self.acc_data = np.append(self.acc_data, acc, axis=1)
-                            # self.gyr_data = np.append(self.gyr_data, gyr, axis=1)
-                            # self.quat_data = np.append(self.quat_data, quat_vec, axis=1)
-                            # self.voltage_data = np.append(self.voltage_data, volt)
-                            self.voltage = volt
-                            keep_trying = False
-            attempts += 1
+
 
 def main():
     os.system('sudo ' + submodule + '/latency_write.sh')

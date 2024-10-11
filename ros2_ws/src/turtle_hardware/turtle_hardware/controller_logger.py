@@ -157,7 +157,7 @@ class GamePad(Node):
 
                 # Check if the beep button is held
                 if self.gamepad.isPressed(self.buttonExit):
-                    mode_msg.mode = "rest"
+                    mode_msg.mode = "kill"
                     self.mode = mode_msg.mode
                     self.mode_pub.publish(mode_msg)
                     raise KeyboardInterrupt

@@ -107,6 +107,12 @@ class TurtlePlanner(Node):
             qos_profile
         )
 
+        self.mode_sub = self.create_subscription(
+            TurtleMode,
+            'turtle_mode',
+            self.turtle_mode_callback,
+            qos_profile)
+
         self.create_rate(1000)
         self.depth = 0.0
 
@@ -123,7 +129,7 @@ class TurtlePlanner(Node):
 
         self.centroids = []
         self.pilot = "remote"
-        self.remote_v = [0.0, 0.0, 0.0]
+        self.remote_v = [0.0, 0.0, 0.0, 0.0]
 
         self.stereo = StereoProcessor()
         self.br = CvBridge()
@@ -222,6 +228,10 @@ class TurtlePlanner(Node):
         self.depth, self.x, self.y, depth_frame = self.stereo.stereo_update(left, right)
 
         self.publisher_depth.publish(self.br.cv2_to_compressed_imgmsg(depth_frame))
+
+    def turtle_mode_callback(self, msg):
+        if msg.mode == "kill":
+            raise KeyboardInterrupt
 
 def main():
     

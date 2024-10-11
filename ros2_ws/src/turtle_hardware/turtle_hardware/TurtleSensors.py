@@ -56,6 +56,12 @@ class TurtleSensorsNode(Node):
             qos_profile
         )
 
+        self.mode_sub = self.create_subscription(
+            TurtleMode,
+            'turtle_mode',
+            self.turtle_mode_callback,
+            qos_profile)
+
         self.create_rate(1000)
         self.voltage = 12.0
         self.depth = 0.0
@@ -111,6 +117,10 @@ class TurtleSensorsNode(Node):
         turtle_msg.depth = self.depth
         # publish msg 
         self.sensors_pub.publish(turtle_msg)
+    
+    def turtle_mode_callback(self, msg):
+        if msg.mode == "kill":
+            raise KeyboardInterrupt
         
     
     def read_sensors(self):
