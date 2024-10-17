@@ -17,8 +17,9 @@ from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl, TurtleM
 
 from crush_mujoco_sim.analysis import compute_cost_of_transport, generate_control_plots
 from turtle_robot_motion_control.controllers.joint_space_controllers import (
-    navigation_joint_space_motion_primitive_control_factory
+    cornelia_joint_space_trajectory_tracking_control_factory, navigation_joint_space_motion_primitive_control_factory
 )
+from turtle_loc_oracles.joint_space import reverse_stroke_joint_oracle_factory
 
 
 
@@ -34,8 +35,8 @@ class Simulator(Node):
         use_flexible_flipper = False
 
         flippers_type_str = "_flexible_flippers" if use_flexible_flipper else "_straight_flippers"
-        model_name = f"turtle_{base_constraint}_base_control_vel{flippers_type_str}"
-
+        model_name = f"turtle_{base_constraint}_base_control_t{flippers_type_str}"
+        # model_name = f"turtle_free_base_control_t_shell"
         # TODO: properly implement the flexible flipper model
         assert use_flexible_flipper is False, "Flexible flipper model not yet (properly) implemented"
         indices = np.array([7, 8, 9, 16, 17, 18])
@@ -56,19 +57,24 @@ class Simulator(Node):
         synchronize_flippers = True
         phase_sync_method = "sine"  # "sine", "normalized_error", or "master_slaves"
         phase_sync_kp = 1e0 if synchronize_flippers else 0.0
-
+        
+        self.last_time = 0.0
         # reference trajectory settings
-        sw = 1.3  # s
+        self.sw = 1.3  # s
+        self.t_new = (4.3 / self.sw) * 0.32
         q_off = np.zeros((6,))
         # joint space control function
-        self.joint_space_control_fn = navigation_joint_space_motion_primitive_control_factory(
-            sw=sw,
-            q_off=q_off,
-            limit_cycle_kp=limit_cycle_kp,
-            phase_sync_method=phase_sync_method,
-            phase_sync_kp=phase_sync_kp,
-            sliding_mode_params=sliding_mode_params,
-        )
+        # self.joint_space_control_fn = navigation_joint_space_motion_primitive_control_factory(
+        #     sw=sw,
+        #     q_off=q_off,
+        #     limit_cycle_kp=limit_cycle_kp,
+        #     phase_sync_method=phase_sync_method,
+        #     phase_sync_kp=phase_sync_kp,
+        #     sliding_mode_params=sliding_mode_params,
+        # )
+        self.joint_space_control_fn = cornelia_joint_space_trajectory_tracking_control_factory(kp=[2.0]*6, sw=self.sw)
+        self.q_ra_fn, self.q_d_ra_fn, q_dd_ra_fn = reverse_stroke_joint_oracle_factory(s=1, sw=self.sw)
+        self.q_la_fn, self.q_d_la_fn, q_dd_la_fn = reverse_stroke_joint_oracle_factory(s=-1, sw=self.sw)
         model_path = Path("mujoco_models") / (str(model_name) + str(".xml"))
         # Load the model and data
         self.model = mujoco.MjModel.from_xml_path(str(model_path.absolute()))
@@ -140,20 +146,42 @@ class Simulator(Node):
                 # evaluate the controller
                 # self.u = np.random.normal([0.95, 0.0, 0.0, 0.0],[0.000001, 0.001, 0.2, 0.2])
                 # self.u = [1.0, 0.0, 1.0, 0.7]
-                q_d_des, aux = self.joint_space_control_fn(
-                    t=self.data.time,
-                    q=self.data.qpos[7: 7 + 6],
-                    u=self.u
-                )
-                q_arm_des = self.data.qpos[7: 7 + 6] + q_d_des * (self.data.time - self.time_last_ctrl)
-                err = q_arm_des + 0.0 * np.diag([0.5, 0.25, 0, 0.5, 0.25, 0]) @  np.abs(q_arm_des) * np.sign(q_arm_des) - self.data.qpos[7:13]
-                # apply the control signal
-                print(err)
-                fluid = self.data.qfrc_fluid.copy()
-                kp = np.diag([2, 1, 5, 2, 1, 5])
-                u = kp @ err + 0.1 * kp @ (q_d_des - self.data.qvel[7:13])
+                self.t_new = self.sw * (self.data.time - self.time_last_ctrl) * np.abs(self.u[0]) + self.t_new
+                # if self.u[0] < 0.05:
+                #     self.t_new = (4.3 / self.sw) * 0.32
+                # t_new = self.data.time
+                if self.u[0] > 0.0:
+                    q_d_des, aux = self.joint_space_control_fn(
+                        t=self.t_new,
+                        q=self.data.qpos[7: 7 + 6],
+                        # u=self.u
+                    )
+                    # q_arm_des = self.data.qpos[7: 7 + 6] + q_d_des * (self.data.time - self.time_last_ctrl)
+                    q_arm_des = aux["q_des"]
+                # print(q_arm_des)
+                else:
+                    q_ra, q_d_ra = self.q_ra_fn(self.t_new), self.q_d_ra_fn(self.t_new)
+                    q_la, q_d_la = self.q_la_fn(self.t_new), self.q_d_la_fn(self.t_new)
+                    q_arm_des = np.concatenate([q_ra, q_la], axis=-1)
+                    
+                    q_d_des = np.concatenate([q_d_ra, q_d_la], axis=-1)
 
-                self.data.ctrl[0:6] = q_d_des
+                q_arm_des[2] += self.u[2] * 45 * np.pi / 180.0
+                q_arm_des[5] += - self.u[2] * 45 * np.pi / 180.0
+                if self.u[3] < 0.0:
+                    q_arm_des[3:] *= (self.u[3] + 1.0)
+                else:
+                    q_arm_des[:3] *= - (self.u[3] - 1.0)
+                err = q_arm_des + 0.0*np.diag([0.5, 0.25, 0, 0.5, 0.25, 0]) @  np.abs(q_arm_des) * np.sign(q_arm_des) - self.data.qpos[7:13]
+                # apply the control signal
+                # print(err)
+                # print(self.u)
+                # print(q_arm_des[5])
+                fluid = self.data.qfrc_fluid.copy()
+                kp = 1.5 * np.diag([2, 1, 5, 2, 1, 5])
+                u = kp @ err + 0.1 * kp @ (q_d_des - self.data.qvel[7:13]) 
+
+                self.data.ctrl[0:6] = u
                 
                 q = self.data.qpos[7 : 7 + 10]
                 q_rear1 = q[7]
@@ -232,6 +260,7 @@ def main():
         print(exec_type, fname, tb.tb_lineno)
         print(e)
     # turtle_node.save_data()
+    raise SystemExit
 
 if __name__ == '__main__':
     main()

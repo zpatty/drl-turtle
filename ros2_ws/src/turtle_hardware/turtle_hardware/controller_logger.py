@@ -138,8 +138,8 @@ class GamePad(Node):
                         self.mode = mode_msg.mode
                         self.mode_pub.publish(mode_msg)
                     else:
-                        print('Velocity')
-                        mode_msg.mode = "v"
+                        print('Position')
+                        mode_msg.mode = "p"
                         self.mode = mode_msg.mode
                         self.mode_pub.publish(mode_msg)
                     

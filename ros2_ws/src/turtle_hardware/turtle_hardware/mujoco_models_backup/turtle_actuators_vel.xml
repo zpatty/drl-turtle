@@ -1,0 +1,19 @@
+<mujoco model="turtle_velocity_actuators">
+     <default>
+         <default class="xw540-t260-motor">
+            <velocity forcerange="-10.0 10.0" ctrlrange="-251.3 251.3" kv="10" />
+         </default>
+    </default>
+    <actuator>
+        <velocity name="shoulder_right_1" class="xw540-t260-motor" joint="shoulder_right_1" />
+        <velocity name="shoulder_right_2" class="xw540-t260-motor" joint="shoulder_right_2" />
+        <velocity name="shoulder_right_3" class="xw540-t260-motor" joint="shoulder_right_3" />
+        <velocity name="shoulder_left_1" class="xw540-t260-motor" joint="shoulder_left_1" />
+        <velocity name="shoulder_left_2" class="xw540-t260-motor" joint="shoulder_left_2" />
+        <velocity name="shoulder_left_3" class="xw540-t260-motor" joint="shoulder_left_3" />
+        <velocity name="hip_right_1" class="xw540-t260-motor" joint="hip_right_1" />
+        <velocity name="hip_right_2" class="xw540-t260-motor" joint="hip_right_2" />
+        <velocity name="hip_left_1" class="xw540-t260-motor" joint="hip_left_1" />
+        <velocity name="hip_left_2" class="xw540-t260-motor" joint="hip_left_2" />
+    </actuator>
+</mujoco>

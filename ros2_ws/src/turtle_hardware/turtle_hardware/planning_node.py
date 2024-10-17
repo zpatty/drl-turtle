@@ -179,15 +179,15 @@ class TurtlePlanner(Node):
             u_roll = v[3]
             u = [u_fwd, u_roll, u_pitch, u_yaw, u_pitch]
 
-        if self.depth:
-            u_euler = euler.quat2euler(self.quat)
-            u_yaw = - (self.x/870 * 2 - 1)
-            u_pitch = - (1 - self.y/480) * 2
-            u_fwd = 1.0 - 2.0 * 1 / (1 + np.exp(((self.depth - 0.5) - 0.1)/0.1))
-            u[0] = u_fwd
-            # u[1] = u_euler[1]
-            u[2:] = [u_pitch, u_yaw, u_pitch]
-            print(f"[DEBUG] depth: ", self.depth, "\n")
+        # if self.depth:
+        #     u_euler = euler.quat2euler(self.quat)
+        #     u_yaw = - (self.x/870 * 2 - 1)
+        #     u_pitch = - (1 - self.y/480) * 2
+        #     u_fwd = 1.0 - 2.0 * 1 / (1 + np.exp(((self.depth - 0.5) - 0.1)/0.1))
+        #     u[0] = u_fwd
+        #     # u[1] = u_euler[1]
+        #     u[2:] = [u_pitch, u_yaw, u_pitch]
+        #     print(f"[DEBUG] depth: ", self.depth, "\n")
         # print("[DEBUG] quat: ", np.array(self.quat), "desired: ", self.qd, "\n")
         print(f"[DEBUG] quat: ", np.array(self.quat), "\n")
         print(f"[DEBUG] u: {np.array(u)}\n")

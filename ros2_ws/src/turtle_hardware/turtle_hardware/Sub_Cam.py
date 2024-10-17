@@ -95,6 +95,11 @@ class CamSubscriber(Node):
         cv2.imwrite(self.output_folder + "/detection/frame%d.jpg" % self.count, current_frame)
         self.detect_count += 1
         # print(current_frame.shape)
+        end_time = time.time()
+        seconds = end_time - self.start_time
+        fps = 1.0 / seconds
+        print("Estimated frames per second : {0}".format(fps))
+        self.start_time = end_time
         cv2.imshow("detection", current_frame)   
         cv2.waitKey(1)
 
