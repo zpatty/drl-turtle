@@ -102,23 +102,26 @@ class Tracker:
         outputs = self.tracker.track(frame)
         # b= time.time()
         #print(b-a)
-        if 'polygon' in outputs:
-            polygon = np.array(outputs['polygon']).astype(np.int32)
-            cv2.polylines(frame, [polygon.reshape((-1, 1, 2))],
-                        True, (0, 255, 0), 3)
-            mask = ((outputs['mask'] > self.cfg.TRACK.MASK_THERSHOLD) * 255)
-            mask = mask.astype(np.uint8)
-            mask = np.stack([mask, mask*255, mask]).transpose(1, 2, 0)
-            frame = cv2.addWeighted(frame, 0.77, mask, 0.23, -1)
-            return polygon, frame
+        if outputs['best_score'] > 0.0:
+            if 'polygon' in outputs:
+                polygon = np.array(outputs['polygon']).astype(np.int32)
+                cv2.polylines(frame, [polygon.reshape((-1, 1, 2))],
+                            True, (0, 255, 0), 3)
+                mask = ((outputs['mask'] > self.cfg.TRACK.MASK_THERSHOLD) * 255)
+                mask = mask.astype(np.uint8)
+                mask = np.stack([mask, mask*255, mask]).transpose(1, 2, 0)
+                frame = cv2.addWeighted(frame, 0.77, mask, 0.23, -1)
+                return polygon, frame
+            else:
+                bbox = list(map(int, outputs['bbox']))
+                points = np.array([[bbox[0], bbox[1]],[bbox[0]+bbox[2], bbox[1]+bbox[3]]])
+                centroid = (points[0] + points[1])/2
+                cv2.rectangle(frame, (bbox[0], bbox[1]),
+                            (bbox[0]+bbox[2], bbox[1]+bbox[3]),
+                            (0, 255, 0), 3)
+                return centroid.tolist(), frame
         else:
-            bbox = list(map(int, outputs['bbox']))
-            points = np.array([[bbox[0], bbox[1]],[bbox[0]+bbox[2], bbox[1]+bbox[3]]])
-            centroid = (points[0] + points[1])/2
-            cv2.rectangle(frame, (bbox[0], bbox[1]),
-                        (bbox[0]+bbox[2], bbox[1]+bbox[3]),
-                        (0, 255, 0), 3)
-            return centroid, frame
+            return [], frame
             #cv2.imshow("Object Detection", frame)
             #cv2.waitKey(40)
     def detect_and_track(self, frame):

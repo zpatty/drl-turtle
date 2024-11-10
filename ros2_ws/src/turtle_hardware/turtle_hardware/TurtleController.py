@@ -196,9 +196,6 @@ class TurtleController(Node):
             raise KeyboardInterrupt
         # print(self.mode)
         match msg.traj:
-            case "sin":
-                self.traj = self.sinusoidal_traj
-                self.traj_str = msg.traj
             case "js":
                 self.construct_js_control()
                 self.traj = self.joint_space_traj
@@ -329,54 +326,6 @@ class TurtleController(Node):
 
         return u
     
-    
-    def sinusoidal_traj(self, t, q, u):
-        # q, _, _ = convert_q_to_motors(q, q, q * 0.0)
-        T = 2 * np.pi / self.w
-        offset = np.pi * (1 - self.freq_offset/(1 - self.freq_offset))
-        t = np.mod(t, T)
-        if t < self.freq_offset * T:
-            q_des1 = self.C[0] + self.A[0] * np.cos(self.w * t / (2 * self.freq_offset))
-            q_des2 = self.C[1] + self.A[1] * np.cos(self.w * t / (2 * self.freq_offset))
-            q_des3 = self.C[2] + self.A[2] * np.cos(self.w * t / (2 * self.freq_offset))
-            qd_des1 = - self.w / (2 * self.freq_offset) * self.A[0] * np.sin(self.w * t / (2 * self.freq_offset))
-            qd_des2 = - self.w / (2 * self.freq_offset) * self.A[1] * np.sin(self.w * t / (2 * self.freq_offset))
-            qd_des3 = - self.w / (2 * self.freq_offset) * self.A[2] * np.sin(self.w * t / (2 * self.freq_offset))
-            qdd_des1 = - (self.w / (2 * self.freq_offset))**2 * self.A[0] * np.cos(self.w * t / (2 * self.freq_offset))
-            qdd_des2 = - (self.w / (2 * self.freq_offset))**2 * self.A[1] * np.cos(self.w * t / (2 * self.freq_offset))
-            qdd_des3 = - (self.w / (2 * self.freq_offset))**2 * self.A[2] * np.cos(self.w * t / (2 * self.freq_offset))
-        else:
-            q_des1 = self.C[0] + self.A[0] * np.cos(self.w * t / (2 * (1 - self.freq_offset)) + offset)
-            q_des2 = self.C[1] + self.A[1] * np.cos(self.w * t / (2 * (1 - self.freq_offset)) + offset)
-            q_des3 = self.C[2] + self.A[2] * np.cos(self.w * t / (2 * (1 - self.freq_offset)) + offset)
-            qd_des1 = - self.w / (2 * (1 - self.freq_offset)) + self.A[0] * np.sin(self.w * t / (2 * (1 - self.freq_offset)) + offset)
-            qd_des2 = - self.w / (2 * (1 - self.freq_offset)) + self.A[1] * np.sin(self.w * t / (2 * (1 - self.freq_offset)) + offset)
-            qd_des3 = - self.w / (2 * (1 - self.freq_offset)) + self.A[2] * np.sin(self.w * t / (2 * (1 - self.freq_offset)) + offset)
-            qdd_des1 = - (self.w / (2 * (1 - self.freq_offset)))**2 + self.A[0] * np.cos(self.w * t / (2 * (1 - self.freq_offset)) + offset)
-            qdd_des2 = - (self.w / (2 * (1 - self.freq_offset)))**2 + self.A[1] * np.cos(self.w * t / (2 * (1 - self.freq_offset)) + offset)
-            qdd_des3 = - (self.w / (2 * (1 - self.freq_offset)))**2 + self.A[2] * np.cos(self.w * t / (2 * (1 - self.freq_offset)) + offset)
-        pitch = (self.pitch + 1.0) / 2
-        yaw = (self.yaw + 1.0) / 2
-        qd_rear = (pitch - 0.5) / 0.5 * np.pi / 3
-        q_right_des = np.array([q_des1, q_des2, q_des3]).reshape(-1,1)
-        qd_right_des = np.array([qd_des1, qd_des2, qd_des3]).reshape(-1,1)
-        qdd_right_des = np.array([qdd_des1, qdd_des2, qdd_des3]).reshape(-1,1)
-        q_left_des = np.array([q_des1, - q_des2, - q_des3]).reshape(-1,1)
-        qd_left_des = np.array([qd_des1, - qd_des2, - qd_des3]).reshape(-1,1)
-        qdd_left_des = np.array([qdd_des1, - qdd_des2, - qdd_des3]).reshape(-1,1)
-        if self.yaw > 0.5:
-            q_right_des *= (1.0 - yaw) / 0.5
-            qd_right_des *= (1.0 - yaw) / 0.5
-            qdd_right_des *= (1.0 - yaw) / 0.5
-        elif self.yaw < 0.5:
-            q_left_des *= yaw / 0.5
-            qd_left_des *= yaw / 0.5
-            qdd_left_des *= yaw / 0.5
-        q_des = np.vstack((q_right_des, q_left_des, np.array([0.0, qd_rear, 0.0, -qd_rear]).reshape(-1,1)))
-        qd_des = np.vstack((qd_right_des, qd_left_des, np.zeros((4,1))))
-        qdd_des = np.vstack((qdd_right_des, qdd_left_des, np.zeros((4,1))))
-        # qd, dqd, ddqd = convert_q_to_motors(np.squeeze(q_des), np.squeeze(qd_des), np.squeeze(qdd_des))
-        return np.squeeze(q_des), np.squeeze(qd_des), np.squeeze(qdd_des)
 
     def task_space_traj(self, t, q, u):
         dqd, aux = self.task_space_control_fn(t, np.squeeze(q[:6]))
@@ -480,10 +429,22 @@ class TurtleController(Node):
 
         q_arm_des[2] += u[2] * 45 * np.pi / 180.0
         q_arm_des[5] += - u[2] * 45 * np.pi / 180.0
+
+        q_arm_des[1] += - self.u[2] * np.pi/9
+        q_arm_des[4] += self.u[2] * np.pi/9
+        
         if u[3] < 0.0:
             q_arm_des[3:] *= (u[3] + 1.0)
         else:
             q_arm_des[:3] *= - (u[3] - 1.0)
+
+        # ROLL
+        q_arm_des[2] -= - np.pi/4 * self.u[1]
+        q_arm_des[5] += np.pi/4 * self.u[1]
+
+        q_arm_des[1] += np.pi/4 * self.u[1]
+        q_arm_des[4] += np.pi/4 * self.u[1]
+
         q_arm_des += np.diag([0.5, 0.25, 0, 0.5, 0.25, 0]) @  np.abs(q_arm_des) * np.sign(q_arm_des) * 0.0
         
         q_arm_des = np.hstack((q_arm_des, np.zeros((4,))))

@@ -12,6 +12,9 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPo
 import rclpy.parameter
 import sys
 from rclpy.parameter_event_handler import ParameterEventHandler
+import transforms3d.quaternions as quat
+import transforms3d.euler as euler
+
 from std_msgs.msg import String, Float32MultiArray
 from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl, TurtleMode, TurtleState
 
@@ -60,7 +63,7 @@ class Simulator(Node):
         
         self.last_time = 0.0
         # reference trajectory settings
-        self.sw = 1.3  # s
+        self.sw = 1.8  # s
         self.t_new = (4.3 / self.sw) * 0.32
         q_off = np.zeros((6,))
         # joint space control function
@@ -81,7 +84,6 @@ class Simulator(Node):
         if use_flexible_flipper:
             self.model.jnt_stiffness[flex_indices] = stiffness
         self.data = mujoco.MjData(self.model)
-
         self.sim_ts = dict(
             ts=[],
             base_pos=[],
@@ -100,8 +102,14 @@ class Simulator(Node):
         self.q_des = np.zeros((self.data.qpos.shape[0] - 7,))
         self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
         self.viewer.sync()
+        # self.data.qpos[3:7] = quat.axangle2quat([0.0, 0.0, 1.0], np.pi/3)
+ 
+        self.altitude = 20.0
+        self.altitude_d = 15.0
 
-
+        self.dwell_time = 0.1
+        self.dwell = 2.0
+        
         # ros2 qos profile
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -130,6 +138,13 @@ class Simulator(Node):
             'turtle_mode',
             self.turtle_mode_callback,
             qos_profile)
+        
+        # continously reads from all the sensors and publishes data at end of trajectory
+        self.state_pub = self.create_publisher(
+            TurtleState,
+            'turtle_sensors',
+            qos_profile
+        )
 
         timer_cb_group = None
         self.call_timer = self.create_timer(0.001, self._timer_cb, callback_group=timer_cb_group)
@@ -146,10 +161,23 @@ class Simulator(Node):
                 # evaluate the controller
                 # self.u = np.random.normal([0.95, 0.0, 0.0, 0.0],[0.000001, 0.001, 0.2, 0.2])
                 # self.u = [1.0, 0.0, 1.0, 0.7]
+                
+                tn = self.sw * self.t_new  # speed-up the trajectory by a factor of sw
+                tn = tn % 4.3  # repeat the trajectory every (normalized) 4.3 seconds
+                # if tn > 4.2 and self.dwell_time < self.dwell:
+                #     self.t_new = self.t_new
+                #     self.dwell_time += self.data.time - self.time_last_ctrl
+                # else:
+                #     self.dwell_time = 0.0
                 self.t_new = self.sw * (self.data.time - self.time_last_ctrl) * np.abs(self.u[0]) + self.t_new
+                
+
+                # print(self.dwell_time)
+                
                 # if self.u[0] < 0.05:
                 #     self.t_new = (4.3 / self.sw) * 0.32
                 # t_new = self.data.time
+                self.u = np.array([1.0, 0.0, 0.0, 0.0, 1.0])
                 if self.u[0] > 0.0:
                     q_d_des, aux = self.joint_space_control_fn(
                         t=self.t_new,
@@ -165,49 +193,124 @@ class Simulator(Node):
                     q_arm_des = np.concatenate([q_ra, q_la], axis=-1)
                     
                     q_d_des = np.concatenate([q_d_ra, q_d_la], axis=-1)
+                
+                # PITCH
+                q_arm_des[2] += self.u[2] * 35 * np.pi / 180.0
+                q_arm_des[5] += - self.u[2] * 35 * np.pi / 180.0
 
-                q_arm_des[2] += self.u[2] * 45 * np.pi / 180.0
-                q_arm_des[5] += - self.u[2] * 45 * np.pi / 180.0
+                q_arm_des[1] += - self.u[2] * np.pi/9
+                q_arm_des[4] += self.u[2] * np.pi/9
+
+                # YAW
                 if self.u[3] < 0.0:
                     q_arm_des[3:] *= (self.u[3] + 1.0)
                 else:
                     q_arm_des[:3] *= - (self.u[3] - 1.0)
+
+                # x = 2 / (1 + np.exp(-(self.u[1])**2)) - 1
+                # x = self.u[1]
+                # if self.u[1] < 0.0:
+                #     q_arm_des[3:] *= (x + 1.0)
+                #     q_arm_des[1:3] *= (x + 1.0)
+                # else:
+                #     q_arm_des[:3] *= - (x - 1.0)
+                #     q_arm_des[4:] *= - (x - 1.0)
+                
+                # ROLL
+                q_arm_des[2] -= - np.pi/4 * self.u[1]
+                q_arm_des[5] += np.pi/4 * self.u[1]
+
+                q_arm_des[1] += np.pi/4 * self.u[1]
+                q_arm_des[4] += np.pi/4 * self.u[1]
+
+
+                # q_arm_des[0] *= 1.5 - abs(self.u[4])
+                # q_arm_des[3] *= 1.5 - abs(self.u[4])
+                # q_arm_des[1] *= 1 + abs(self.u[4])
+                # q_arm_des[4] *= 1 + abs(self.u[4])
+                # q_arm_des[5] *= -1
+                # q_arm_des[2] *= -1
+                
+
+                # q_arm_des[1] *= abs(self.u[4])
+                # q_arm_des[4] *= abs(self.u[4])
+                
+
+                    # # q_arm_des[1] *= - 0.0
+                    # q_arm_des[4] = 0.0 + np.pi/3
+                    # q_arm_des[1] = 0.0 - np.pi/3
+                    # # # q_arm_des[0] *= (self.u[1] - 0.5)
+                    # # q_arm_des[4] *= - (self.u[1] - 1.0)
+                    # q_arm_des[5] += np.pi/3
+                    # q_arm_des[2] += - np.pi/3
+                    # q_arm_des[0] = - q_arm_des[3]
                 err = q_arm_des + 0.0*np.diag([0.5, 0.25, 0, 0.5, 0.25, 0]) @  np.abs(q_arm_des) * np.sign(q_arm_des) - self.data.qpos[7:13]
                 # apply the control signal
                 # print(err)
                 # print(self.u)
                 # print(q_arm_des[5])
                 fluid = self.data.qfrc_fluid.copy()
-                kp = 1.5 * np.diag([2, 1, 5, 2, 1, 5])
-                u = kp @ err + 0.1 * kp @ (q_d_des - self.data.qvel[7:13]) 
+                kp = 1.0 * np.diag([2, 1, 5, 2, 1, 5])
+                u = kp @ err + 0.01 * (q_d_des - self.data.qvel[6:12]) 
 
                 self.data.ctrl[0:6] = u
                 
                 q = self.data.qpos[7 : 7 + 10]
+                dq =  self.data.qvel[6:16]
                 q_rear1 = q[7]
                 q_rear2 = q[9]
                 pitch_err = self.pitch_d
                 # print(pitch_err)
-                u_rear = 700 * pitch_err
-                # print(u_rear)
+                u_rear = 300 * (pitch_err)
+                tn = self.sw * self.t_new  # speed-up the trajectory by a factor of sw
+                tn = tn % 4.3
+        
+                roll_wr = 1.461
+                # print(q_arm_des[0])
                 # apply the control signal
-                k_r = 10.0
-                self.data.ctrl[7] =  - k_r * (q_rear1 - 10 * np.pi / 180 * np.cos(4.0 * np.pi  * self.data.time) - np.clip(u_rear, -40.0, 40.0) * np.pi / 180)
-                self.data.ctrl[9] = - k_r * (q_rear2 + 10 * np.pi / 180 * np.cos(4.0 * np.pi  * self.data.time) + np.clip(u_rear, -40.0, 40.0) * np.pi / 180)
-
-                # update the last control time
+                k_r = 1.0
+                qd_rear = (10 * np.pi / 180 * np.cos(2.0 * np.pi  * self.data.time) + np.clip(u_rear, -60.0, 60.0) * np.pi / 180)
+                # print(qd_rear)
+                self.data.ctrl[7] =  - k_r * (q_rear1 - qd_rear) - 0.01 * dq[7]
+                self.data.ctrl[9] = - k_r * (q_rear2 + (qd_rear)) - 0.01 * dq[9]
+                self.data.ctrl[8] = -1.0*(q[8])  - 0.05 * dq[8]
+                self.data.ctrl[6] = -1.0*q[6] - 0.05 * dq[6]
+                # # update the last control time
                 self.time_last_ctrl = self.data.time
+
+                self.q = self.data.qpos[7: 7 + 10].tolist()
+                self.dq = self.data.qvel[6: 6 + 10].tolist()
+                self.tau = self.data.ctrl[:10].tolist()
+                self.qd = [q_arm_des.tolist(), 0.0, qd_rear.tolist(), 0.0, - qd_rear.tolist()]
+                self.dqd = [q_d_des.tolist(), 0.0, 0.0, 0.0, 0.0]
+                self.publish_turtle_data()
             turtle_msg = TurtleSensors()
-            quat = self.data.qpos[3:7].tolist()
-            quat = quat[-1:] + quat[:-1]
-            turtle_msg.imu.quat = quat
+            Ht = np.block([[0,0,0], [np.eye(3,3)]]).T
+            self.quat = self.data.qpos[3:7].tolist()
+            qd = quat.axangle2quat([0.0, 0.0, 1.0], np.pi/6)
+            self.quat = self.quat[-1:] + self.quat[:-1]
+            q_inv = quat.qinverse(self.quat)
+            err = quat.qmult(qd, q_inv)
+            err = quat.qmult(quat.qinverse(qd), self.quat)
+            # if err[0] < 0.0:
+            #     err = quat.qinverse(err)
+            w = 2.0 * Ht @ quat.qmult(err, q_inv)
+            # self.data.qpos[0:3] = np.zeros((3,))
+            # # self.data.qvel[3:6] =  - 1.0 * ((skew(err[1:]) + err[0] * np.eye(3,3)) + (1-err[0]) * np.eye(3,3)) @ err[1:] - 0.1 * self.data.qvel[3:6]
+            # self.data.qvel[3:6] = - 5.0*np.array(err[1:]) - 1.0*self.data.qvel[3:6]
+            # print(f"[DEBUG] error: ", err, "w: ", w,"\n")
+            turtle_msg.imu.quat = self.quat
+            turtle_msg.altitude = self.altitude
+            turtle_msg.depth = self.data.qpos[2]
+            self.gyr = self.data.qvel[3:6]
             # print(np.round(quat, 2))
             # pitch = data.qpos[5]
-            # turtle_msg.imu.gyr = self.gyr
+            turtle_msg.imu.gyr = self.gyr
             # turtle_msg.imu.acc = self.acc
             # turtle_msg.depth = self.depth
             # publish msg 
             self.sensors_pub.publish(turtle_msg)
+            
             # mj_step can be replaced with code that also evaluates
             # a policy and applies a control signal before stepping the physics.
             mujoco.mj_step(self.model, self.data)
@@ -241,6 +344,61 @@ class Simulator(Node):
     def turtle_mode_callback(self, msg):
         if msg.mode == "kill":
             raise KeyboardInterrupt
+        
+    def publish_turtle_data(self):
+        """
+        Send data out
+        """
+        turtle_msg = TurtleState()
+        
+        self.spoof_altitude()
+        # turtle_msg.q = self.q
+        # turtle_msg.dq = self.dq
+        turtle_msg.q = self.q
+        turtle_msg.dq = self.dq
+        
+        turtle_msg.t = self.time_last_ctrl
+        
+        turtle_msg.u = self.tau
+        # turtle_msg.qd = self.qd
+
+        # turtle_msg.dqd = self.dqd.tolist()
+        turtle_msg.imu.quat = self.quat
+        turtle_msg.depth = self.data.qpos[2]
+        turtle_msg.altitude = self.altitude
+        # # angular velocity
+        # print("acc msg")
+        # # linear acceleration
+
+        # publish msg 
+        self.state_pub.publish(turtle_msg)
+    
+    def spoof_altitude(self):
+        depth = - self.data.qpos[2] + 20.0
+        self.altitude = depth
+        if np.random.uniform(0.0, 1.0) > 1.0:
+            self.altitude = self.altitude + np.random.normal(0.0, 10.0) * np.random.normal(0.0, 1.0) 
+            
+
+def skew(v):
+    """
+    Returns the skew-symmetric matrix of a 3-dimensional vector.
+    
+    Parameters:
+    v (array-like): A 3-element vector.
+    
+    Returns:
+    numpy.ndarray: A 3x3 skew-symmetric matrix.
+    """
+    v = np.asarray(v)
+    if v.size != 3:
+        raise ValueError("Input vector must have exactly 3 elements.")
+        
+    return np.array([
+        [0, -v[2], v[1]],
+        [v[2], 0, -v[0]],
+        [-v[1], v[0], 0]
+    ])
 
 def main():
     

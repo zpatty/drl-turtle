@@ -94,11 +94,13 @@ class TrackerNode(Node):
         self.pitch_thresh = 480/2
         self.last_ctrl = [1.0, 0.0, 0.0, 0.0]
         self.count = 0
+        
         t = datetime.today().strftime("%m_%d_%Y_%H_%M_%S")
         folder_name =  "video/" + t
-        os.makedirs(folder_name)
-
+        os.makedirs(folder_name + "/left_detect")
+        os.makedirs(folder_name + "/right_detect")
         self.output_folder = folder_name
+
         
     def turtle_mode_callback(self, msg):
         if msg.mode == "kill":
@@ -115,6 +117,8 @@ class TrackerNode(Node):
         # print(self.output_folder + "/frame%d.jpg" % self.count)
         # cv2.imwrite(self.output_folder + "/frame%d.jpg" % self.count, frame)
         self.count += 1
+        cv2.imwrite(self.output_folder + "/left_detect/frame%d.jpg" % self.count, left)
+        cv2.imwrite(self.output_folder + "/right_detect/frame%d.jpg" % self.count, right)
         if self.first_detect:
             # rects = self.tracker.detect_and_track(current_frame)
             rects, img, preds, frame = self.tracker.detect_and_track(frame)
@@ -137,7 +141,7 @@ class TrackerNode(Node):
             centroids = []
             # for rect in rects:
             centroids, frame = self.tracker.track(frame)
-            centroids = centroids.tolist()
+            # centroids = centroids.tolist()
             if not centroids:
                 self.first_detect = True
                 print("No detection, random walk...\n")

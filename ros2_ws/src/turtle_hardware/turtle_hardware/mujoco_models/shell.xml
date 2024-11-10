@@ -57,11 +57,14 @@
         <geom pos="0.216828 -0.02725 0.0411131" quat="0 0 0.707107 0.707107" type="mesh" rgba="0.25098 0.25098 0.25098 1" mesh="shoulder_adapter_l"/>
         <geom pos="0.216828 -0.02725 0.0411131" quat="0 0 0.707107 0.707107" type="mesh" rgba="0.25098 0.25098 0.25098 1" mesh="shoulder_adapter_r"/>
         <geom pos="0.216828 -0.0273135 0.0411131" quat="0 0 0.707107 0.707107" type="mesh" rgba="1 1 1 1" mesh="enclosure_plate"/>
-        <geom pos="0.168895 -0.04991 0.0898844" quat="0.707107 0.707107 0 0" type="mesh" rgba="0.25098 0.25098 0.25098 1" mesh="head_bottom"/>
-        <geom pos="0.168895 -0.04991 0.0898844" quat="0.707107 0.707107 0 0" type="mesh" rgba="0.25098 0.25098 0.25098 1" mesh="head_top"/>
+        <geom pos="0.168895 -0.04991 0.0898844" quat="0.707107 0.707107 0 0" type="mesh" class="fluid-ellipsoid-model"
+        contype="0" conaffinity="0" group="1" density="0" rgba="0.25098 0.25098 0.25098 1" mesh="head_bottom"/>
+        <geom pos="0.168895 -0.04991 0.0898844" quat="0.707107 0.707107 0 0" type="mesh" class="fluid-ellipsoid-model"
+        contype="0" conaffinity="0" group="1" density="0" rgba="0.25098 0.25098 0.25098 1" mesh="head_top"/>
         <geom pos="0.120962 0.289871 0.0411131" quat="0.707107 0.707107 0 0" type="mesh" rgba="0.25098 0.25098 0.25098 1" mesh="shoulder_adapter_l"/>
         <geom pos="0.120962 0.289871 0.0411131" quat="0.707107 0.707107 0 0" type="mesh" rgba="0.25098 0.25098 0.25098 1" mesh="shoulder_adapter_r"/>
-        <geom pos="0.120962 0.289935 0.0411131" quat="0.707107 0.707107 0 0" type="mesh" rgba="1 1 1 1" mesh="enclosure_plate"/>
+        <geom pos="0.120962 0.289935 0.0411131" quat="0.707107 0.707107 0 0" type="mesh" class="fluid-ellipsoid-model"
+        contype="0" conaffinity="0" group="1" density="0" rgba="1 1 1 1" mesh="enclosure_plate"/>
         <geom pos="0.142185 -0.154787 0.115272" quat="0.560986 0.430459 -0.560986 0.430459" type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="explorehd_2.0_public.step-1-solid1"/>
         <geom pos="0.148082 -0.155563 0.114933" quat="0.5 0.5 0.5 -0.5" type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="92467a452_18-8_stainless_steel_extra-wide_truss_head_phillips_screws.step-2-solid1"/>
         <geom pos="0.142185 -0.154787 0.115272" quat="0.560986 0.430459 -0.560986 0.430459" type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="explorehd_2.0_case_public.step-1_standoff_and_washer_v4_(1).step-1-solid1"/>

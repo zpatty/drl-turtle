@@ -64,7 +64,10 @@ class CamSubscriber(Node):
         self.start_time = time.time()
         t = datetime.today().strftime("%m_%d_%Y_%H_%M_%S")
         folder_name =  "video/" + t
-        os.makedirs(folder_name)
+        os.makedirs(folder_name + "/left")
+        os.makedirs(folder_name + "/right")
+        os.makedirs(folder_name + "/detection")
+        os.makedirs(folder_name + "/depth")
         self.output_folder = folder_name
 
     def img_callback(self, msg):

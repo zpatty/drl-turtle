@@ -38,6 +38,7 @@ def c_map(theta):
     elif theta < 0.0:
         theta = 2 * np.pi - theta
 
+
 class TurtlePlanner(Node):
 
 # class TurtleRobot(Node, gym.Env):
@@ -114,23 +115,30 @@ class TurtlePlanner(Node):
             qos_profile)
 
         self.create_rate(1000)
-        self.depth = 0.0
 
         self.acc = np.zeros((3,1))
         self.gyr = np.zeros((3,1))
         self.quat = [1.0, 0.0, 0.0, 0.0]
+        self.quat_first = True
+        self.quat_init = [0.0, 1.0, 0.0, 0.0]
         self.off_flag = False
      
 
         self.print_sensors = True
         self.pitch_d = 0.0
         self.yaw_d = 0.0
-        self.qd = np.array([1.0, 0.0, 0.0, 0.0])
+        self.qd = quat.axangle2quat([0.0, 0.0, 0.0], np.pi/2)
 
+        self.Ht = np.block([[0,0,0], [np.eye(3,3)]]).T
         self.centroids = []
-        self.pilot = "remote"
+        self.pilot = "auto"
         self.remote_v = [0.0, 0.0, 0.0, 0.0]
-
+        self.altitude_d = 20.0
+        self.altitude = 0.0
+        self.alt_confidence = 0.0
+        self.depth_sensor = 0.0
+        self.euler_convention = 'sxyz'
+        self.omega = np.array([0, 0, 0])
         self.stereo = StereoProcessor()
         self.br = CvBridge()
         self.depth = None
@@ -146,33 +154,57 @@ class TurtlePlanner(Node):
         # 
         if self.pilot == "auto":
             if not self.centroids:
-                if np.random.uniform(0.0, 1.0) > 0.99:
-                    # v = cayley(np.random.normal([0.0, 0.0, 0.0],[0.5, 0.00000000000000000000005, 0.05]))
-                    euler_v = np.random.normal([0.0, 0.0, 0.0], [0.5, 0.0, 0.05]).tolist()
-                    v = euler.euler2quat(*tuple(euler_v))
-                    # self.pitch_d = self.pitch_d + v[0]
-                    # if self.pitch_d > np.pi:
-                    #     self.pitch_d = - self.pitch_d + np.pi
-                    # self.yaw_d = self.yaw_d + v[1]
-                    self.qd = quat.qmult(self.qd, v)
+                # if np.random.uniform(0.0, 1.0) > 1.0:
+                #     # v = cayley(np.random.normal([0.0, 0.0, 0.0],[0.5, 0.00000000000000000000005, 0.05]))
+                #     euler_v = np.random.normal([0.0, 0.0, 0.0], [0.5, 0.0, 0.05]).tolist()
+                #     v = euler.euler2quat(*tuple(euler_v),self.euler_convention)
+                #     # self.pitch_d = self.pitch_d + v[0]
+                #     # if self.pitch_d > np.pi:
+                #     #     self.pitch_d = - self.pitch_d + np.pi
+                #     # self.yaw_d = self.yaw_d + v[1]
+                #     self.qd = quat.qmult(self.qd, v)
+                
                     # print("CHANGED")
-                err = quat.qmult(self.qd, quat.qinverse(self.quat))
-                u_euler = euler.quat2euler(err)
-                pitch_d = euler.quat2euler(self.qd)
+                depth_err = self.depth_sensor + 3.0
+                alt_err = self.altitude - self.altitude_d
+
+                # in base coordinates
+                qd_dive = quat.axangle2quat([0.0, 0.0, 1.0], np.clip(1.0 * depth_err, -np.pi/2, np.pi)) 
+
+                # qd_dive = quat.axangle2quat([0.0, 0.0, 1.0], np.clip(- 1.0 * alt_err, -np.pi/3, np.pi/3)) 
+                # qd_dive = quat.qmult(self.quat, qd_dive)
+                q_inv = quat.qinverse(self.quat)
+                err = 2.0 * quat.qmult(qd_dive, q_inv)
+                # err = quat.qmult(self.qd, q_inv)
+                # if err[0] < 0.0:
+                #     err = quat.qinverse(err)
+                w = - np.clip(1.0*(np.array(err[1:]) - 0.1*np.array(self.omega)), -1.0, 1.0)
+                # w = 2.0 * self.Ht @ quat.qmult(err, q_inv)
+                u_euler = euler.quat2euler(err,self.euler_convention)
+                euler_state = euler.quat2euler(self.quat,self.euler_convention)
+                # print(euler_state)
+                pitch_d = euler.quat2euler(self.qd,self.euler_convention)
+                pitch_fb = euler_state[2] - depth_err
                 # u = [1.0, 0.0, - u_euler[2], 0, - u_euler[2]]
-                u = [1.0, u_euler[1], - u_euler[2], clip(2.0 * u_euler[0]), - u_euler[2]]
+                # u = [1.0, u_euler[1], - u_euler[2], clip(3.0 * u_euler[0]), - u_euler[2]]
+                u = [1.0, - 0.2* w[1], w[2], - 0.2*w[0], w[2]]
                 # u = [1.0, , 0.0, 0.0, 0.0]
-                print(f"[DEBUG] euler: ", np.array(euler.quat2euler(self.quat)), "desired: ", np.array(pitch_d), "\n")
+                print(f"[DEBUG] ctrl: ", np.array(w), "quat: ", np.array(self.quat), "alt_err: ", self.altitude, "qd_dive: ", qd_dive,"\n")
             else:
                 err = quat.qmult([1.0, 0.0, 0.0, 0.0], quat.qinverse(self.quat))
-                u_euler = euler.quat2euler(err)
+                u_euler = euler.quat2euler(err,self.euler_convention)
                 u_yaw = self.centroids[0]/870 * 2 - 1
                 u_pitch = 1 - self.centroids[1]/480 * 2
                 u = [1.0, u_euler[1], u_pitch, u_yaw, u_pitch]
-                print(f"[DEBUG] euler: ", np.array(euler.quat2euler(self.quat)), "\n")
+                print(f"[DEBUG] euler: ", np.array(euler.quat2euler(self.quat,self.euler_convention)), "\n")
         elif self.pilot == "remote":
             v = self.remote_v
             u_euler = euler.quat2euler(self.quat)
+            pitch = np.arcsin(-2 * (self.quat[0] * self.quat[2] - self.quat[3] * self.quat[1]))
+            q_inv = quat.qinverse(self.quat)
+            err = quat.qmult(self.qd, q_inv)
+            w = 2 * self.Ht @ quat.qmult(err, q_inv)
+            print(f"[DEBUG] w: ", np.array(w), "desired: ", np.array(self.quat),"\n")
             u_pitch = v[1]
             u_yaw = v[2]
             u_fwd = v[0]
@@ -189,7 +221,7 @@ class TurtlePlanner(Node):
         #     u[2:] = [u_pitch, u_yaw, u_pitch]
         #     print(f"[DEBUG] depth: ", self.depth, "\n")
         # print("[DEBUG] quat: ", np.array(self.quat), "desired: ", self.qd, "\n")
-        print(f"[DEBUG] quat: ", np.array(self.quat), "\n")
+        # print(f"[DEBUG] quat: ", np.array(self.quat), "\n")
         print(f"[DEBUG] u: {np.array(u)}\n")
         self.config_pub.publish(Float32MultiArray(data=u))
         
@@ -210,6 +242,13 @@ class TurtlePlanner(Node):
         msg: [quat acc gyr voltage t_0 q dq ddq u qd t]
         """    
         self.quat = msg.imu.quat.tolist()
+        self.depth_sensor = msg.depth
+        self.altitude = msg.altitude
+        self.alt_confidence = msg.alt_confidence
+        self.omega = msg.imu.gyr
+        if self.quat_first:
+            self.quat_init = self.quat
+        # print(f"[DEBUG] altitude: ", self.altitude, "confidence: ", self.alt_confidence, "\n")
         
     
     def tracker_callback(self, msg):
