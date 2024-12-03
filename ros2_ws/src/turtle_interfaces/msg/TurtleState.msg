@@ -1,6 +1,8 @@
 TurtleIMU imu
 float32 voltage
 float32 depth
+float32 altitude
+float32 alt_confidence
 float32 t_0
 float32[] q
 float32[] dq
