@@ -73,17 +73,19 @@ class CamSubscriber(Node):
     def img_callback(self, msg):
         self.get_logger().info('Receiving video frame')
         left = self.br.compressed_imgmsg_to_cv2(msg.data[0])
-        right = self.br.compressed_imgmsg_to_cv2(msg.data[1])
-        fused = np.concatenate((left[:,0:230], right), axis=1)
+        # right = self.br.compressed_imgmsg_to_cv2(msg.data[1])
+        # fused = np.concatenate((left[:,0:230], right), axis=1)
         cv2.imwrite(self.output_folder + "/left/frame%d.jpg" % self.count, left)
-        cv2.imwrite(self.output_folder + "/right/frame%d.jpg" % self.count, right)
+        # cv2.imwrite(self.output_folder + "/right/frame%d.jpg" % self.count, right)
         self.count += 1
         end_time = time.time()
         seconds = end_time - self.start_time
         fps = 1.0 / seconds
         print("Estimated frames per second : {0}".format(fps))
         self.start_time = end_time
-        cv2.imshow("fused", fused)
+        cv2.imshow("left", left)
+
+        # cv2.imshow("right", right)
         cv2.waitKey(1)
 
 
@@ -113,16 +115,16 @@ class CamSubscriber(Node):
         # cv2.imwrite(shesh + "images/frame%d.jpg" % self.count, current_frame)
         # self.count += 1
         cv2.imwrite(self.output_folder + "/depth/frame%d.jpg" % self.count, current_frame)
-        self.depth_count += 1
-        if self.first:
-            plt.ion()
-            self.fig, ax = plt.subplots()
-            self.im = ax.imshow(current_frame)   
-            plt.show()
-            self.first = 0
-        else:
-            self.im.set_data(current_frame)
-            self.fig.canvas.flush_events()
+        # self.depth_count += 1
+        # if self.first:
+        #     plt.ion()
+        #     self.fig, ax = plt.subplots()
+        #     self.im = ax.imshow(current_frame)   
+        #     plt.show()
+        #     self.first = 0
+        # else:
+        #     self.im.set_data(current_frame)
+        #     self.fig.canvas.flush_events()
     
     def turtle_mode_callback(self, msg):
         if msg.mode == "kill":

@@ -127,7 +127,7 @@ class TurtleController(Node):
         self.min_threshold, _ = self.convert_motors_to_q(np.array([1.60, 3.0, 2.4, 2.43, 1.2, 1.7, 1.45, 1.2, 3.0, 2.3]), np.zeros((10,)))
         self.max_threshold, _ = self.convert_motors_to_q(np.array([3.45, 5.0, 4.2, 4.5, 4.15, 3.8, 3.2, 4.0, 4.0, 4.7]), np.zeros((10,)))
         # for PD control
-        self.Kp = np.diag([0.8, 0.4, 0.4, 0.8, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4])*2
+        self.Kp = np.diag([0.8, 0.6, 0.4, 0.8, 0.6, 0.4, 0.4, 0.4, 0.4, 0.4])*2
         # self.Kp = 0.1 * np.eye(10)
         self.KD = 0.2 * np.eye(10)
 
@@ -154,7 +154,7 @@ class TurtleController(Node):
         self.ddqd = np.zeros((self.nq, 1))
 
         self.q_off = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        self.sw = 1.5
+        self.sw = 1.8
         self.kpv=[1] * 6
         self.use_learned_motion_primitive = False
         self.d_pinv = 2e-3
@@ -239,43 +239,43 @@ class TurtleController(Node):
             
 
         # these should be messages instead of parameters
-        self.A = np.array(msg.amplitude) * np.pi/180
-        self.C = np.array(msg.center) * np.pi/180
+        # self.A = np.array(msg.amplitude) * np.pi/180
+        # self.C = np.array(msg.center) * np.pi/180
         # self.yaw = msg.yaw
         # self.pitch = msg.pitch
         # self.fwd = msg.fwd
         # self.roll = msg.roll
-        self.freq_offset = msg.frequency_offset
-        self.T = msg.period
-        self.w = 2 * np.pi / self.T
+        # self.freq_offset = msg.frequency_offset
+        # self.T = msg.period
+        # self.w = 2 * np.pi / self.T
         
-        self.kpv = msg.kpv
-        self.d_pinv = msg.d_pinv
-        self.use_learned_motion_primitive = msg.learned
-        self.kp_s = msg.kp_s
-        self.w_th = msg.w_th
-        self.kp_th = msg.kp_th
-        self.q_off = msg.offset
-        self.sw = msg.sw
+        # self.kpv = msg.kpv
+        # self.d_pinv = msg.d_pinv
+        # self.use_learned_motion_primitive = msg.learned
+        # self.kp_s = msg.kp_s
+        # self.w_th = msg.w_th
+        # self.kp_th = msg.kp_th
+        # self.q_off = msg.offset
+        # self.sw = msg.sw
 
-        match self.traj_str:
-            case "sin":
-                self.traj = self.sinusoidal_traj
-            case "js":
-                self.construct_js_control()
-                self.traj = self.joint_space_traj
-            case "ts":
-                self.construct_ts_control()
-                self.traj = self.task_space_traj
-            case "nav":
-                # self.construct_nav_control()
-                self.traj = self.nav_traj
-                # self.nav_u = np.array([self.fwd, self.roll, self.pitch, self.yaw])
-            case _:
-                self.mode = "rest"
+        # match self.traj_str:
+        #     case "sin":
+        #         self.traj = self.sinusoidal_traj
+        #     case "js":
+        #         self.construct_js_control()
+        #         self.traj = self.joint_space_traj
+        #     case "ts":
+        #         self.construct_ts_control()
+        #         self.traj = self.task_space_traj
+        #     case "nav":
+        #         # self.construct_nav_control()
+        #         self.traj = self.nav_traj
+        #         # self.nav_u = np.array([self.fwd, self.roll, self.pitch, self.yaw])
+        #     case _:
+        #         self.mode = "rest"
         # print(self.traj_str)
-        if self.traj_str != 'nav':
-            self.nav_u = None
+        # if self.traj_str != 'nav':
+        #     self.nav_u = None
 
     def sensors_callback(self, msg):
         """
@@ -308,18 +308,18 @@ class TurtleController(Node):
                 # print(u_rear)
                 # apply the control signal
                 k_r = 10.0
-                u[7] =  - k_r * (self.q[7] + np.pi / 2 - 10 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) - np.clip(u_rear, -40.0, 40.0) * np.pi / 180)
-                u[9] = - k_r * (self.q[9] - np.pi / 2 + 10 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) + np.clip(u_rear, -40.0, 40.0) * np.pi / 180)
+                u[7] =  - k_r * (self.q[7] - 10 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) - np.clip(u_rear, -40.0, 40.0) * np.pi / 180)
+                u[9] = - k_r * (self.q[9] + 10 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) + np.clip(u_rear, -40.0, 40.0) * np.pi / 180)
 
             case 'p':
                 
                 u = (self.Kp.dot((qd - self.q)) + self.KD.dot((dqd - self.dq))) * 150
-                u_rear = - 700 * self.rear_pitch
+                u_rear = - 400 * self.rear_pitch
                 # print(u_rear)
                 # apply the control signal
                 k_r = 3.0
-                u[7] =  - k_r * (self.q[7] + np.pi / 2 - 10 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) - np.clip(u_rear, -50.0, 50.0) * np.pi / 180) * 150
-                u[9] = - k_r * (self.q[9] - np.pi / 2 + 10 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) + np.clip(u_rear, -50.0, 50.0) * np.pi / 180) * 150
+                u[7] =  - k_r * (self.q[7] - 20 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) - np.clip(u_rear, -70.0, 70.0) * np.pi / 180) * 150
+                u[9] = - k_r * (self.q[9] + 20 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) + np.clip(u_rear, -70.0, 70.0) * np.pi / 180) * 150
                 # u = torque_control(self.q,self.dq,qd,dqd,ddqd,self.Kp,self.KD)
             case _:
                 u = [0]*10
@@ -427,11 +427,13 @@ class TurtleController(Node):
             
             q_d_des = np.concatenate([q_d_ra, q_d_la], axis=-1)
 
-        q_arm_des[2] += u[2] * 45 * np.pi / 180.0
-        q_arm_des[5] += - u[2] * 45 * np.pi / 180.0
+        q_arm_des[2] += u[2] * 60 * np.pi / 180.0
+        q_arm_des[5] += - u[2] * 60 * np.pi / 180.0
+        # q_arm_des[0] += u[2] * 25 * np.pi / 180.0
+        # q_arm_des[3] += - u[2] * 25 * np.pi / 180.0
 
-        q_arm_des[1] += - self.u[2] * np.pi/9
-        q_arm_des[4] += self.u[2] * np.pi/9
+        # q_arm_des[1] += self.u[2] * np.pi/2
+        # q_arm_des[4] += - self.u[2] * np.pi/2
         
         if u[3] < 0.0:
             q_arm_des[3:] *= (u[3] + 1.0)
@@ -445,7 +447,7 @@ class TurtleController(Node):
         q_arm_des[1] += np.pi/4 * self.u[1]
         q_arm_des[4] += np.pi/4 * self.u[1]
 
-        q_arm_des += np.diag([0.5, 0.25, 0, 0.5, 0.25, 0]) @  np.abs(q_arm_des) * np.sign(q_arm_des) * 0.0
+        q_arm_des += np.diag([0.5, 0.25, 0, 0.5, 0.25, 0]) @  np.abs(q_arm_des) * np.sign(q_arm_des) * 0.75
         
         q_arm_des = np.hstack((q_arm_des, np.zeros((4,))))
         q_d_des = np.hstack((q_d_des, np.zeros((4,))))

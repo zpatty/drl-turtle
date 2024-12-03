@@ -102,7 +102,7 @@ class Simulator(Node):
         self.q_des = np.zeros((self.data.qpos.shape[0] - 7,))
         self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
         self.viewer.sync()
-        # self.data.qpos[3:7] = quat.axangle2quat([0.0, 0.0, 1.0], np.pi/3)
+        # self.data.qpos[3:7] = quat.axangle2quat([1.0, 0.0, 0.0], np.pi/3)
  
         self.altitude = 20.0
         self.altitude_d = 15.0
@@ -151,7 +151,8 @@ class Simulator(Node):
 
     def ctrl_callback(self, msg):
         self.u = msg.data[:4]
-        self.pitch_d = msg.data[4]
+        self.u[2] = -self.u[2]
+        self.pitch_d = - msg.data[4]
 
     def _timer_cb(self):
         if self.viewer.is_running():
@@ -171,13 +172,13 @@ class Simulator(Node):
                 #     self.dwell_time = 0.0
                 self.t_new = self.sw * (self.data.time - self.time_last_ctrl) * np.abs(self.u[0]) + self.t_new
                 
-
+                # self.u[2] = - self.u[2]
                 # print(self.dwell_time)
                 
                 # if self.u[0] < 0.05:
                 #     self.t_new = (4.3 / self.sw) * 0.32
                 # t_new = self.data.time
-                self.u = np.array([1.0, 0.0, 0.0, 0.0, 1.0])
+                # self.u = np.array([1.0, 0.0, 0.0, 0.0, 1.0])
                 if self.u[0] > 0.0:
                     q_d_des, aux = self.joint_space_control_fn(
                         t=self.t_new,
@@ -261,7 +262,7 @@ class Simulator(Node):
                 q_rear2 = q[9]
                 pitch_err = self.pitch_d
                 # print(pitch_err)
-                u_rear = 300 * (pitch_err)
+                u_rear = 100 * (pitch_err)
                 tn = self.sw * self.t_new  # speed-up the trajectory by a factor of sw
                 tn = tn % 4.3
         
@@ -301,8 +302,9 @@ class Simulator(Node):
             # print(f"[DEBUG] error: ", err, "w: ", w,"\n")
             turtle_msg.imu.quat = self.quat
             turtle_msg.altitude = self.altitude
-            turtle_msg.depth = self.data.qpos[2]
+            turtle_msg.depth = - self.data.qpos[2]
             self.gyr = self.data.qvel[3:6]
+            
             # print(np.round(quat, 2))
             # pitch = data.qpos[5]
             turtle_msg.imu.gyr = self.gyr
@@ -378,6 +380,11 @@ class Simulator(Node):
         self.altitude = depth
         if np.random.uniform(0.0, 1.0) > 1.0:
             self.altitude = self.altitude + np.random.normal(0.0, 10.0) * np.random.normal(0.0, 1.0) 
+        if self.data.time > 2.0 and self.data.time < 10.0:
+            self.altitude = self.altitude - self.data.time*0.5
+        vec, theta = quat.quat2axangle(self.quat)
+        # print(theta*180/np.pi)
+        self.altitude = self.altitude / np.cos(theta)
             
 
 def skew(v):
