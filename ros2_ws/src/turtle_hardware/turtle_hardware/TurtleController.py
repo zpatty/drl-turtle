@@ -33,10 +33,8 @@ from turtle_dynamixel.torque_control import torque_control
 # from mjc_turtle_robot.controllers.joint_space_controllers import cornelia_joint_space_control_factory, cornelia_joint_space_motion_primitive_control_factory
 # from mjc_turtle_robot.controllers.task_space_controller import green_sea_turtle_task_space_control_factory
 # from mjc_turtle_robot.controllers.joint_space_controllers import navigation_joint_space_motion_primitive_control_factory
-from turtle_robot_motion_control.controllers.joint_space_controllers import (
-    cornelia_joint_space_trajectory_tracking_control_factory, navigation_joint_space_motion_primitive_control_factory
-)
-from turtle_loc_oracles.joint_space import reverse_stroke_joint_oracle_factory
+from turtle_ctrl.turtle_ctrl_factory import cornelia_joint_space_trajectory_tracking_control_factory
+from turtle_ctrl.template_model_oracles import reverse_stroke_joint_oracle_factory
 
 class TurtleController(Node):
 
@@ -163,7 +161,6 @@ class TurtleController(Node):
         self.w_th = 1e-3  # weight for the twist tracking in the Jacobian product
         self.kp_s = 20
 
-        self.construct_nav_control()
         self.joint_space_control_fn = cornelia_joint_space_trajectory_tracking_control_factory(kp=[2.0]*6, sw=self.sw)
         self.q_ra_fn, self.q_d_ra_fn, q_dd_ra_fn = reverse_stroke_joint_oracle_factory(s=1, sw=self.sw)
         self.q_la_fn, self.q_d_la_fn, q_dd_la_fn = reverse_stroke_joint_oracle_factory(s=-1, sw=self.sw)
@@ -238,45 +235,6 @@ class TurtleController(Node):
 
             
 
-        # these should be messages instead of parameters
-        # self.A = np.array(msg.amplitude) * np.pi/180
-        # self.C = np.array(msg.center) * np.pi/180
-        # self.yaw = msg.yaw
-        # self.pitch = msg.pitch
-        # self.fwd = msg.fwd
-        # self.roll = msg.roll
-        # self.freq_offset = msg.frequency_offset
-        # self.T = msg.period
-        # self.w = 2 * np.pi / self.T
-        
-        # self.kpv = msg.kpv
-        # self.d_pinv = msg.d_pinv
-        # self.use_learned_motion_primitive = msg.learned
-        # self.kp_s = msg.kp_s
-        # self.w_th = msg.w_th
-        # self.kp_th = msg.kp_th
-        # self.q_off = msg.offset
-        # self.sw = msg.sw
-
-        # match self.traj_str:
-        #     case "sin":
-        #         self.traj = self.sinusoidal_traj
-        #     case "js":
-        #         self.construct_js_control()
-        #         self.traj = self.joint_space_traj
-        #     case "ts":
-        #         self.construct_ts_control()
-        #         self.traj = self.task_space_traj
-        #     case "nav":
-        #         # self.construct_nav_control()
-        #         self.traj = self.nav_traj
-        #         # self.nav_u = np.array([self.fwd, self.roll, self.pitch, self.yaw])
-        #     case _:
-        #         self.mode = "rest"
-        # print(self.traj_str)
-        # if self.traj_str != 'nav':
-        #     self.nav_u = None
-
     def sensors_callback(self, msg):
         """
         Callback function that takes in list of squeezed arrays
@@ -314,28 +272,17 @@ class TurtleController(Node):
             case 'p':
                 
                 u = (self.Kp.dot((qd - self.q)) + self.KD.dot((dqd - self.dq))) * 150
-                u_rear = - 400 * self.rear_pitch
+                u_rear = - 100 * self.rear_pitch
                 # print(u_rear)
                 # apply the control signal
                 k_r = 3.0
-                u[7] =  - k_r * (self.q[7] - 20 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) - np.clip(u_rear, -70.0, 70.0) * np.pi / 180) * 150
-                u[9] = - k_r * (self.q[9] + 20 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) + np.clip(u_rear, -70.0, 70.0) * np.pi / 180) * 150
+                u[7] =  - k_r * (self.q[7] - 5 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) - np.clip(u_rear, -70.0, 70.0) * np.pi / 180) * 150
+                u[9] = - k_r * (self.q[9] + 5 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) + np.clip(u_rear, -70.0, 70.0) * np.pi / 180) * 150
                 # u = torque_control(self.q,self.dq,qd,dqd,ddqd,self.Kp,self.KD)
             case _:
                 u = [0]*10
 
         return u
-    
-
-    def task_space_traj(self, t, q, u):
-        dqd, aux = self.task_space_control_fn(t, np.squeeze(q[:6]))
-        # _, dqd, ddqd = convert_q_to_motors(dqd, dqd, dqd * 0.0)
-        dqd = np.hstack((dqd, np.zeros((4,))))
-        # print(f"[DEBUG] q: {q * 180 / np.pi}\n")
-        # print(f"[DEBUG] dqd: {dqd * 180 / np.pi}\n")
-        qd = np.squeeze(q) + dqd * self.dt
-
-        return qd, dqd, dqd * 0.0
     
     def joint_space_traj(self, t, q, u):
         dqd, aux = self.joint_space_control_fn(t, np.squeeze(q[:6]))
@@ -348,56 +295,7 @@ class TurtleController(Node):
 
         return qd, dqd, dqd * 0.0
     
-    def nav_traj(self, t, q, u):
-        dqd, aux = self.nav_control_fn(t, np.squeeze(q[:6]), u)
-        # _, dqd, ddqd = convert_q_to_motors(dqd, dqd, dqd * 0.0)
-        dqd = np.hstack((dqd, np.zeros((4,))))
-        # print(f"[DEBUG] q: {q * 180 / np.pi}\n")
-        # print(f"[DEBUG] dqd: {dqd * 180 / np.pi}\n")
-        
-        qd = np.squeeze(q) + dqd * self.dt
 
-        return qd, dqd, dqd * 0.0
-    
-    def construct_nav_control(self):
-        nav_control_fn = navigation_joint_space_motion_primitive_control_factory(
-            sw=self.sw, q_off=self.q_off, phase_sync_kp=1e0, limit_cycle_kp=1e0, sliding_mode_params = None
-        )
-        self.nav_control_fn = nav_control_fn
-
-    
-    def construct_js_control(self):
-        if self.use_learned_motion_primitive:
-            joint_space_control_fn = cornelia_joint_space_motion_primitive_control_factory(
-                q_off=self.q_off, sw=self.sw, phase_sync_kp=self.kp_s, limit_cycle_kp=self.kpv[0], sliding_mode_params = dict(sigma=0.05, plateau_width=0.05)
-            )
-        else:
-            joint_space_control_fn = cornelia_joint_space_control_factory(kp=self.kpv, q_off=self.q_off, sw=self.sw)
-        self.joint_space_control_fn = joint_space_control_fn
-        
-    def construct_ts_control(self):
-        sf = 1.0  # spatial scaling factor
-
-        if self.w_th == 0.0:
-            self.w_th = None
-
-        x_off = np.array(
-            [0.34808895, -0.08884996, 0.00209812]
-        )
-        task_space_control_fn = green_sea_turtle_task_space_control_factory(
-            x_off=x_off,
-            sf=sf,
-            sw=self.sw,
-            kp=np.array(self.kpv),
-            kp_th=np.array(self.kp_th),
-            w_th=self.w_th,
-            pinv_damping=self.d_pinv,
-            use_learned_motion_primitive=self.use_learned_motion_primitive,
-            use_straight_flipper=True,
-            phase_sync_kp=self.kp_s,
-            limit_cycle_kp=self.Kp[0,0],
-        )
-        self.task_space_control_fn = task_space_control_fn
     
     def convert_motors_to_q(self, q, dq):
         q = np.array(q).reshape(10,)  - np.pi
@@ -447,7 +345,7 @@ class TurtleController(Node):
         q_arm_des[1] += np.pi/4 * self.u[1]
         q_arm_des[4] += np.pi/4 * self.u[1]
 
-        q_arm_des += np.diag([0.5, 0.25, 0, 0.5, 0.25, 0]) @  np.abs(q_arm_des) * np.sign(q_arm_des) * 0.75
+        q_arm_des += np.diag([0.5, 0.25, 0, 0.5, 0.25, 0]) @  np.abs(q_arm_des) * np.sign(q_arm_des) * 0.25
         
         q_arm_des = np.hstack((q_arm_des, np.zeros((4,))))
         q_d_des = np.hstack((q_d_des, np.zeros((4,))))

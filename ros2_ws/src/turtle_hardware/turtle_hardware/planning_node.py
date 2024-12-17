@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 import rclpy.parameter
-
+import traceback
 from rclpy.parameter_event_handler import ParameterEventHandler
 from cv_bridge import CvBridge
 
@@ -79,6 +79,14 @@ class TurtlePlanner(Node):
             qos_profile
         )
 
+        self.stereo_sub = self.create_subscription(
+            Float32MultiArray,
+            'stereo',
+            self.stereo_callback,
+            qos_profile
+            )
+    
+
         # Centroids from tracker
         self.centroids_sub = self.create_subscription(
             Float32MultiArray,
@@ -139,9 +147,10 @@ class TurtlePlanner(Node):
         self.qd = quat.axangle2quat([0.0, 0.0, 0.0], np.pi/2)
         self.last_yaw = 0.0
         self.yaw_accumulator = 0.0
-
+        self.rand_yaw = 0.0
         self.Ht = np.block([[0,0,0], [np.eye(3,3)]]).T
         self.centroids = []
+        self.centroids_hist = []
         self.pilot = "depth"
         self.remote_v = [0.0, 0.0, 0.0, 0.0]
         self.altitude_d = 20.0
@@ -151,9 +160,9 @@ class TurtlePlanner(Node):
         self.depth_sensor = 0.0
         self.euler_convention = 'szyx'
         self.omega = np.array([0, 0, 0])
-        self.stereo = StereoProcessor()
+        
         self.br = CvBridge()
-        self.depth = None
+        self.stereo_depth = None
         self.x = None
         self.y = None
         self.last_time = time.time()
@@ -238,6 +247,7 @@ class TurtlePlanner(Node):
         # 
         q_eul = euler.quat2euler(self.quat,self.euler_convention)
         heading = q_eul[2]
+        filtered_alt = scipy.signal.medfilt(self.altitude)
         if self.pilot == "depth":
             # depth_err = self.depth_sensor - self.depth_d
             # # in base coordinates
@@ -283,13 +293,12 @@ class TurtlePlanner(Node):
             qd_dive = euler.euler2quat(*tuple([self.yaw_d, np.clip(- 4.0 * depth_err, -np.pi/2, np.pi/2), 0.0]),self.euler_convention)
             qd_dive = euler.euler2quat(*tuple([np.clip(- 4.0 * depth_err, -np.pi/2, np.pi/2), 0.0, self.yaw_d]),self.euler_convention)
             # qd_dive = quat.axangle2quat([1.0, 0.0, 0.0], np.pi/4) 
-            filtered_alt = scipy.signal.medfilt(self.altitude)
             q_inv = quat.qinverse(self.quat)
             err = 2.0 * quat.qmult(qd_dive, q_inv)
             w = - np.clip(1.0*(np.array(err[1:]) - 0.1*np.array(self.omega)), -1.0, 1.0)
             u = [1.0, - w[1], - w[2], - w[0], -1.0*depth_err]
-            print(f"[DEBUG] \n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
-                  self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n")
+            # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
+            #       self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n")
                 
             # else:
             #     err = quat.qmult([1.0, 0.0, 0.0, 0.0], quat.qinverse(self.quat))
@@ -300,7 +309,6 @@ class TurtlePlanner(Node):
             #     print(f"[DEBUG] euler: ", np.array(euler.quat2euler(self.quat,self.euler_convention)), "\n")
         elif self.pilot == "altitude":
             q_inv = quat.qinverse(self.quat)
-            filtered_alt = scipy.signal.medfilt(self.altitude)
             alt_err = filtered_alt[0] - self.altitude_d
             qd_alt = quat.axangle2quat([0.0, 0.0, 1.0], np.clip(1.0 * alt_err, -np.pi/6, np.pi/6)) 
             qd_alt = euler.euler2quat(*tuple([np.clip(- 4.0 * alt_err, -np.pi/2, np.pi/2), 0.0, self.yaw_d]),self.euler_convention)
@@ -308,27 +316,25 @@ class TurtlePlanner(Node):
             w = - 1.0*(np.array(err[1:]) - 0.1*np.array(self.omega))
             # u = [1.0, - 0.2* w[1], w[2], - 0.2*w[0], w[2]]
             u = [1.0, - w[1], w[2], - w[0], w[2]]
-            print(f"[DEBUG] \n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
-                  self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n")
+            # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
+            #       self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n")
 
         elif self.pilot == "remote":
             v = self.remote_v
-            filtered_alt = scipy.signal.medfilt(self.altitude)
             # print(f"[DEBUG] w: ", np.array(w), "desired: ", np.array(self.quat),"\n")
             u_pitch = v[1]
             u_yaw = v[2]
             u_fwd = v[0]
             u_roll = v[3]
             u = [u_fwd, u_roll, u_pitch, u_yaw, u_pitch]
-            print(f"[DEBUG] \n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
-                  self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n")
+            # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
+            #       self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n")
 
         elif self.pilot == "DR":
             v = self.remote_v
             depth_err = self.depth_sensor - self.depth_d
             # in base coordinates
             qd_dive = euler.euler2quat(*tuple([np.clip(- 10.0 * depth_err, -np.pi/2, np.pi/2), 0.0, 0.0]),self.euler_convention)
-            filtered_alt = scipy.signal.medfilt(self.altitude)
             q_inv = quat.qinverse(self.quat)
             err = 2.0 * quat.qmult(qd_dive, q_inv)
             w = - np.clip(1.0*(np.array(err[1:]) - 0.1*np.array(self.omega)), -1.0, 1.0)
@@ -344,20 +350,61 @@ class TurtlePlanner(Node):
             if abs(v[2]) > 0.05:
                 u[3] = u_yaw
             
-            print(f"[DEBUG] \n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
-                  self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n")
+            # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
+            #       self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n")
+        
+        elif self.pilot == "track":
+            # err = quat.qmult([1.0, 0.0, 0.0, 0.0], quat.qinverse(self.quat))
+            # u_euler = euler.quat2euler(err,self.euler_convention)
+            # if self.stereo_depth is not None:
+            #     u_fwd = 1.0 - 2.0 * 1 / (1 + np.exp(((self.stereo_depth - 0.5) - 0.1)/0.1))
+            # else:
+            u_fwd = 1.0
+            if np.size(self.centroids) == 2:
+                # print(self.centroids)
+                u_yaw = self.centroids[1]/870 * 2 - 1
+                u_pitch = 1 - self.centroids[0]/480 * 2
+                self.centroids_hist.append(self.centroids)
+            elif self.centroids_hist != []:
+                c = self.centroids_hist[-1] 
+                u_pitch = 1 - c[0]/480 * 2
+                u_yaw = c[1]/870 * 2 - 1
+            else:
+                u_pitch = 0
+                if np.random.uniform(0.0, 1.0) > 0.97:
+                    self.rand_yaw = np.random.uniform(-1.0, 1.0)
+                u_yaw = self.rand_yaw
+            u = [u_fwd, 0.0, - u_pitch, u_yaw, - u_pitch]
+            # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
+            #       self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n centroids: ", self.centroids, "\n")
 
-        # if self.depth:
-        #     u_euler = euler.quat2euler(self.quat)
-        #     u_yaw = - (self.x/870 * 2 - 1)
-        #     u_pitch = - (1 - self.y/480) * 2
-        #     u_fwd = 1.0 - 2.0 * 1 / (1 + np.exp(((self.depth - 0.5) - 0.1)/0.1))
-        #     u[0] = u_fwd
-        #     # u[1] = u_euler[1]
-        #     u[2:] = [u_pitch, u_yaw, u_pitch]
-        #     print(f"[DEBUG] depth: ", self.depth, "\n")
-        # print("[DEBUG] quat: ", np.array(self.quat), "desired: ", self.qd, "\n")
-        # print(f"[DEBUG] quat: ", np.array(self.quat), "\n")
+
+        if self.stereo_depth  is not None:
+            if self.stereo_depth < 13:
+                x_bounds = [157,425]
+                y_bounds = [30,450]
+                u_euler = euler.quat2euler(self.quat)
+                if (self.x - 157) / (425 - 157) > 0.5:
+                    u_yaw = -1.0
+                    # u_roll = -1.0
+                else:
+                    u_yaw = 1.0
+                    # u_roll = 1.0
+                # u_yaw = (- (self.x - 157) / (425 - 157) + 0.5) * 2 / (1 + np.exp(((self.stereo_depth - 0.5) - 0.1)/0.1))
+                # u_pitch = - ( - (self.y - 30) / (450 - 30) + 0.5) * 2 * 1 / (1 + np.exp(((self.stereo_depth - 0.5) - 0.1)/0.1))
+                # u_fwd = - 2.0 * 1 / (1 + np.exp(((self.stereo_depth - 0.5) - 0.1)/0.1))
+                # u[0] += u_fwd
+                # u[1] = u_euler[1]
+                # u[2] += u_pitch
+                # u[4] += u_pitch
+                u[3] += u_yaw
+        
+        
+            # print(f"[DEBUG] depth: ", self.depth, "\n")
+        print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
+                  self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", 
+                  self.yaw_d,"\n centroids: ", self.centroids,"\n depth: ", [self.stereo_depth, self.x, self.y], "\n")
+        u = np.clip(u, -1.0, 1.0)
         self.config_pub.publish(Float32MultiArray(data=u))
         
 
@@ -389,6 +436,11 @@ class TurtlePlanner(Node):
             self.quat_init = self.quat
         # print(f"[DEBUG] altitude: ", self.altitude, "confidence: ", self.alt_confidence, "\n")
     
+    def stereo_callback(self, msg):
+        self.stereo_depth = msg.data[0]
+        self.x = msg.data[1]
+        self.y = msg.data[2]
+
     def turtle_desired_callback(self, msg):
         self.yaw_d = msg.yaw
         self.depth_d = msg.pitch
@@ -396,16 +448,25 @@ class TurtlePlanner(Node):
     
     def tracker_callback(self, msg):
         self.centroids = msg.data
+        print(msg.data)
+        
 
     def gamepad_callback(self, msg):
-        if msg.data[-1] == 0:
-            self.pilot = "remote"
-        elif msg.data[-1] == 1:
-            self.pilot = "depth"
-        elif msg.data[-1] == 2:
-            self.pilot = "altitude"
-        elif msg.data[-1] == 3:
-            self.pilot = "DR"
+        if self.pilot != "track":
+            if msg.data[-1] == 0:
+                self.pilot = "remote"
+            elif msg.data[-1] == 1:
+                self.pilot = "depth"
+            elif msg.data[-1] == 2:
+                self.pilot = "altitude"
+            elif msg.data[-1] == 3:
+                self.pilot = "DR"
+            elif msg.data[-1] == 4:
+                self.pilot = "track"
+        else:
+            if msg.data[-1] == 0:
+                self.pilot = "remote"
+
         self.remote_v = msg.data[:-1]
         
     def img_callback(self, msg):
@@ -430,6 +491,7 @@ def main():
         print("shutdown")
     except Exception as e:
         print("some error occurred")
+        traceback.print_exc()
         # turtle_node.shutdown_motors()
         exec_type, obj, tb = sys.exc_info()
         fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]

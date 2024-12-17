@@ -83,7 +83,7 @@ class GamePad(Node):
         # Gamepad settings
         gamepadType = Gamepad.XboxNew
         self.buttonRest = 'A'
-        self.buttonDepth = 'Y'
+        self.buttonTrack = 'Y'
         self.buttonAlt = 'X'
         self.buttonDR = 'B'
         self.buttonDD = 'RB'
@@ -110,6 +110,7 @@ class GamePad(Node):
         
         self.pitch = 0.0
         self.auto = 0
+        self.tracker = 0
 
         self.depth_d = 0.0
         self.altitude_d = 0.0
@@ -121,7 +122,7 @@ class GamePad(Node):
 
         t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
         self.folder_name =  "data/" + t
-        # os.makedirs(self.folder_name)
+        os.makedirs(self.folder_name)
         self.create_rate(100)
         params, __ = self.parse_ctrl_params()
 
@@ -157,22 +158,38 @@ class GamePad(Node):
                 if self.gamepad.beenPressed(self.toggleMode):
                     if self.auto:
                         self.auto = 0
+                        self.tracker = 0
                         print("RC mode\n")
-                        
-                        
+                  
                     else:
                         self.auto = 1
+                        self.tracker = 0
                         print("Automous mode\n")
-                if self.gamepad.beenPressed(self.buttonAlt) and self.auto == 1:
-                    self.auto = 2
-                    print("Altitude Tracking\n")
-                elif self.auto == 1:
-                    self.auto = 1
-                    print("Depth Tracking\n")
+                
+                if self.tracker != 1:
+                    if self.gamepad.beenPressed(self.buttonAlt) and self.auto == 1:
+                        self.auto = 2
+                        print("Altitude Tracking\n")
+                    elif self.auto == 1:
+                        self.auto = 1
+                        print("Depth Tracking\n")
+                    
+                    if self.gamepad.beenPressed(self.buttonTrack):
+                        self.auto = 4
+                        self.tracker = 1
+                        print("Tracker\n")
 
-                if self.gamepad.beenPressed(self.buttonDR):
-                    self.auto = 3
-                    print("depth plus remote\n")
+                    if self.gamepad.beenPressed(self.buttonDR):
+                        self.auto = 3
+                        print("depth plus remote\n")
+                else:
+                    if self.gamepad.beenPressed(self.buttonAlt):
+                        self.auto = 2
+                    if self.gamepad.beenPressed(self.buttonDR):
+                        self.auto = 3
+                    if self.gamepad.beenPressed(self.buttonTrack):
+                        self.auto = 0
+                        self.tracker = 0
 
                 
                 if self.gamepad.beenPressed(self.buttonDD):

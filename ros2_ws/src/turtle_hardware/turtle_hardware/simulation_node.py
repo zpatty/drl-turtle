@@ -18,11 +18,8 @@ import transforms3d.euler as euler
 from std_msgs.msg import String, Float32MultiArray
 from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl, TurtleMode, TurtleState
 
-from crush_mujoco_sim.analysis import compute_cost_of_transport, generate_control_plots
-from turtle_robot_motion_control.controllers.joint_space_controllers import (
-    cornelia_joint_space_trajectory_tracking_control_factory, navigation_joint_space_motion_primitive_control_factory
-)
-from turtle_loc_oracles.joint_space import reverse_stroke_joint_oracle_factory
+from turtle_ctrl.turtle_ctrl_factory import cornelia_joint_space_trajectory_tracking_control_factory
+from turtle_ctrl.template_model_oracles import reverse_stroke_joint_oracle_factory
 
 
 
@@ -151,7 +148,7 @@ class Simulator(Node):
 
     def ctrl_callback(self, msg):
         self.u = msg.data[:4]
-        self.u[2] = -self.u[2]
+        self.u[2] =-  self.u[2]
         self.pitch_d = - msg.data[4]
 
     def _timer_cb(self):
@@ -205,8 +202,22 @@ class Simulator(Node):
                 # YAW
                 if self.u[3] < 0.0:
                     q_arm_des[3:] *= (self.u[3] + 1.0)
+                    # if self.u[3] == -1.0:
+                    #     q_ra, q_d_ra = self.q_ra_fn(self.t_new), self.q_d_ra_fn(self.t_new)
+                    #     q_la, q_d_la = self.q_la_fn(self.t_new), self.q_d_la_fn(self.t_new)
+                    #     q_back = np.concatenate([q_ra, q_la], axis=-1)
+                    #     dq_back = np.concatenate([q_d_ra, q_d_la], axis=-1)
+                    #     q_arm_des[3:] = q_back[3:]
+                    #     q_d_des[3:] = dq_back[3:]
                 else:
                     q_arm_des[:3] *= - (self.u[3] - 1.0)
+                    # if self.u[3] == 1.0:
+                    #     q_ra, q_d_ra = self.q_ra_fn(self.t_new), self.q_d_ra_fn(self.t_new)
+                    #     q_la, q_d_la = self.q_la_fn(self.t_new), self.q_d_la_fn(self.t_new)
+                    #     q_back = np.concatenate([q_ra, q_la], axis=-1)
+                    #     dq_back = np.concatenate([q_d_ra, q_d_la], axis=-1)
+                    #     q_arm_des[:3] = q_back[:3]
+                    #     q_d_des[:3] = dq_back[:3]
 
                 # x = 2 / (1 + np.exp(-(self.u[1])**2)) - 1
                 # x = self.u[1]
@@ -272,8 +283,16 @@ class Simulator(Node):
                 k_r = 1.0
                 qd_rear = (10 * np.pi / 180 * np.cos(2.0 * np.pi  * self.data.time) + np.clip(u_rear, -60.0, 60.0) * np.pi / 180)
                 # print(qd_rear)
-                self.data.ctrl[7] =  - k_r * (q_rear1 - qd_rear) - 0.01 * dq[7]
-                self.data.ctrl[9] = - k_r * (q_rear2 + (qd_rear)) - 0.01 * dq[9]
+                qd1_rear = qd_rear
+                # if self.u[3] == 1.0:
+                #     qd1_rear = 60 * np.pi / 180
+                    
+                self.data.ctrl[7] =  - k_r * (q_rear1 - qd1_rear) - 0.01 * dq[7]
+                qd2_rear = qd_rear
+                # if self.u[3] == -1.0:
+                #     qd2_rear = 60 * np.pi / 180
+                    
+                self.data.ctrl[9] = - k_r * (q_rear2 + (qd2_rear)) - 0.01 * dq[9]
                 self.data.ctrl[8] = -1.0*(q[8])  - 0.05 * dq[8]
                 self.data.ctrl[6] = -1.0*q[6] - 0.05 * dq[6]
                 # # update the last control time
