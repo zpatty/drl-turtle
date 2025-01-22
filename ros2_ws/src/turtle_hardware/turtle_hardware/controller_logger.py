@@ -54,8 +54,6 @@ class XboxNew(GP.Gamepad):
         self._setupReverseMaps()
 
 class GamePad(Node):
-
-# class TurtleRobot(Node, gym.Env):
     """
     This node is responsible for continously reading sensor data and receiving commands from the keyboard node
     to execute specific trajectoreies or handle emergency stops. It also is responsible for sending motor pos commands to the RL node
@@ -132,8 +130,7 @@ class GamePad(Node):
             print('Please connect your gamepad...')
             while not GP.available():
                 time.sleep(1.0)
-        # self.gamepad = gamepadType()
-        self.gamepad = XboxNew()
+        self.gamepad = gamepadType()
         print('Gamepad connected')
 
         # Set some initial state
