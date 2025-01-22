@@ -20,9 +20,38 @@ from turtle_interfaces.msg import TurtleCtrl, TurtleMode
 
 
 # Load the gamepad and time libraries
-from Gamepad import Gamepad
+from Gamepad import Gamepad as GP
 import time
 
+class XboxNew(GP.Gamepad):
+    fullName = 'Xbox new'
+
+    def __init__(self, joystickNumber = 0):
+        GP.Gamepad.__init__(self, joystickNumber)
+        self.axisNames = {
+            0: 'LEFT-X',
+            1: 'LEFT-Y',
+            2: 'L2',
+            3: 'RIGHT-X',
+            4: 'RIGHT-Y',
+            5: 'R2',
+            6: 'DPAD-X',
+            7: 'DPAD-Y'
+        }
+        self.buttonNames = {
+            0:  'A',
+            1:  'B',
+            2:  'X',
+            3:  'Y',
+            4:  'LB',
+            5:  'RB',
+            6:  'HOME',
+            7:  'START',
+            8:  'XBOX',
+            9:  'LASB',
+            10: 'RASB',
+        }
+        self._setupReverseMaps()
 
 class GamePad(Node):
 
@@ -80,8 +109,9 @@ class GamePad(Node):
             qos_profile
         )
         # self.mode_cmd_sub       # prevent unused variable warning
+        print("Game pad settings")
         # Gamepad settings
-        gamepadType = Gamepad.XboxNew
+        gamepadType = XboxNew
         self.buttonRest = 'A'
         self.buttonTrack = 'Y'
         self.buttonAlt = 'X'
@@ -98,11 +128,12 @@ class GamePad(Node):
         self.pollInterval = 0.01
 
         # Wait for a connection
-        if not Gamepad.available():
+        if not GP.available():
             print('Please connect your gamepad...')
-            while not Gamepad.available():
+            while not GP.available():
                 time.sleep(1.0)
-        self.gamepad = gamepadType()
+        # self.gamepad = gamepadType()
+        self.gamepad = XboxNew()
         print('Gamepad connected')
 
         # Set some initial state
