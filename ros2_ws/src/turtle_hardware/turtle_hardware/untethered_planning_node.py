@@ -196,8 +196,6 @@ class TurtlePlanner(Node):
                     if (self.x - 157) / (425 - 157) > 0.5:
                         u_yaw = -1.0
                         u_roll = -1.0
-                        # u[3] = u_yaw
-                        # u[1] = u_roll
                         self.yaw_d = heading + np.pi/2
                     else:
                         u_yaw = 1.0
@@ -219,16 +217,6 @@ class TurtlePlanner(Node):
                 else:
                     self.plot_depth.pop(0)
                     self.plot_depth.append(self.stereo_depth)
-            # if self.first:
-            #     plt.ion()
-            #     self.fig, ax = plt.subplots()
-            #     self.myplot, = ax.plot(self.plot_depth)   
-            #     plt.show()
-            #     self.first = 0
-            # else:
-            #     self.myplot.set_ydata(self.plot_depth)
-            #     self.fig.canvas.flush_events()
-            # self.update_plot()
 
             if self.yaw_d + np.pi < 0:
                 self.yaw_d += np.pi
@@ -239,19 +227,13 @@ class TurtlePlanner(Node):
             
             msg_d.pitch = self.depth_d
             self.desired_pub.publish(msg_d)
-                # self.yaw_d = self.yaw_d
-            # yaw_display = (self.yaw_d % (2 * np.pi)) * 360 / np.pi
-
             if self.time > 100000.0:
                 self.depth_d = 0.0
-            else:
-                self.depth_d = 0.4
             depth_err = self.depth_sensor - self.depth_d
             # in base coordinates
             qd_dive = quat.axangle2quat([0.0, 0.0, 1.0], np.clip(- 5.0 * depth_err, -np.pi/2, np.pi/2)) 
             qd_dive = euler.euler2quat(*tuple([self.yaw_d, np.clip(- 4.0 * depth_err, -np.pi/2, np.pi/2), 0.0]),self.euler_convention)
             qd_dive = euler.euler2quat(*tuple([np.clip(- 4.0 * depth_err, -np.pi/2, np.pi/2), 0.0, self.yaw_d]),self.euler_convention)
-            # qd_dive = quat.axangle2quat([1.0, 0.0, 0.0], np.pi/4) 
             q_inv = quat.qinverse(self.quat)
             err = 2.0 * quat.qmult(qd_dive, q_inv)
             w = - np.clip(1.0*(np.array(err[1:]) - 0.1*np.array(self.omega)), -1.0, 1.0)
@@ -264,23 +246,21 @@ class TurtlePlanner(Node):
                     y_bounds = [30,450]
                     u_euler = euler.quat2euler(self.quat)
                     # self.yaw_d = heading + np.pi
+                    # TODO: initiate some sort of flag/timer that runs the decision made 
                     if (self.x - 157) / (425 - 157) > 0.5:
+                        print("turn left")
                         u_yaw = -1.0
                         u_roll = -1.0
                         u[3] = u_yaw
                         u[1] = u_roll
                         u[4] = -1.0
                     else:
+                        print("turn right")
                         u_yaw = 1.0
                         u_roll = 1.0
                         u[3] = u_yaw
                         u[1] = u_roll
                         u[4] = -1.0
-
-            
-
-            
-                
 
         elif self.pilot == "altitude":
             q_inv = quat.qinverse(self.quat)
