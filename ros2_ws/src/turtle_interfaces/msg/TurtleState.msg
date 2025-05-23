@@ -8,6 +8,7 @@ float32[] q
 float32[] dq
 float32[] ddq
 float32[] u
+float32[] navu
 float32[] input
 float32[] qd
 float32[] dqd
