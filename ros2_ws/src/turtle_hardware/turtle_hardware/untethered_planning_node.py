@@ -275,7 +275,7 @@ class TurtlePlanner(Node):
                 #         u[0] = -1.0
 
             if self.stereo_depth  is not None:
-                if self.stereo_depth < 3.0 and not self.flag_turn:
+                if self.stereo_depth < 3.5 and not self.flag_turn:
                     self.flag_turn = True
                     u_euler = euler.quat2euler(self.quat)
                     if (self.x - x_bounds[0]) / (x_bounds[1] - x_bounds[0]) > 0.5:
@@ -299,7 +299,7 @@ class TurtlePlanner(Node):
                         # u[0] = 0.75
                     
                     self.u_last = u
-                if self.stereo_depth > 3.2 and self.flag_turn:
+                if self.stereo_depth > 3.5 and self.flag_turn:
                     self.flag_turn = False
                     self.yaw_d = heading
             # print(f"current quat norm: {np.linalg.norm(self.quat)}")
@@ -374,9 +374,9 @@ class TurtlePlanner(Node):
             u = [u_fwd, 0.0, - u_pitch, u_yaw, - u_pitch]
 
         # for emily debugging
-        print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
-                  self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", 
-                  self.yaw_d,"\n centroids: ", self.centroids,"\n depth: ", [self.stereo_depth, self.x, self.y], "\n")
+        # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
+        #           self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", 
+        #           self.yaw_d,"\n centroids: ", self.centroids,"\n depth: ", [self.stereo_depth, self.x, self.y], "\n")
        
         u = np.clip(u, -1.0, 1.0)
         self.config_pub.publish(Float32MultiArray(data=u))
