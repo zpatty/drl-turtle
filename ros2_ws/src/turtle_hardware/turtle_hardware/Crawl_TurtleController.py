@@ -35,6 +35,7 @@ from turtle_dynamixel.torque_control import torque_control
 # from mjc_turtle_robot.controllers.joint_space_controllers import navigation_joint_space_motion_primitive_control_factory
 from turtle_ctrl.turtle_ctrl_factory import cornelia_joint_space_trajectory_tracking_control_factory
 from turtle_ctrl.template_model_oracles import reverse_stroke_joint_oracle_factory
+from turtle_ctrl.crawl import crawl
 
 class TurtleController(Node):
 
@@ -306,50 +307,15 @@ class TurtleController(Node):
 
     def new_controller(self, t, q, u):
         self.t_new = self.sw * (t - self.time_last) * np.abs(u[0]) + self.t_new
+        
         # if self.u[0] < 0.05:
         #     self.t_new = (4.3 / self.sw) * 0.32
         # t_new = self.data.time
-        if u[0] > 0.0:
-            q_d_des, aux = self.joint_space_control_fn(
-                t=self.t_new,
-                q=np.squeeze(q[:6]),
-                # u=self.u
-            )
-            # q_arm_des = self.data.qpos[7: 7 + 6] + q_d_des * (self.data.time - self.time_last_ctrl)
-            q_arm_des = aux["q_des"]
-        # print(q_arm_des)
-        else:
-            q_ra, q_d_ra = self.q_ra_fn(self.t_new), self.q_d_ra_fn(self.t_new)
-            q_la, q_d_la = self.q_la_fn(self.t_new), self.q_d_la_fn(self.t_new)
-            q_arm_des = np.concatenate([q_ra, q_la], axis=-1)
-            
-            q_d_des = np.concatenate([q_d_ra, q_d_la], axis=-1)
+        q_arm_des = crawl(self.t_new)
 
-        q_arm_des[2] += u[2] * 60 * np.pi / 180.0
-        q_arm_des[5] += - u[2] * 60 * np.pi / 180.0
-        # q_arm_des[0] += u[2] * 25 * np.pi / 180.0
-        # q_arm_des[3] += - u[2] * 25 * np.pi / 180.0
 
-        # q_arm_des[1] += self.u[2] * np.pi/2
-        # q_arm_des[4] += - self.u[2] * np.pi/2
         
-        if u[3] < 0.0:
-            q_arm_des[3:] *= (u[3] + 1.0)
-        else:
-            q_arm_des[:3] *= - (u[3] - 1.0)
-
-        # ROLL
-        q_arm_des[2] -= - np.pi/4 * self.u[1]
-        q_arm_des[5] += np.pi/4 * self.u[1]
-
-        q_arm_des[1] += np.pi/4 * self.u[1]
-        q_arm_des[4] += np.pi/4 * self.u[1]
-
-        q_arm_des += np.diag([0.5, 0.25, 0, 0.5, 0.25, 0]) @  np.abs(q_arm_des) * np.sign(q_arm_des) * 0.25
-        
-        q_arm_des = np.hstack((q_arm_des, np.zeros((4,))))
-        q_d_des = np.hstack((q_d_des, np.zeros((4,))))
-        return q_arm_des, q_d_des, q_d_des*0
+        return q_arm_des, np.zeros(10,), np.zeros(10,)*0
         
     
 def main():

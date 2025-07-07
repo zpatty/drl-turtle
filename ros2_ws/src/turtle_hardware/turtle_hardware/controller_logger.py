@@ -83,6 +83,11 @@ class GamePad(Node):
         # Gamepad settings
         gamepadType = Gamepad.XboxNew
         self.buttonRest = 'A'
+        self.buttonTrack = 'Y'
+        self.buttonAlt = 'X'
+        self.buttonDR = 'B'
+        self.buttonDD = 'RB'
+        self.buttonDU = 'LB'
         self.buttonExit = 'HOME'
         self.toggleMode = 'START'
         self.joystickFwd = 'LEFT-Y'
@@ -102,9 +107,14 @@ class GamePad(Node):
 
         # Set some initial state
         self.speed = 0.0
-        self.yaw = 0.0
+        
         self.pitch = 0.0
         self.auto = 0
+        self.tracker = 0
+
+        self.depth_d = 0.0
+        self.altitude_d = 0.0
+        self.yaw = 0.0
 
         # Start the background updating
         self.gamepad.startBackgroundUpdates()
@@ -148,12 +158,52 @@ class GamePad(Node):
                 if self.gamepad.beenPressed(self.toggleMode):
                     if self.auto:
                         self.auto = 0
+                        self.tracker = 0
                         print("RC mode\n")
-                        
+                  
                     else:
                         self.auto = 1
+                        self.tracker = 0
                         print("Automous mode\n")
-                        
+                
+                if self.tracker != 1:
+                    if self.gamepad.beenPressed(self.buttonAlt) and self.auto == 1:
+                        self.auto = 2
+                        print("Altitude Tracking\n")
+                    elif self.auto == 1:
+                        self.auto = 1
+                        print("Depth Tracking\n")
+                    
+                    if self.gamepad.beenPressed(self.buttonTrack):
+                        self.auto = 4
+                        self.tracker = 1
+                        print("Tracker\n")
+
+                    if self.gamepad.beenPressed(self.buttonDR):
+                        self.auto = 3
+                        print("depth plus remote\n")
+                else:
+                    if self.gamepad.beenPressed(self.buttonAlt):
+                        self.auto = 2
+                    if self.gamepad.beenPressed(self.buttonDR):
+                        self.auto = 3
+                    if self.gamepad.beenPressed(self.buttonTrack):
+                        self.auto = 0
+                        self.tracker = 0
+
+                
+                if self.gamepad.beenPressed(self.buttonDD):
+                    cfg_msg = TurtleCtrl()
+                    self.depth_d += 0.2
+                    cfg_msg.pitch = self.depth_d
+                    self.config_pub.publish(cfg_msg)
+                
+                if self.gamepad.beenPressed(self.buttonDU):
+                    cfg_msg = TurtleCtrl()
+                    self.depth_d -= 0.2
+                    cfg_msg.pitch = self.depth_d
+                    self.config_pub.publish(cfg_msg)
+                    
 
                 # Check if the beep button is held
                 if self.gamepad.isPressed(self.buttonExit):
@@ -161,6 +211,7 @@ class GamePad(Node):
                     self.mode = mode_msg.mode
                     self.mode_pub.publish(mode_msg)
                     raise KeyboardInterrupt
+                    
 
                 # Update the joystick positions
                 # Speed control (inverted)
@@ -193,13 +244,20 @@ class GamePad(Node):
         self.u_data.append(msg.u)
         self.input_data.append(msg.input)
         self.timestamps.append(msg.t)
+        self.quat_data.append(msg.imu.quat.tolist())
+        self.depth_sensor_data.append(msg.depth)
+        self.alt_data.append(msg.altitude)
+        self.depth_d_data.append(self.depth_d)
+        self.alt_data.append(self.altitude)
+        self.alt_d_data.append(self.altitude_d)
+        self.yaw_data.append(self.yaw)
 
         # control variables
         self.amplitude_data.append(self.amplitude)
         self.center_data.append(self.center)
         self.yaw_data.append(self.yaw)
         self.pitch_data.append(self.pitch)
-        self.fwd_data.append(self.fwd)
+        
         self.roll_data.append(self.roll)
         self.freq_offset_data.append(self.frequency_offset)
         self.period_data.append(self.period)
@@ -213,7 +271,9 @@ class GamePad(Node):
         self.kp_s_data.append(self.kp_s)
 
     def save_data(self):
-        np.savez(self.folder_name + "_np_data", q=self.q_data, dq=self.dq_data, t=self.timestamps, input=self.input_data, u=self.u_data, qd=self.qd_data, dqd=self.dqd_data)  
+        np.savez(self.folder_name + "_np_data", q=self.q_data, dq=self.dq_data, t=self.timestamps, input=self.input_data, 
+                 u=self.u_data, qd=self.qd_data, dqd=self.dqd_data, depth=self.depth_sensor_data, depth_d=self.depth_d_data, 
+                 quat = self.quat_data, alt=self.alt_data, alt_d=self.alt_d_data, yaw_d=self.yaw_data)  
             
 
     def update_config(self):
@@ -227,12 +287,12 @@ class GamePad(Node):
         cfg_msg = TurtleCtrl()
         mode_msg = TurtleMode()
         print(params)
-        if params["mode"] == " " or params["mode"] == "":
-            mode_msg.mode = "rest"
-        else:
-            mode_msg.mode = params["mode"]
+        # if params["mode"] == " " or params["mode"] == "":
+        #     mode_msg.mode = "rest"
+        # else:
+        #     mode_msg.mode = params["mode"]
 
-        mode_msg.traj = params["traj"]
+        # mode_msg.traj = params["traj"]
 
         cfg_msg.kp = params["kp"]
         # print("HJere")
@@ -242,8 +302,8 @@ class GamePad(Node):
         cfg_msg.amplitude = params["amplitude"]
         cfg_msg.center = params["center"]
         cfg_msg.yaw = params["yaw"]
-        cfg_msg.pitch = params["pitch"]
-        cfg_msg.fwd = params["fwd"]
+        cfg_msg.pitch = params["depth"]
+        cfg_msg.fwd = params["altitude"]
         cfg_msg.roll = params["roll"]
         cfg_msg.frequency_offset = params["frequency_offset"]
         cfg_msg.period = params["period"]
@@ -259,12 +319,12 @@ class GamePad(Node):
         cfg_msg.offset = params["offset"]
         cfg_msg.sw = params["sw"]
         # print(cfg_msg)
-        if mode_msg.traj != self.traj or mode_msg.mode != self.mode:
-            self.mode_pub.publish(mode_msg)
-            print("sent mode message")
+        # if mode_msg.traj != self.traj or mode_msg.mode != self.mode:
+        #     self.mode_pub.publish(mode_msg)
+        #     print("sent mode message")
         self.config_pub.publish(cfg_msg)
-        self.traj = mode_msg.traj
-        self.mode = mode_msg.mode
+        # self.traj = mode_msg.traj
+        # self.mode = mode_msg.mode
         
         self.get_logger().info('Updated Config')
 
@@ -283,8 +343,8 @@ class GamePad(Node):
         self.amplitude = params["amplitude"]
         self.center = params["center"]
         self.yaw = params["yaw"]
-        self.pitch = params["pitch"]
-        self.fwd = params["fwd"]
+        self.depth_d = params["depth"]
+        self.altitude = params["altitude"]
         self.roll = params["roll"]
         self.frequency_offset = params["frequency_offset"]
         self.period = params["period"]
@@ -304,7 +364,7 @@ class GamePad(Node):
     def save_config(self):  
         # print(self.kpv_data)
         np.savez(self.folder_name + "_np_config", amplitude=self.amplitude_data, 
-                 center=self.center_data, yaw=self.yaw_data, pitch=self.pitch_data, fwd=self.fwd_data, roll=self.roll_data, 
+                 center=self.center_data, yaw=self.yaw_data, depth=self.depth_d_data, altitude=self.alt_data, roll=self.roll_data, 
                  frequency_offset=self.freq_offset_data, period=self.period_data, offset=self.q_off_data,
                  sw=self.sw_data, kpv=self.kpv_data, learn=self.learn_data, d_pinv=self.d_pinv_data,
                  kp_th=self.kp_th_data, w_th=self.w_th_data, kps = self.kp_s_data
@@ -318,11 +378,16 @@ class GamePad(Node):
         self.timestamps = []
         self.qd_data = []
         self.dqd_data = []
+        self.depth_sensor_data = []
+        self.quat_data = []
+        self.alt_data = []
+        self.alt_d_data = []
+        self.yaw_data = []
+
+
         self.amplitude_data = []
         self.center_data = []
-        self.yaw_data = []
         self.pitch_data = []
-        self.fwd_data = []
         self.roll_data = []
         self.freq_offset_data = []
         self.period_data = []
@@ -334,6 +399,8 @@ class GamePad(Node):
         self.kp_th_data = []
         self.w_th_data = []
         self.kp_s_data = []
+
+        self.depth_d_data = []
 
 if __name__ == '__main__':
     rclpy.init()

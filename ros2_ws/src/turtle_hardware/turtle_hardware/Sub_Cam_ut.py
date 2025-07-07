@@ -96,10 +96,10 @@ class CamSubscriber(Node):
         fps = 1.0 / seconds
         # print("Estimated frames per second : {0}".format(fps))
         self.start_time = end_time
-        cv2.imshow("left", left)
+        # cv2.imshow("left", left)
 
-        cv2.imshow("right", right)
-        cv2.waitKey(1)
+        # cv2.imshow("right", right)
+        # cv2.waitKey(1)
 
 
         #### DEPTH ####
@@ -108,19 +108,17 @@ class CamSubscriber(Node):
             x = 0.0
             y = 0.0
         self.stereo_pub.publish(Float32MultiArray(data=[stereo_depth, x, y]))
-        # else:
-        #     self.stereo_pub.publish(Float32MultiArray(data=[1000000000000.0, 0.0, 0.0]))
         cv2.imwrite(self.output_folder + "/depth/frame%d.jpg" % self.count, norm_disparity)
         # self.depth_count += 1
-        if self.first:
-            plt.ion()
-            self.fig, ax = plt.subplots()
-            self.im = ax.imshow(norm_disparity)   
-            plt.show()
-            self.first = 0
-        else:
-            self.im.set_data(norm_disparity)
-            self.fig.canvas.flush_events()
+        # if self.first:
+        #     plt.ion()
+        #     self.fig, ax = plt.subplots()
+        #     self.im = ax.imshow(norm_disparity)   
+        #     plt.show()
+        #     self.first = 0
+        # else:
+        #     self.im.set_data(norm_disparity)
+        #     self.fig.canvas.flush_events()
         
 
 
@@ -143,8 +141,8 @@ class CamSubscriber(Node):
         fps = 1.0 / seconds
         print("Estimated frames per second : {0}".format(fps))
         self.start_time = end_time
-        cv2.imshow("detection", current_frame)   
-        cv2.waitKey(1)
+        # cv2.imshow("detection", current_frame)   
+        # cv2.waitKey(1)
 
     def img_callback_depth(self, data):
         # self.get_logger().info('Receiving other video frame')
@@ -154,16 +152,15 @@ class CamSubscriber(Node):
         # self.count += 1
         cv2.imwrite(self.output_folder + "/depth/frame%d.jpg" % self.count, current_frame)
         # self.depth_count += 1
-        if self.first:
-            plt.ion()
-            self.fig, ax = plt.subplots()
-            self.fig2, ax2 = plt.subplots()
-            self.im = ax.imshow(current_frame)   
-            plt.show()
-            self.first = 0
-        else:
-            self.im.set_data(current_frame)
-            self.fig.canvas.flush_events()
+        # if self.first:
+        #     plt.ion()
+        #     self.fig, ax = plt.subplots()
+        #     self.im = ax.imshow(current_frame)   
+        #     plt.show()
+        #     self.first = 0
+        # else:
+        #     self.im.set_data(current_frame)
+        #     self.fig.canvas.flush_events()
     
     def turtle_mode_callback(self, msg):
         if msg.mode == "kill":
@@ -187,6 +184,6 @@ def main(args=None):
         fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
         print(exec_type, fname, tb.tb_lineno)
         print(e)
-    cv2.destroyAllWindows() 
+    # cv2.destroyAllWindows() 
 if __name__ == '__main__':
   main()

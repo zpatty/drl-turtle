@@ -90,15 +90,15 @@ class CamNode(Node):
         self.count = 0
         t = datetime.today().strftime("%m_%d_%Y_%H_%M_%S")
         folder_name =  "video/" + t
-        os.makedirs(folder_name + "/right")
-        os.makedirs(folder_name + "/left")
+        # os.makedirs(folder_name + "/right")
+        # os.makedirs(folder_name + "/left")
         self.output_folder = folder_name
         timer_cb_group = None
         self.call_timer = self.create_timer(0.1, self._cam_cb, callback_group=timer_cb_group)
     def _cam_cb(self):
         msg = TurtleCam()
-        msg.data[0] = self.br.cv2_to_compressed_imgmsg(self.stream.left)
-        msg.data[1] = self.br.cv2_to_compressed_imgmsg(self.stream.right)
+        msg.data[0] = self.br.cv2_to_compressed_imgmsg(self.stream.right)
+        msg.data[1] = self.br.cv2_to_compressed_imgmsg(self.stream.left)
         self.cam_publisher.publish(msg)
         # cv2.imwrite(self.output_folder + "/left/frame%d.jpg" % self.count, self.stream.left)
         # cv2.imwrite(self.output_folder + "/right/frame%d.jpg" % self.count, self.stream.right)
