@@ -242,7 +242,7 @@ void printIMUData(ICM_20948_I2C *sensor, Adafruit_INA219 * volt_sensor){
   last_time = now_time;
   ms_depth.read();
   depth_val = ms_depth.depth();
-  if (now_time - base_time > 200) {
+  if (now_time - base_time > 350) {
     if (ping.update()) {
       alt_val = ping.distance();
       conf_alt = ping.confidence();

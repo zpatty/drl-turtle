@@ -18,11 +18,8 @@ import transforms3d.euler as euler
 from std_msgs.msg import String, Float32MultiArray
 from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl, TurtleMode, TurtleState
 
-from crush_mujoco_sim.analysis import compute_cost_of_transport, generate_control_plots
-from turtle_robot_motion_control.controllers.joint_space_controllers import (
-    cornelia_joint_space_trajectory_tracking_control_factory, navigation_joint_space_motion_primitive_control_factory
-)
-from turtle_loc_oracles.joint_space import reverse_stroke_joint_oracle_factory
+from turtle_ctrl.turtle_ctrl_factory import cornelia_joint_space_trajectory_tracking_control_factory
+from turtle_ctrl.template_model_oracles import reverse_stroke_joint_oracle_factory
 
 
 
@@ -102,7 +99,7 @@ class Simulator(Node):
         self.q_des = np.zeros((self.data.qpos.shape[0] - 7,))
         self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
         self.viewer.sync()
-        # self.data.qpos[3:7] = quat.axangle2quat([0.0, 0.0, 1.0], np.pi/3)
+        # self.data.qpos[3:7] = quat.axangle2quat([1.0, 0.0, 0.0], np.pi/3)
  
         self.altitude = 20.0
         self.altitude_d = 15.0
@@ -151,7 +148,8 @@ class Simulator(Node):
 
     def ctrl_callback(self, msg):
         self.u = msg.data[:4]
-        self.pitch_d = msg.data[4]
+        self.u[2] =-  self.u[2]
+        self.pitch_d = - msg.data[4]
 
     def _timer_cb(self):
         if self.viewer.is_running():
@@ -171,13 +169,13 @@ class Simulator(Node):
                 #     self.dwell_time = 0.0
                 self.t_new = self.sw * (self.data.time - self.time_last_ctrl) * np.abs(self.u[0]) + self.t_new
                 
-
+                # self.u[2] = - self.u[2]
                 # print(self.dwell_time)
                 
                 # if self.u[0] < 0.05:
                 #     self.t_new = (4.3 / self.sw) * 0.32
                 # t_new = self.data.time
-                self.u = np.array([1.0, 0.0, 0.0, 0.0, 1.0])
+                # self.u = np.array([1.0, 0.0, 0.0, 0.0, 1.0])
                 if self.u[0] > 0.0:
                     q_d_des, aux = self.joint_space_control_fn(
                         t=self.t_new,
@@ -204,8 +202,22 @@ class Simulator(Node):
                 # YAW
                 if self.u[3] < 0.0:
                     q_arm_des[3:] *= (self.u[3] + 1.0)
+                    # if self.u[3] == -1.0:
+                    #     q_ra, q_d_ra = self.q_ra_fn(self.t_new), self.q_d_ra_fn(self.t_new)
+                    #     q_la, q_d_la = self.q_la_fn(self.t_new), self.q_d_la_fn(self.t_new)
+                    #     q_back = np.concatenate([q_ra, q_la], axis=-1)
+                    #     dq_back = np.concatenate([q_d_ra, q_d_la], axis=-1)
+                    #     q_arm_des[3:] = q_back[3:]
+                    #     q_d_des[3:] = dq_back[3:]
                 else:
                     q_arm_des[:3] *= - (self.u[3] - 1.0)
+                    # if self.u[3] == 1.0:
+                    #     q_ra, q_d_ra = self.q_ra_fn(self.t_new), self.q_d_ra_fn(self.t_new)
+                    #     q_la, q_d_la = self.q_la_fn(self.t_new), self.q_d_la_fn(self.t_new)
+                    #     q_back = np.concatenate([q_ra, q_la], axis=-1)
+                    #     dq_back = np.concatenate([q_d_ra, q_d_la], axis=-1)
+                    #     q_arm_des[:3] = q_back[:3]
+                    #     q_d_des[:3] = dq_back[:3]
 
                 # x = 2 / (1 + np.exp(-(self.u[1])**2)) - 1
                 # x = self.u[1]
@@ -261,7 +273,7 @@ class Simulator(Node):
                 q_rear2 = q[9]
                 pitch_err = self.pitch_d
                 # print(pitch_err)
-                u_rear = 300 * (pitch_err)
+                u_rear = 100 * (pitch_err)
                 tn = self.sw * self.t_new  # speed-up the trajectory by a factor of sw
                 tn = tn % 4.3
         
@@ -271,8 +283,16 @@ class Simulator(Node):
                 k_r = 1.0
                 qd_rear = (10 * np.pi / 180 * np.cos(2.0 * np.pi  * self.data.time) + np.clip(u_rear, -60.0, 60.0) * np.pi / 180)
                 # print(qd_rear)
-                self.data.ctrl[7] =  - k_r * (q_rear1 - qd_rear) - 0.01 * dq[7]
-                self.data.ctrl[9] = - k_r * (q_rear2 + (qd_rear)) - 0.01 * dq[9]
+                qd1_rear = qd_rear
+                # if self.u[3] == 1.0:
+                #     qd1_rear = 60 * np.pi / 180
+                    
+                self.data.ctrl[7] =  - k_r * (q_rear1 - qd1_rear) - 0.01 * dq[7]
+                qd2_rear = qd_rear
+                # if self.u[3] == -1.0:
+                #     qd2_rear = 60 * np.pi / 180
+                    
+                self.data.ctrl[9] = - k_r * (q_rear2 + (qd2_rear)) - 0.01 * dq[9]
                 self.data.ctrl[8] = -1.0*(q[8])  - 0.05 * dq[8]
                 self.data.ctrl[6] = -1.0*q[6] - 0.05 * dq[6]
                 # # update the last control time
@@ -301,8 +321,9 @@ class Simulator(Node):
             # print(f"[DEBUG] error: ", err, "w: ", w,"\n")
             turtle_msg.imu.quat = self.quat
             turtle_msg.altitude = self.altitude
-            turtle_msg.depth = self.data.qpos[2]
+            turtle_msg.depth = - self.data.qpos[2]
             self.gyr = self.data.qvel[3:6]
+            
             # print(np.round(quat, 2))
             # pitch = data.qpos[5]
             turtle_msg.imu.gyr = self.gyr
@@ -378,6 +399,11 @@ class Simulator(Node):
         self.altitude = depth
         if np.random.uniform(0.0, 1.0) > 1.0:
             self.altitude = self.altitude + np.random.normal(0.0, 10.0) * np.random.normal(0.0, 1.0) 
+        if self.data.time > 2.0 and self.data.time < 10.0:
+            self.altitude = self.altitude - self.data.time*0.5
+        vec, theta = quat.quat2axangle(self.quat)
+        # print(theta*180/np.pi)
+        self.altitude = self.altitude / np.cos(theta)
             
 
 def skew(v):
