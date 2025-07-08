@@ -18,8 +18,6 @@ from statistics import mode as md
 
 import time
 
-import traceback
-
 from datetime import datetime
 # submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/install/turtle_hardware/lib/python3.12/site-packages/turtle_hardware/"
 # sys.path.append(submodule)
@@ -37,7 +35,7 @@ from turtle_dynamixel.torque_control import torque_control
 # from mjc_turtle_robot.controllers.joint_space_controllers import navigation_joint_space_motion_primitive_control_factory
 from turtle_ctrl.turtle_ctrl_factory import cornelia_joint_space_trajectory_tracking_control_factory
 from turtle_ctrl.template_model_oracles import reverse_stroke_joint_oracle_factory
-from turtle_ctrl.crawl import crawl_factory
+from turtle_ctrl.crawl import crawl
 
 class TurtleController(Node):
 
@@ -128,9 +126,9 @@ class TurtleController(Node):
         self.min_threshold, _ = self.convert_motors_to_q(np.array([1.60, 3.0, 2.4, 2.43, 1.2, 1.7, 1.45, 1.2, 3.0, 2.3]), np.zeros((10,)))
         self.max_threshold, _ = self.convert_motors_to_q(np.array([3.45, 5.0, 4.2, 4.5, 4.15, 3.8, 3.2, 4.0, 4.0, 4.7]), np.zeros((10,)))
         # for PD control
-        self.Kp = np.diag([3, 2, 0.4, 3, 2, 0.4, 0.4, 0.4, 0.4, 0.4])*2*0.9
+        self.Kp = np.diag([0.8, 0.6, 0.4, 0.8, 0.6, 0.4, 0.4, 0.4, 0.4, 0.4])*2
         # self.Kp = 0.1 * np.eye(10)
-        self.KD = np.diag([0.25, 4, 0.4, 0.25, 4, 0.4, 0.4, 0.4, 0.4, 0.4])/20
+        self.KD = 0.2 * np.eye(10)
 
         # these should be messages instead of parameters
         self.A = np.pi / 180 * np.array([40, 40, 40]).reshape(-1,1)
@@ -155,7 +153,7 @@ class TurtleController(Node):
         self.ddqd = np.zeros((self.nq, 1))
 
         self.q_off = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        self.sw = 1.5
+        self.sw = 1.8
         self.kpv=[1] * 6
         self.use_learned_motion_primitive = False
         self.d_pinv = 2e-3
@@ -167,52 +165,6 @@ class TurtleController(Node):
         self.joint_space_control_fn = cornelia_joint_space_trajectory_tracking_control_factory(kp=[2.0]*6, sw=self.sw)
         self.q_ra_fn, self.q_d_ra_fn, q_dd_ra_fn = reverse_stroke_joint_oracle_factory(s=1, sw=self.sw)
         self.q_la_fn, self.q_d_la_fn, q_dd_la_fn = reverse_stroke_joint_oracle_factory(s=-1, sw=self.sw)
-        # breaks = [0, 0.1, 0.25, 0.5, 0.6, 1]
-        breaks = [0, 0.01, 0.45, 0.55, 0.99, 1]
-        # coefs_roll = [
-        #     [0, 0, 0, 30],
-        #     [35555.5555555556, -8000.00000000000, 0, 30],
-        #     [0, 0, 0, -30],
-        #     [-120000.000000000, 18000.0000000000, 0, -30],
-        #     [0, 0, 0, 30]
-        # ]
-        # coefs_roll = [
-        #     [0, 0, 0, 30],
-        #     [6150.3, -2675, 0, 30],
-        #     [0, 0, 0, -45],
-        #     [-6150.3, 2675, 0, -45],
-        #     [0, 0, 0, 30]
-        # ]
-        coefs_roll = [
-            [0, 0, 0, 30],
-            [1878, -1230, 0, 30],
-            [0, 0, 0, -50],
-            [-1878, 1230, 0, -50],
-            [0, 0, 0, 30]
-        ]
-        # coefs_yaw = [
-        #     [0, 0, 0, 45],
-        #     [0, 0, 0, 45],
-        #     [11520, -4320, 0, 45],
-        #     [-180000.000000000, 27000.0000000000, 0, -45],
-        #     [0, 0, 0, 45]
-        # ]
-        # coefs_yaw = [
-        #     [0, 0, 0, 45],
-        #     [0, 0, 0, 45],
-        #     [2812.50000000000, -1687.50000000000, 0, 45],
-        #     [-7380.37639919636, 3210.46373365042, 0, -45],
-        #     [0, 0, 0, 45]
-        # ]
-        coefs_yaw = [
-            [0, 0, 0, 55],
-            [0, 0, 0, 55],
-            [220000, -33000, 0, 55],
-            [-2583, 1704, 0, -55],
-            [0, 0, 0, 55]
-        ]
-
-        self.crawl = crawl_factory(breaks, coefs_roll, breaks, coefs_yaw)
         self.nav_u = [0.0, 0.0, 0.0, 0.0]
         self.rear_pitch = 0.0
         self.time_last = self.t0
@@ -321,10 +273,10 @@ class TurtleController(Node):
             case 'p':
                 
                 u = (self.Kp.dot((qd - self.q)) + self.KD.dot((dqd - self.dq))) * 150
-                u_rear = - 100 * self.rear_pitch/100
+                u_rear = - 100 * self.rear_pitch
                 # print(u_rear)
                 # apply the control signal
-                k_r = 0.0
+                k_r = 3.0
                 u[7] =  - k_r * (self.q[7] - 5 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) - np.clip(u_rear, -70.0, 70.0) * np.pi / 180) * 150
                 u[9] = - k_r * (self.q[9] + 5 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) + np.clip(u_rear, -70.0, 70.0) * np.pi / 180) * 150
                 # u = torque_control(self.q,self.dq,qd,dqd,ddqd,self.Kp,self.KD)
@@ -359,7 +311,7 @@ class TurtleController(Node):
         # if self.u[0] < 0.05:
         #     self.t_new = (4.3 / self.sw) * 0.32
         # t_new = self.data.time
-        q_arm_des = self.crawl(self.t_new)
+        q_arm_des = crawl(self.t_new)
 
 
         
@@ -377,7 +329,6 @@ def main():
         # rclpy.shutdown()
         print("some error occurred")
         # turtle_node.shutdown_motors()
-        traceback.print_exc()
         exec_type, obj, tb = sys.exc_info()
         fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
         print(exec_type, fname, tb.tb_lineno)
