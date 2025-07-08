@@ -99,7 +99,7 @@ class CamNode(Node):
         # make timer slower for easier debugging
         self.call_timer = self.create_timer(0.2, self._cam_cb, callback_group=timer_cb_group)
         # where to pull the images
-        self.image_dir = 'video/05_16_2025_10_33_14_trial_1/'
+        self.image_dir = 'video/02_10_2025_11_46_08_Barricuda/'
         self.left_folder = self.image_dir + "left"
         self.right_folder = self.image_dir + "right"
         self.extension = 'jpg'
