@@ -73,12 +73,13 @@ class CamSubscriber(Node):
         self.stereo = StereoProcessor()
         self.first = 1
         self.start_time = time.time()
+        script_dir = os.path.dirname(os.path.abspath(__file__))
         t = datetime.today().strftime("%m_%d_%Y_%H_%M_%S")
-        folder_name =  "video/" + t
-        os.makedirs(folder_name + "/left")
-        os.makedirs(folder_name + "/right")
-        os.makedirs(folder_name + "/detection")
-        os.makedirs(folder_name + "/depth")
+        folder_name =  os.path.join(script_dir, "video" , t)
+        os.makedirs(os.path.join(folder_name, "left"))
+        os.makedirs(os.path.join(folder_name, "right"))
+        os.makedirs(os.path.join(folder_name, "detection"))
+        os.makedirs(os.path.join(folder_name, "depth"))
         self.output_folder = folder_name
         
 
