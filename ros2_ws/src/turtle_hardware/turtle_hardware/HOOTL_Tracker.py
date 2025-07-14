@@ -12,23 +12,23 @@ import glob
 #QLoggingCategory.setFilterRules("*.debug=false\n*.warning=false")
 
 import cv2
-import torch
+# import torch
 
 cv2.namedWindow('Choose_object1')#solving a bug
 cv2.destroyAllWindows()
 import os
-from torchvision.transforms.functional import to_tensor
+# from torchvision.transforms.functional import to_tensor
 from PIL import Image
 import numpy as np
 
 #Tracker imports
-from cutie.inference.inference_core import InferenceCore
-from cutie.utils.get_default_model import get_default_model
+# from cutie.inference.inference_core import InferenceCore
+# from cutie.utils.get_default_model import get_default_model
 
 #Segmentor imports
 # sys.path.append("segment-anything")
 sys.path.append(os.path.expanduser("~") + "/work/segment-anything")
-from segment_anything import sam_model_registry, SamPredictor
+# from segment_anything import sam_model_registry, SamPredictor
 
 
 #from tapnet.torch import tapir_model
@@ -36,7 +36,7 @@ from segment_anything import sam_model_registry, SamPredictor
 #from tapnet.utils import viz_utils
 
 #from DRONE.drone_controller import *
-from VIDEO.video import *
+# from VIDEO.video import *
 
 from collections import OrderedDict
 import copy
@@ -89,8 +89,9 @@ class TrackAny:
         self.labels = []
         self.state = 0
         self.p1, self.p2 = None, None
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        torch.backends.cudnn.benchmark = True
+        # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = None
+        # torch.backends.cudnn.benchmark = True
         self.args = args
         self.cfg = vars(args)
         self.cfg['device'] = self.device
@@ -247,8 +248,8 @@ class TrackAny:
             return True
         return False
 
-    @torch.inference_mode()
-    @torch.cuda.amp.autocast()
+    #@torch.inference_mode()
+    #@torch.cuda.amp.autocast()
     def track_object_with_cutie(self, mask, frame, track_single_object = True):
         print(f"----[FRAME {self.frame_idx}]----\n")
         if self.frame_idx == 0:
@@ -321,19 +322,22 @@ class TrackAny:
 
     def setup_cutie_tracker(self):
         print("get dddd")
-        cutie = get_default_model()
+        # cutie = get_default_model()
+        cutie = None
         # Typically, use one InferenceCore per video
-        cutie_processor = InferenceCore(cutie, cfg=cutie.cfg)
+        # cutie_processor = InferenceCore(cutie, cfg=cutie.cfg)
+        cutie_processor = None
         # the processor matches the shorter edge of the input to this size
         # you might want to experiment with different sizes, -1 keeps the original size
-        cutie_processor.max_internal_size = min(self.cfg['height'], self.cfg['width'])
+        # cutie_processor.max_internal_size = min(self.cfg['height'], self.cfg['width'])
         return cutie_processor
     
     def setup_sam_segmentor(self):
         # Setup 0-shot segmentor
-        sam = sam_model_registry[self.cfg['sam_model_type']](checkpoint=self.cfg['sam_model_path'])
-        sam.to(device=self.cfg['device'])
-        sam_segmentor = SamPredictor(sam)
+        # sam = sam_model_registry[self.cfg['sam_model_type']](checkpoint=self.cfg['sam_model_path'])
+        # sam.to(device=self.cfg['device'])
+        # sam_segmentor = SamPredictor(sam)
+        sam_segmentor = None
         return sam_segmentor
     
     def setup_video(self):
