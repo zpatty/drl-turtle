@@ -78,7 +78,9 @@ class StereoProcessor():
 
             self.stereo.setDisp12MaxDiff(cv_params["Disp12MaxDiff"])
     def parse_cv_params(self):
-        with open('cv_config.json') as config:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.join(script_dir, 'cv_config.json')
+        with open(config_path) as config:
             param = json.load(config)
             self._last_update = os.fstat(config.fileno()).st_mtime
         print(f"[MESSAGE] Config: {param}\n")    
