@@ -9,3 +9,6 @@ python/build/
 python/dist/
 python/src/dynamixel_sdk.egg-info/
 ros2_ws/src/turtle_rl
+ros2_ws/src/turtle_hardware/turtle_hardware/data
+ros2_ws/src/turtle_hardware/turtle_hardware/video
+ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory
