@@ -158,11 +158,12 @@ class TrackerNode(Node):
     
     def track_anything(self, frame):
         masks = "bloop"
+        print(f"[STATUS] {self.status}\n")
         if self.status != "Tracking":
-            
             bounding_boxes, masks, frame = self.tracker.detect_object(frame)
             self.tracker.clicks_for_retrack = []
             self.tracker.state_for_retrack = 0
+            print(f"resetting clicks for retrack: {self.tracker.clicks_for_retrack} in mode {self.status}\n")
         if masks is not None:
             self.tracker.mission_counter +=1
             self.status, mean_point, masks, clicks_for_retrack = self.tracker.track_object_with_cutie(masks, frame)
@@ -172,9 +173,7 @@ class TrackerNode(Node):
             self.status = None
             self.config_pub.publish(Float32MultiArray(data=[]))
         
-        
-
-        if self.status == 'FAILED': 
+        if self.status == 'Failed': 
             print("Object Lost... Redtecting....")
             clicks_for_retrack = None
             self.tracker.frame_idx = 0
