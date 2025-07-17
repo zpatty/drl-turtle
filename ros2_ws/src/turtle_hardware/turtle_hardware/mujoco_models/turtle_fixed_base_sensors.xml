@@ -1,0 +1,14 @@
+<mujoco model="turtle_fixed_base_sensors">
+    <sensor>
+        <force name="base_force" site="base_cog" />
+        <torque name="base_torque" site="base_cog" />
+        <framepos name="shoulder_right_1_pos" objtype="site" objname="shoulder_right_1" />
+        <framequat name="shoulder_right_1_quat" objtype="site" objname="shoulder_right_1" />
+        <framepos name="shoulder_left_1_pos" objtype="site" objname="shoulder_left_1" />
+        <framequat name="shoulder_left_1_quat" objtype="site" objname="shoulder_left_1" />
+        <framepos name="hip_right_1_pos" objtype="site" objname="hip_right_1" />
+        <framequat name="hip_right_1_quat" objtype="site" objname="hip_right_1" />
+        <framepos name="hip_left_1_pos" objtype="site" objname="hip_left_1" />
+        <framequat name="hip_left_1_quat" objtype="site" objname="hip_left_1" />
+    </sensor>
+</mujoco>

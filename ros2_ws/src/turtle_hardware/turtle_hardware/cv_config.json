@@ -1,0 +1,24 @@
+{
+    "phi": 0.0,
+    "minThreshold":10,
+    "maxThreshold":200,
+    "minArea": 50,
+    "maxArea": 100000,
+    "minCircularity": 0.1,
+    "minConvexity": 0.1,
+    "minInertiaRatio": 0.1,
+    "lower_yellow": [10,35,50],
+    "upper_yellow": [30,70,100],
+    "turn_thresh": 150,
+    "dive_thresh": 100,
+    "num_cycles": 1,
+    "numDisparities": 128,
+    "blockSize": 61,
+    "MinDisparity": 0,
+    "TextureThreshold": 0,
+    "SpeckleRange": 2,
+    "SpeckleWindowSize": 5,
+    "UniquenessRatio": 2,
+    "Disp12MaxDiff": 2
+
+}

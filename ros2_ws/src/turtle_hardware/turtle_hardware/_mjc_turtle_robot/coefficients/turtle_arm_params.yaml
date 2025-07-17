@@ -1,0 +1,24 @@
+kinematic_params:
+  # all kinematic parameters are for the right flipper arm
+  d01x: 0.1190  # x-coordinate from the base to the first joint [m]  TODO: check this value
+  d01y: 0.0  # y-coordinate from the base to the first joint [m]
+  d01z: -0.0103195  # z-coordinate from the base to the first joint [m]
+  d12x: 0.058  # x-coordinate from the first joint to the second joint [m]
+  d12y: -0.033  # y-coordinate from the first joint to the second joint [m] TODO: check this value
+  d12z: 0.0  # z-coordinate from the first joint to the second joint [m]
+  d23x: 0.0  # x-coordinate from the second joint to the third joint [m]
+  d23y: -0.031  # y-coordinate from the second joint to the third joint [m]  TODO: check this value
+  d23z: -0.0565  # z-coordinate from the second joint to the third joint [m]
+  d34x: 0.123  # x-coordinate from the third joint to the end-effector [m]  TODO: check this value
+  d34y: -0.243  # y-coordinate from the third joint to the end-effector [m]
+  d34z: 0.0  # z-coordinate from the third joint to the end-effector [m]
+  # ls: 0.135  # length of the shoulder joint (distance from body center to first joint) [m]
+  # wm: 0.0335  # width of the motor [m]
+  # hm: 0.0585  # height of the motor [m]
+  # dm: 0.0459  # depth of the motor [m]
+  # w_h105k: 0.0345  # width of the FR13-H105K hinge [m]
+  # w_s106k: 0.008 # width of the FR13-S106K hinge [m]
+
+gr: 0.0
+
+

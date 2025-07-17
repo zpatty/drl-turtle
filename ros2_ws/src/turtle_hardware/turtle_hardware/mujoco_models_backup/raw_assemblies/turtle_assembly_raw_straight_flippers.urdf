@@ -1,0 +1,967 @@
+<robot name="onshape">
+    <link name="base_link"></link>
+    <joint name="base_link_to_base" type="fixed">
+        <parent link="base_link"/>
+        <child link="enclosure_assembly"/>
+        <origin rpy="0.0 0 0" xyz="0 0 0"/>
+    </joint>
+    <link name="enclosure_assembly">
+        <visual>
+            <origin xyz="0.069894823202513028937 0.29480474261514377776 -0.010319492083285954076"
+                    rpy="1.5707963267948961139 -1.5707963267948958919 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-h105k.stl"/>
+            </geometry>
+            <material name="fr13-h105k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.069894823202513028937 0.29480474261514377776 -0.010319492083285954076"
+                    rpy="1.5707963267948961139 -1.5707963267948958919 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-h105k.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="0.067894823202512999405 -0.013443357384856361586 -0.010319492083285943668"
+                    rpy="1.570796326794896558 1.5707963267948958919 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-s105k.stl"/>
+            </geometry>
+            <material name="fr13-s105k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.067894823202512999405 -0.013443357384856361586 -0.010319492083285943668"
+                    rpy="1.570796326794896558 1.5707963267948958919 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-s105k.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="1.2457089914179381487e-17 0.01724124261514363432 0.010314957384859463341"
+                    rpy="1.57079632679489678 1.4179035300190464606e-17 1.3877787807773342003e-17"/>
+            <geometry>
+                <mesh filename="package:///wte3-m-locking-flange-seal-r1-rp.stl"/>
+            </geometry>
+            <material name="wte3-m-locking-flange-seal-r1-rp_material">
+                <color rgba="0.76862745098039220171 0.88627450980392152857 0.95294117647058818044 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="1.2457089914179381487e-17 0.01724124261514363432 0.010314957384859463341"
+                    rpy="1.57079632679489678 1.4179035300190464606e-17 1.3877787807773342003e-17"/>
+            <geometry>
+                <mesh filename="package:///wte3-m-locking-flange-seal-r1-rp.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="0.11889482320251303082 -0.013443357384856332096 -0.010319492083285947137"
+                    rpy="1.570796326794896558 1.5707963267948958919 0"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+            <material name="xw540.n105.i101.stp_material">
+                <color rgba="0.61568627450980395466 0.81176470588235294379 0.92941176470588238168 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.11889482320251303082 -0.013443357384856332096 -0.010319492083285947137"
+                    rpy="1.570796326794896558 1.5707963267948958919 0"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.11889482320353667033 -0.013570357384856356758 -0.010319492083285941933"
+                    rpy="1.570796326794896558 -1.570796326794896336 0"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+            <material name="xw540.n105.i101.stp_material">
+                <color rgba="0.61568627450980395466 0.81176470588235294379 0.92941176470588238168 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.11889482320353667033 -0.013570357384856356758 -0.010319492083285941933"
+                    rpy="1.570796326794896558 -1.570796326794896336 0"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="2.7209355507438652099e-17 0.14024124261514361867 0.010314957384859489362"
+                    rpy="1.57079632679489678 1.4179035300190464606e-17 1.3877787807773342003e-17"/>
+            <geometry>
+                <mesh filename="package:///tube.stl"/>
+            </geometry>
+            <material name="tube_material">
+                <color rgba="1 1 1 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="2.7209355507438652099e-17 0.14024124261514361867 0.010314957384859489362"
+                    rpy="1.57079632679489678 1.4179035300190464606e-17 1.3877787807773342003e-17"/>
+            <geometry>
+                <mesh filename="package:///tube.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.069894823203536474154 0.29467774261514367851 -0.010319492083285877748"
+                    rpy="-1.570796326794896558 -1.570796326794896336 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-h105k.stl"/>
+            </geometry>
+            <material name="fr13-h105k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.069894823203536474154 0.29467774261514367851 -0.010319492083285877748"
+                    rpy="-1.570796326794896558 -1.570796326794896336 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-h105k.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="2.5502387607082533746e-17 0.26324124261514358913 0.010314957384859510178"
+                    rpy="1.570796326794896336 -1.4179035300190464606e-17 -3.141592653589793116"/>
+            <geometry>
+                <mesh filename="package:///wte3-m-locking-flange-seal-r1-rp.stl"/>
+            </geometry>
+            <material name="wte3-m-locking-flange-seal-r1-rp_material">
+                <color rgba="0.76862745098039220171 0.88627450980392152857 0.95294117647058818044 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="2.5502387607082533746e-17 0.26324124261514358913 0.010314957384859510178"
+                    rpy="1.570796326794896336 -1.4179035300190464606e-17 -3.141592653589793116"/>
+            <geometry>
+                <mesh filename="package:///wte3-m-locking-flange-seal-r1-rp.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.067894823203536500134 -0.013570357384856356758 -0.010319492083285945402"
+                    rpy="1.570796326794896558 -1.570796326794896336 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-s105k.stl"/>
+            </geometry>
+            <material name="fr13-s105k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.067894823203536500134 -0.013570357384856356758 -0.010319492083285945402"
+                    rpy="1.570796326794896558 -1.570796326794896336 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-s105k.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.047933312144871995097 -0.009070357384856356231 -0.038456398802568438067"
+                    rpy="1.57079632679489678 1.4179035300190461525e-17 1.3877787807773337381e-17"/>
+            <geometry>
+                <mesh filename="package:///shoulder_adapter.stl"/>
+            </geometry>
+            <material name="shoulder_adapter_material">
+                <color rgba="0.25098039215686274161 0.25098039215686274161 0.25098039215686274161 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.047933312144871995097 -0.009070357384856356231 -0.038456398802568438067"
+                    rpy="1.57079632679489678 1.4179035300190461525e-17 1.3877787807773337381e-17"/>
+            <geometry>
+                <mesh filename="package:///shoulder_adapter.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.047933312144871995097 -0.0090068573848563360934 -0.038456398802568445006"
+                    rpy="1.5707963267948972241 1.4179035300190467688e-17 -5.9793562302346936973e-17"/>
+            <geometry>
+                <mesh filename="package:///shoulder_adapter.stl"/>
+            </geometry>
+            <material name="shoulder_adapter_material">
+                <color rgba="0.10980392156862744946 0.10980392156862744946 0.10980392156862744946 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.047933312144871995097 -0.0090068573848563360934 -0.038456398802568445006"
+                    rpy="1.5707963267948972241 1.4179035300190467688e-17 -5.9793562302346936973e-17"/>
+            <geometry>
+                <mesh filename="package:///shoulder_adapter.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.047933312144871988159 -0.0090068573848563551754 -0.038456398802568438067"
+                    rpy="1.57079632679489678 1.4179035300190464606e-17 1.3877787807773342003e-17"/>
+            <geometry>
+                <mesh filename="package:///enclosure_plate.stl"/>
+            </geometry>
+            <material name="enclosure_plate_material">
+                <color rgba="1 1 1 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.047933312144871988159 -0.0090068573848563551754 -0.038456398802568438067"
+                    rpy="1.57079632679489678 1.4179035300190464606e-17 1.3877787807773342003e-17"/>
+            <geometry>
+                <mesh filename="package:///enclosure_plate.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="2.9384240013913407991e-16 -0.0406033573848563617 0.010314957384859442524"
+                    rpy="1.57079632679489678 1.4179035300190464606e-17 1.3877787807773340462e-17"/>
+            <geometry>
+                <mesh filename="package:///head_bottom.stl"/>
+            </geometry>
+            <material name="head_bottom_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="2.9384240013913407991e-16 -0.0406033573848563617 0.010314957384859442524"
+                    rpy="1.57079632679489678 1.4179035300190464606e-17 1.3877787807773340462e-17"/>
+            <geometry>
+                <mesh filename="package:///head_bottom.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="2.9384240013913407991e-16 -0.040603357384856375578 0.010314957384859439055"
+                    rpy="1.57079632679489678 1.4179035300190464606e-17 1.3877787807773340462e-17"/>
+            <geometry>
+                <mesh filename="package:///head_top.stl"/>
+            </geometry>
+            <material name="head_top_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="2.9384240013913407991e-16 -0.040603357384856375578 0.010314957384859439055"
+                    rpy="1.57079632679489678 1.4179035300190464606e-17 1.3877787807773340462e-17"/>
+            <geometry>
+                <mesh filename="package:///head_top.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.04793331214487198122 0.29917774261514373801 -0.038456398802568389494"
+                    rpy="1.57079632679489678 1.4179035300190461525e-17 1.3877787807773337381e-17"/>
+            <geometry>
+                <mesh filename="package:///shoulder_adapter.stl"/>
+            </geometry>
+            <material name="shoulder_adapter_material">
+                <color rgba="0.25098039215686274161 0.25098039215686274161 0.25098039215686274161 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.04793331214487198122 0.29917774261514373801 -0.038456398802568389494"
+                    rpy="1.57079632679489678 1.4179035300190461525e-17 1.3877787807773337381e-17"/>
+            <geometry>
+                <mesh filename="package:///shoulder_adapter.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.04793331214487198122 0.29924124261514373213 -0.038456398802568389494"
+                    rpy="1.5707963267948972241 1.4179035300190467688e-17 -5.9793562302346936973e-17"/>
+            <geometry>
+                <mesh filename="package:///shoulder_adapter.stl"/>
+            </geometry>
+            <material name="shoulder_adapter_material">
+                <color rgba="0.10980392156862744946 0.10980392156862744946 0.10980392156862744946 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.04793331214487198122 0.29924124261514373213 -0.038456398802568389494"
+                    rpy="1.5707963267948972241 1.4179035300190467688e-17 -5.9793562302346936973e-17"/>
+            <geometry>
+                <mesh filename="package:///shoulder_adapter.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.04793331214487198122 0.29924124261514367662 -0.038456398802568375617"
+                    rpy="1.57079632679489678 1.4179035300190464606e-17 1.3877787807773342003e-17"/>
+            <geometry>
+                <mesh filename="package:///enclosure_plate.stl"/>
+            </geometry>
+            <material name="enclosure_plate_material">
+                <color rgba="1 1 1 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.04793331214487198122 0.29924124261514367662 -0.038456398802568375617"
+                    rpy="1.57079632679489678 1.4179035300190464606e-17 1.3877787807773342003e-17"/>
+            <geometry>
+                <mesh filename="package:///enclosure_plate.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.026710281898386943611 -0.1454799077985637068 0.03570296254706342709"
+                    rpy="1.3089968257464532631 -1.5707963267948958919 0"/>
+            <geometry>
+                <mesh filename="package:///explorehd_2.0_public.step-1-solid1.stl"/>
+            </geometry>
+            <material name="explorehd_2.0_public.step-1-solid1_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.026710281898386943611 -0.1454799077985637068 0.03570296254706342709"
+                    rpy="1.3089968257464532631 -1.5707963267948958919 0"/>
+            <geometry>
+                <mesh filename="package:///explorehd_2.0_public.step-1-solid1.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.020812504507452943281 -0.14625636526204230381 0.035363957384859458222"
+                    rpy="1.570796326794896558 1.5707963267948956698 0"/>
+            <geometry>
+                <mesh filename="package:///92467a452_18-8_stainless_steel_extra-wide_truss_head_phillips_screws.step-2-solid1.stl"/>
+            </geometry>
+            <material
+                    name="92467a452_18-8_stainless_steel_extra-wide_truss_head_phillips_screws.step-2-solid1_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.020812504507452943281 -0.14625636526204230381 0.035363957384859458222"
+                    rpy="1.570796326794896558 1.5707963267948956698 0"/>
+            <geometry>
+                <mesh filename="package:///92467a452_18-8_stainless_steel_extra-wide_truss_head_phillips_screws.step-2-solid1.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.026710281898386943611 -0.14547990779856351251 0.035702962547063656074"
+                    rpy="1.3089968257464532631 -1.5707963267948956698 0"/>
+            <geometry>
+                <mesh filename="package:///explorehd_2.0_case_public.step-1_standoff_and_washer_v4_(1).step-1-solid1.stl"/>
+            </geometry>
+            <material name="explorehd_2.0_case_public.step-1/standoff_and_washer_v4_(1).step-1-solid1_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.026710281898386943611 -0.14547990779856351251 0.035702962547063656074"
+                    rpy="1.3089968257464532631 -1.5707963267948956698 0"/>
+            <geometry>
+                <mesh filename="package:///explorehd_2.0_case_public.step-1_standoff_and_washer_v4_(1).step-1-solid1.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="0.020914727116519558903 -0.14703282272552137266 0.035702962547063461785"
+                    rpy="1.832595827843340075 -1.5707963267948958919 0"/>
+            <geometry>
+                <mesh filename="package:///explorehd_2.0_public.step-1-solid1.stl"/>
+            </geometry>
+            <material name="explorehd_2.0_public.step-1-solid1_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.020914727116519558903 -0.14703282272552137266 0.035702962547063461785"
+                    rpy="1.832595827843340075 -1.5707963267948958919 0"/>
+            <geometry>
+                <mesh filename="package:///explorehd_2.0_public.step-1-solid1.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="0.026812504507453642499 -0.14625636526204230381 0.035363957384859458222"
+                    rpy="1.570796326794896558 1.5707963267948956698 0"/>
+            <geometry>
+                <mesh filename="package:///92467a452_18-8_stainless_steel_extra-wide_truss_head_phillips_screws.step-2-solid1.stl"/>
+            </geometry>
+            <material
+                    name="92467a452_18-8_stainless_steel_extra-wide_truss_head_phillips_screws.step-2-solid1_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.026812504507453642499 -0.14625636526204230381 0.035363957384859458222"
+                    rpy="1.570796326794896558 1.5707963267948956698 0"/>
+            <geometry>
+                <mesh filename="package:///92467a452_18-8_stainless_steel_extra-wide_truss_head_phillips_screws.step-2-solid1.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="0.020914727116519503392 -0.14703282272552120613 0.03570296254706367689"
+                    rpy="1.832595827843340075 -1.5707963267948956698 0"/>
+            <geometry>
+                <mesh filename="package:///explorehd_2.0_case_public.step-1_standoff_and_washer_v4_(1).step-1-solid1.stl"/>
+            </geometry>
+            <material name="explorehd_2.0_case_public.step-1/standoff_and_washer_v4_(1).step-1-solid1_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.020914727116519503392 -0.14703282272552120613 0.03570296254706367689"
+                    rpy="1.832595827843340075 -1.5707963267948956698 0"/>
+            <geometry>
+                <mesh filename="package:///explorehd_2.0_case_public.step-1_standoff_and_washer_v4_(1).step-1-solid1.stl"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="4.1435743363322676173e-07 0.084475575081515694165 0.0069731387364608873186" rpy="0 0 0"/>
+            <mass value="2.9553047122120741363"/>
+            <inertia ixx="0.061042834427142159126" ixy="-2.0694784858406268732e-06" ixz="-3.5724982403397454074e-08"
+                     iyy="0.0094178638007044821606" iyz="0.00016294589614341051503" izz="0.066158015901618807963"/>
+        </inertial>
+    </link>
+
+    <link name="right_front_link_1">
+        <visual>
+            <origin xyz="0.032000000000000097811 -2.2551405187698492227e-17 0.042000000000000030365"
+                    rpy="1.570796326794896558 1.570796326794896336 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-s106k.stl"/>
+            </geometry>
+            <material name="fr13-s106k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.032000000000000097811 -2.2551405187698492227e-17 0.042000000000000030365"
+                    rpy="1.570796326794896558 1.570796326794896336 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-s106k.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="0.029999999999999985012 -3.4694469519536141888e-18 0.026499999999999995781"
+                    rpy="-1.570796326794896558 -1.570796326794896558 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-h105k.stl"/>
+            </geometry>
+            <material name="fr13-h105k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.029999999999999985012 -3.4694469519536141888e-18 0.026499999999999995781"
+                    rpy="-1.570796326794896558 -1.570796326794896558 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-h105k.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="0.058000000000000037637 8.6736173798840354721e-18 0.057500000000000106581"
+                    rpy="1.570796326794896336 -2.693587736804898666e-24 -4.2327252813834127616e-16"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+            <material name="xw540.n105.i101.stp_material">
+                <color rgba="0.61568627450980395466 0.81176470588235294379 0.92941176470588238168 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.058000000000000037637 8.6736173798840354721e-18 0.057500000000000106581"
+                    rpy="1.570796326794896336 -2.693587736804898666e-24 -4.2327252813834127616e-16"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0.053506049593864790648 -0.00012798970313840241238 0.041309178718401860786" rpy="0 0 0"/>
+            <mass value="0.23765309404962933759"/>
+            <inertia ixx="0.0001197601833361052815" ixy="1.3669315868615371237e-07" ixz="-9.1950112817160069046e-06"
+                     iyy="0.00012572203867313119872" iyz="4.9175977519764273247e-07" izz="8.8732448708732337365e-05"/>
+        </inertial>
+    </link>
+
+    <link name="right_front_link_2">
+        <visual>
+            <origin xyz="-0.01549999999999999295 2.7755575615628913511e-17 0"
+                    rpy="-1.570796326794896558 -0 -2.3111159332646830237e-32"/>
+            <geometry>
+                <mesh filename="package:///fr13-s106k.stl"/>
+            </geometry>
+            <material name="fr13-s106k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.01549999999999999295 2.7755575615628913511e-17 0"
+                    rpy="-1.570796326794896558 -0 -2.3111159332646830237e-32"/>
+            <geometry>
+                <mesh filename="package:///fr13-s106k.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.031000000000000096922 -2.7755575615628913511e-17 -0.025999999999999863498"
+                    rpy="1.570796326794896558 -1.570796326794896558 0"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+            <material name="xw540.n105.i101.stp_material">
+                <color rgba="0.61568627450980395466 0.81176470588235294379 0.92941176470588238168 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.031000000000000096922 -2.7755575615628913511e-17 -0.025999999999999863498"
+                    rpy="1.570796326794896558 -1.570796326794896558 0"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="-0.016101673005059574662 -0.00013995662800101392985 -0.024253576994100387726" rpy="0 0 0"/>
+            <mass value="0.21733267935778124991"/>
+            <inertia ixx="6.4918636413437510622e-05" ixy="-4.4909670188136649e-07" ixz="-2.2836787309400386181e-07"
+                     iyy="9.1336723727688314423e-05" iyz="-5.3121208937074928327e-08" izz="0.00010342610076693713466"/>
+        </inertial>
+    </link>
+
+    <link name="rigid_flipper">
+        <visual>
+            <origin xyz="-0.0055304483284662822595 -4.8572257327350598644e-16 -0.057140122083317562707"
+                    rpy="-1.570796326794896558 -0.087266462599716904114 -4.3533745945941733344e-19"/>
+            <geometry>
+                <mesh filename="package:///rigid_flipper.stl"/>
+            </geometry>
+            <material name="rigid_flipper_material">
+                <color rgba="0.90196078431372550543 0.90196078431372550543 0.90196078431372550543 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.0055304483284662822595 -4.8572257327350598644e-16 -0.057140122083317562707"
+                    rpy="-1.570796326794896558 -0.087266462599716904114 -4.3533745945941733344e-19"/>
+            <geometry>
+                <mesh filename="package:///rigid_flipper.stl"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="-0.0044251698858467575573 9.8208499228312341029e-05 -0.12751828658569058783" rpy="0 0 0"/>
+            <mass value="0.45000000037898496563"/>
+            <inertia ixx="0.0017657185749879033155" ixy="3.8778617118469599469e-09" ixz="-0.00012015546573640090611"
+                     iyy="0.0019141236431911706761" iyz="9.5853134441607854423e-08" izz="0.00017460332900431278867"/>
+        </inertial>
+    </link>
+
+    <joint name="shoulderR3" type="revolute">
+        <origin xyz="-0.031000000000000096922 -0.02649999999999994027 -0.02599999999999984962"
+                rpy="-1.570796326794896336 3.3168147817035548656e-16 -1.7063002176520613192e-15"/>
+        <parent link="right_front_link_2"/>
+        <child link="rigid_flipper"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="1" velocity="20"/>
+        <joint_properties friction="0.0"/>
+    </joint>
+
+    <joint name="shoulderR2" type="revolute">
+        <origin xyz="0.058000000000000009881 -0.026499999999999968026 0.057500000000000092704"
+                rpy="-1.570796326794896336 1.5707963267948961139 0"/>
+        <parent link="right_front_link_1"/>
+        <child link="right_front_link_2"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="1" velocity="20"/>
+        <joint_properties friction="0.0"/>
+    </joint>
+
+    <joint name="shoulderR1" type="revolute">
+        <origin xyz="-0.11889482320353668421 -0.040070357384856446215 -0.010319492083285957545"
+                rpy="1.570796326794896558 -0.024747819362712419888 -3.141592653589793116"/>
+        <parent link="enclosure_assembly"/>
+        <child link="right_front_link_1"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="1" velocity="20"/>
+        <joint_properties friction="0.0"/>
+    </joint>
+
+    <link name="left_front_link_1">
+        <visual>
+            <origin xyz="0.058000000000000551115 1.2143064331837649661e-17 -0.0045000000000001948164"
+                    rpy="-1.570796326794896558 5.5511151231098433977e-17 3.141592653589793116"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+            <material name="xw540.n105.i101.stp_material">
+                <color rgba="0.61568627450980395466 0.81176470588235294379 0.92941176470588238168 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.058000000000000551115 1.2143064331837649661e-17 -0.0045000000000001948164"
+                    rpy="-1.570796326794896558 5.5511151231098433977e-17 3.141592653589793116"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="0.032000000000000028422 2.7755575615628913511e-17 0.010999999999999903952"
+                    rpy="1.570796326794896558 1.570796326794896558 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-s106k.stl"/>
+            </geometry>
+            <material name="fr13-s106k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.032000000000000028422 2.7755575615628913511e-17 0.010999999999999903952"
+                    rpy="1.570796326794896558 1.570796326794896558 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-s106k.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="0.02999999999999999889 0 0.02650000000000000272"
+                    rpy="1.570796326794896558 1.570796326794896558 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-h105k.stl"/>
+            </geometry>
+            <material name="fr13-h105k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.02999999999999999889 0 0.02650000000000000272"
+                    rpy="1.570796326794896558 1.570796326794896558 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-h105k.stl"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0.053506049593750534821 -0.00012798970313839455192 0.011690821281598155063" rpy="0 0 0"/>
+            <mass value="0.23765309404962933759"/>
+            <inertia ixx="0.00011976018333610899489" ixy="1.3669315913792217586e-07" ixz="9.1950112843162184816e-06"
+                     iyy="0.00012572203867288904216" iyz="-4.8841069312510823856e-07" izz="8.8732448708489150817e-05"/>
+        </inertial>
+    </link>
+
+    <link name="left_front_link_2">
+        <visual>
+            <origin xyz="0.031000000000000332845 2.498001805406602216e-16 -0.025999999999999592881"
+                    rpy="1.570796326794896558 1.570796326794896558 0"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+            <material name="xw540.n105.i101.stp_material">
+                <color rgba="0.61568627450980395466 0.81176470588235294379 0.92941176470588238168 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.031000000000000332845 2.498001805406602216e-16 -0.025999999999999592881"
+                    rpy="1.570796326794896558 1.570796326794896558 0"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="0.015499999999999999889 0 0" rpy="-1.570796326794896558 -0 7.6084727776971584431e-34"/>
+            <geometry>
+                <mesh filename="package:///fr13-s106k.stl"/>
+            </geometry>
+            <material name="fr13-s106k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.015499999999999999889 0 0" rpy="-1.570796326794896558 -0 7.6084727776971584431e-34"/>
+            <geometry>
+                <mesh filename="package:///fr13-s106k.stl"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0.016101673005060018751 -0.00013995662800075675709 -0.024253576994225530677" rpy="0 0 0"/>
+            <mass value="0.21733267935778124991"/>
+            <inertia ixx="6.4918636413530643589e-05" ixy="4.5244578395383825052e-07" ixz="2.2836787045883843784e-07"
+                     iyy="9.1336723727779739771e-05" iyz="-5.3121208484951961696e-08" izz="0.00010342610076693278429"/>
+        </inertial>
+    </link>
+
+    <link name="rigid_flipper_2">
+        <visual>
+            <origin xyz="-0.0055304483284662891984 -5.1347814888913489995e-16 -0.057140122083317090862"
+                    rpy="-1.570796326794896558 -0.087266462599716904114 9.8984278215406751188e-32"/>
+            <geometry>
+                <mesh filename="package:///rigid_flipper.stl"/>
+            </geometry>
+            <material name="rigid_flipper_material">
+                <color rgba="0.90196078431372550543 0.90196078431372550543 0.90196078431372550543 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.0055304483284662891984 -5.1347814888913489995e-16 -0.057140122083317090862"
+                    rpy="-1.570796326794896558 -0.087266462599716904114 9.8984278215406751188e-32"/>
+            <geometry>
+                <mesh filename="package:///rigid_flipper.stl"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="-0.0044251698858467636288 9.8208499228284097562e-05 -0.12751828658569011599" rpy="0 0 0"/>
+            <mass value="0.45000000037898496563"/>
+            <inertia ixx="0.0017657185749879033155" ixy="3.877861711845820092e-09" ixz="-0.00012015546573640090611"
+                     iyy="0.0019141236431911706761" iyz="9.5853134441615623303e-08" izz="0.00017460332900431278867"/>
+        </inertial>
+    </link>
+
+    <joint name="shoulderL3" type="revolute">
+        <origin xyz="0.031000000000000346723 -0.02649999999999899658 -0.025999999999999592881"
+                rpy="1.57079632679489678 -1.1788540152396787534e-27 3.141592653589793116"/>
+        <parent link="left_front_link_2"/>
+        <child link="rigid_flipper_2"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="1" velocity="20"/>
+        <joint_properties friction="0.0"/>
+    </joint>
+
+    <joint name="shoulderL2" type="revolute">
+        <origin xyz="0.058000000000000551115 -0.02650000000000025599 -0.0045000000000001739997"
+                rpy="-1.570796326794896558 1.570796326794896558 0"/>
+        <parent link="left_front_link_1"/>
+        <child link="left_front_link_2"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="1" velocity="20"/>
+        <joint_properties friction="0.0"/>
+    </joint>
+
+    <joint name="shoulderL1" type="revolute">
+        <origin xyz="0.1188948232025135443 0.012956642615143504696 -0.010319492083285928055"
+                rpy="1.5707963267948972241 2.0061271302034394322e-16 1.3877787807767273012e-17"/>
+        <parent link="enclosure_assembly"/>
+        <child link="left_front_link_1"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="1" velocity="20"/>
+        <joint_properties friction="0.0"/>
+    </joint>
+
+    <link name="right_rear_link_1">
+        <visual>
+            <origin xyz="0 0 -0.026399999999999999856" rpy="3.141592653589793116 -0 -5.21020655579469012e-33"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+            <material name="xw540.n105.i101.stp_material">
+                <color rgba="0.61568627450980395466 0.81176470588235294379 0.92941176470588238168 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0 0 -0.026399999999999999856" rpy="3.141592653589793116 -0 -5.21020655579469012e-33"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-0.026000000000000314526 0.015500000000000457856 -0.026400000000000124756"
+                    rpy="-3.141592653589793116 1.2325951644078103644e-31 1.570796326794896336"/>
+            <geometry>
+                <mesh filename="package:///fr13-s106k.stl"/>
+            </geometry>
+            <material name="fr13-s106k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-0.026000000000000314526 0.015500000000000457856 -0.026400000000000124756"
+                    rpy="-3.141592653589793116 1.2325951644078103644e-31 1.570796326794896336"/>
+            <geometry>
+                <mesh filename="package:///fr13-s106k.stl"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="-0.0017464230057741114265 0.014898326994940661039 -0.026539956628001001859" rpy="0 0 0"/>
+            <mass value="0.21733267935778124991"/>
+            <inertia ixx="0.00010342610076694004845" ixy="2.2836787045875344337e-07" ixz="5.3121208484983930573e-08"
+                     iyy="6.4918636413533896195e-05" iyz="-4.5244578395387964926e-07" izz="9.1336723727784578024e-05"/>
+        </inertial>
+    </link>
+
+    <link name="right_rear_link_2">
+        <visual>
+            <origin xyz="-1.7347234759768070944e-18 -5.5511151231257827021e-17 -0.026499999999999995781"
+                    rpy="6.162975822039116413e-33 -0 0"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+            <material name="xw540.n105.i101.stp_material">
+                <color rgba="0.61568627450980395466 0.81176470588235294379 0.92941176470588238168 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-1.7347234759768070944e-18 -5.5511151231257827021e-17 -0.026499999999999995781"
+                    rpy="6.162975822039116413e-33 -0 0"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-3.8163916471489756077e-17 -0.076078609753962300744 -0.029918400788916443833"
+                    rpy="-2.6950666385799572288e-16 -0.70607843085865351629 1.570796326794896558"/>
+            <geometry>
+                <mesh filename="package:///rear_flipper.stl"/>
+            </geometry>
+            <material name="rear_flipper_material">
+                <color rgba="0.76862745098039220171 0.88627450980392152857 0.95294117647058818044 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-3.8163916471489756077e-17 -0.076078609753962300744 -0.029918400788916443833"
+                    rpy="-2.6950666385799572288e-16 -0.70607843085865351629 1.570796326794896558"/>
+            <geometry>
+                <mesh filename="package:///rear_flipper.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-1.7347234759768070944e-18 -0.051000000000000045297 -0.026499999999999995781"
+                    rpy="1.6653345369377355502e-16 -0 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-s105k.stl"/>
+            </geometry>
+            <material name="fr13-s105k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-1.7347234759768070944e-18 -0.051000000000000045297 -0.026499999999999995781"
+                    rpy="1.6653345369377355502e-16 -0 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-s105k.stl"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="-1.4543076731165039624e-07 -0.058528945898489018185 -0.022109379305518803149" rpy="0 0 0"/>
+            <mass value="0.37872549359169516148"/>
+            <inertia ixx="0.0011478951582088120584" ixy="-5.3727660966578406811e-09" ixz="-1.9957224760609825652e-09"
+                     iyy="0.00012584810123618598416" iyz="8.3859902421649571e-05" izz="0.0010750923540025912779"/>
+        </inertial>
+    </link>
+
+    <joint name="hipR2" type="revolute">
+        <origin xyz="-0.026000000000000314526 2.2204460492503130808e-16 -0.026400000000000124756"
+                rpy="-3.141592653589793116 -1.570796326794896558 0"/>
+        <parent link="right_rear_link_1"/>
+        <child link="right_rear_link_2"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="1" velocity="20"/>
+        <joint_properties friction="0.0"/>
+    </joint>
+
+    <joint name="hipR1" type="revolute">
+        <origin xyz="-0.099894823203536473044 0.29467774261514367851 0.016180507916713764149"
+                rpy="1.6653345369377350572e-16 -1.1674349087908804224e-16 -9.714451465474372182e-17"/>
+        <parent link="enclosure_assembly"/>
+        <child link="right_rear_link_1"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="1" velocity="20"/>
+        <joint_properties friction="0.0"/>
+    </joint>
+
+    <link name="left_rear_link_1">
+        <visual>
+            <origin xyz="0.025999999999999953704 0.0155000000000001803 -0.026399999999999985978"
+                    rpy="-6.4711246131410971396e-32 -0 1.570796326794896558"/>
+            <geometry>
+                <mesh filename="package:///fr13-s106k.stl"/>
+            </geometry>
+            <material name="fr13-s106k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.025999999999999953704 0.0155000000000001803 -0.026399999999999985978"
+                    rpy="-6.4711246131410971396e-32 -0 1.570796326794896558"/>
+            <geometry>
+                <mesh filename="package:///fr13-s106k.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="0 0 -0.026399999999999999856" rpy="3.141592653589793116 -0 -6.6890380429462890787e-35"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+            <material name="xw540.n105.i101.stp_material">
+                <color rgba="0.61568627450980395466 0.81176470588235294379 0.92941176470588238168 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0 0 -0.026399999999999999856" rpy="3.141592653589793116 -0 -6.6890380429462890787e-35"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0.0017464230058994874815 0.014898326994940638487 -0.026539956628000987982" rpy="0 0 0"/>
+            <mass value="0.21733267935778124991"/>
+            <inertia ixx="0.00010342610076693962832" ixy="-2.2836787309398970048e-07" ixz="-5.3121208937085800789e-08"
+                     iyy="6.4918636413438445746e-05" iyz="-4.4909670188133467332e-07" izz="9.1336723727688978497e-05"/>
+        </inertial>
+    </link>
+
+    <link name="left_rear_link_2">
+        <visual>
+            <origin xyz="-1.7347234759768070944e-18 -0.050999999999999934275 -0.026499999999999995781"
+                    rpy="-4.2710307956740333408e-32 -0 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-s105k.stl"/>
+            </geometry>
+            <material name="fr13-s105k_material">
+                <color rgba="0.79607843137254896693 0.82352941176470584317 0.9372549019607843146 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-1.7347234759768070944e-18 -0.050999999999999934275 -0.026499999999999995781"
+                    rpy="-4.2710307956740333408e-32 -0 0"/>
+            <geometry>
+                <mesh filename="package:///fr13-s105k.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="0 0 -0.026499999999999995781" rpy="6.5934986195729030618e-33 -0 0"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+            <material name="xw540.n105.i101.stp_material">
+                <color rgba="0.61568627450980395466 0.81176470588235294379 0.92941176470588238168 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0 0 -0.026499999999999995781" rpy="6.5934986195729030618e-33 -0 0"/>
+            <geometry>
+                <mesh filename="package:///xw540.n105.i101.stp.stl"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="-1.9081958235744878039e-17 -0.076078609753962300744 -0.029918400788916332811"
+                    rpy="-3.4800536822435545772e-16 -0.70607843085865362731 1.570796326794896336"/>
+            <geometry>
+                <mesh filename="package:///rear_flipper.stl"/>
+            </geometry>
+            <material name="rear_flipper_material">
+                <color rgba="0.76862745098039220171 0.88627450980392152857 0.95294117647058818044 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="-1.9081958235744878039e-17 -0.076078609753962300744 -0.029918400788916332811"
+                    rpy="-3.4800536822435545772e-16 -0.70607843085865362731 1.570796326794896336"/>
+            <geometry>
+                <mesh filename="package:///rear_flipper.stl"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="-1.4543076730672857895e-07 -0.058528945898489004307 -0.02210937930551873723" rpy="0 0 0"/>
+            <mass value="0.37872549359169516148"/>
+            <inertia ixx="0.00114789515820881401" ixy="-5.3727660966505879614e-09" ixz="-1.9957224760651267401e-09"
+                     iyy="0.00012584810123618649915" iyz="8.3859902421650953357e-05" izz="0.0010750923540025940969"/>
+        </inertial>
+    </link>
+
+    <joint name="hipL2" type="revolute">
+        <origin xyz="0.025999999999999925948 1.1102230246251565404e-16 -0.026399999999999985978"
+                rpy="-3.141592653589793116 1.5707963267948961139 0"/>
+        <parent link="left_rear_link_1"/>
+        <child link="left_rear_link_2"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="1" velocity="20"/>
+        <joint_properties friction="0.0"/>
+    </joint>
+
+    <joint name="hipL1" type="revolute">
+        <origin xyz="0.099894823202513263749 0.29480474261514355572 0.016180507916714232525"
+                rpy="2.2204460492503697802e-16 1.4179035300190896014e-17 1.387778780781382351e-17"/>
+        <parent link="enclosure_assembly"/>
+        <child link="left_rear_link_1"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="1" velocity="20"/>
+        <joint_properties friction="0.0"/>
+    </joint>
+
+
+</robot>

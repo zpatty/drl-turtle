@@ -1,0 +1,267 @@
+<mujoco model="turtle_body">
+    <compiler angle="radian" meshdir="meshes/" autolimits="true" />
+    <option integrator="implicit" timestep="0.005" gravity="0 0 0" density="1000" viscosity="0.0009" cone="elliptic" />
+    <asset>
+        <mesh name="fr13-h105k" file="fr13-h105k.stl"/>
+        <mesh name="fr13-s105k" file="fr13-s105k.stl"/>
+        <mesh name="wte3-m-locking-flange-seal-r1-rp" file="wte3-m-locking-flange-seal-r1-rp.stl"/>
+        <mesh name="xw540.n105.i101.stp" file="xw540.n105.i101.stp.stl"/>
+        <mesh name="tube" file="tube.stl"/>
+        <mesh name="shoulder_adapter" file="shoulder_adapter.stl"/>
+        <mesh name="enclosure_plate" file="enclosure_plate.stl"/>
+        <mesh name="head_bottom" file="head_bottom.stl"/>
+        <mesh name="head_top" file="head_top.stl"/>
+        <mesh name="explorehd_2.0_public.step-1-solid1" file="explorehd_2.0_public.step-1-solid1.stl"/>
+        <mesh name="explorehd_2.0_case_public.step-1_standoff_and_washer_v4_(1).step-1-solid1"
+              file="explorehd_2.0_case_public.step-1_standoff_and_washer_v4_(1).step-1-solid1.stl"/>
+        <mesh name="fr13-s106k" file="fr13-s106k.stl"/>
+        <mesh name="front_flipper" file="front_flipper.stl"/>
+        <mesh name="rear_flipper" file="rear_flipper.stl"/>
+    </asset>
+    <default>
+        <default class="fluid-ellipsoid-model">
+            <geom fluidshape="ellipsoid"/>
+        </default>
+    </default>
+    <worldbody>
+        <!-- coordinate system: x: left, y: back, z: up-->
+        <body name="base" quat="0.0 0.0 0.0 1.0">
+            <!-- coordinate system: x: right, y: forward, z: up-->
+            <inertial pos="4.14357e-07 0.0844756 0.00697314" quat="0.500725 0.499269 -0.499294 0.500709" mass="2.9553"
+                      diaginertia="0.0661585 0.0610428 0.0094174"/>
+            <!--<joint name="world_frame_to_base" type="free"/>-->
+            <site name="base_cog" pos="4.14357e-07 0.0844756 0.00697314"/>
+            <geom pos="0.0698948 0.294805 -0.0103195" quat="0.5 0.5 -0.5 0.5" type="mesh" contype="0" conaffinity="0"
+                  group="1" density="0" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-h105k"/>
+            <geom pos="0.0698948 0.294805 -0.0103195" quat="0.5 0.5 -0.5 0.5" type="mesh"
+                  rgba="0.796078 0.823529 0.937255 1" mesh="fr13-h105k"/>
+            <geom pos="0.0678948 -0.0134434 -0.0103195" quat="0.5 0.5 0.5 -0.5" type="mesh" contype="0" conaffinity="0"
+                  group="1" density="0" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s105k"/>
+            <geom pos="0.0678948 -0.0134434 -0.0103195" quat="0.5 0.5 0.5 -0.5" type="mesh"
+                  rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s105k"/>
+            <geom pos="0 0.0172412 0.010315" quat="0.707107 0.707107 0 0" type="mesh" contype="0" conaffinity="0"
+                  group="1" density="0" rgba="0.768627 0.886275 0.952941 1" mesh="wte3-m-locking-flange-seal-r1-rp"/>
+            <geom pos="0 0.0172412 0.010315" quat="0.707107 0.707107 0 0" type="mesh"
+                  rgba="0.768627 0.886275 0.952941 1" mesh="wte3-m-locking-flange-seal-r1-rp"/>
+            <geom pos="0.118895 -0.0134434 -0.0103195" quat="0.5 0.5 0.5 -0.5" type="mesh" contype="0" conaffinity="0"
+                  group="1" density="0" rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+            <geom pos="0.118895 -0.0134434 -0.0103195" quat="0.5 0.5 0.5 -0.5" type="mesh"
+                  rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+            <geom pos="-0.118895 -0.0135704 -0.0103195" quat="0.5 0.5 -0.5 0.5" type="mesh" contype="0" conaffinity="0"
+                  group="1" density="0" rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+            <geom pos="-0.118895 -0.0135704 -0.0103195" quat="0.5 0.5 -0.5 0.5" type="mesh"
+                  rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+            <geom pos="0 0.140241 0.010315" quat="0.707107 0.707107 0 0" type="mesh" contype="0" conaffinity="0"
+                  group="1" density="0" rgba="1 1 1 1" mesh="tube"/>
+            <geom pos="0 0.140241 0.010315" quat="0.707107 0.707107 0 0" type="mesh" rgba="1 1 1 1" mesh="tube"/>
+            <geom pos="-0.0698948 0.294678 -0.0103195" quat="0.5 -0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0"
+                  group="1" density="0" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-h105k"/>
+            <geom pos="-0.0698948 0.294678 -0.0103195" quat="0.5 -0.5 -0.5 -0.5" type="mesh"
+                  rgba="0.796078 0.823529 0.937255 1" mesh="fr13-h105k"/>
+            <geom pos="0 0.263241 0.010315" quat="0 0 -0.707107 -0.707107" type="mesh" contype="0" conaffinity="0"
+                  group="1" density="0" rgba="0.768627 0.886275 0.952941 1" mesh="wte3-m-locking-flange-seal-r1-rp"/>
+            <geom pos="0 0.263241 0.010315" quat="0 0 -0.707107 -0.707107" type="mesh"
+                  rgba="0.768627 0.886275 0.952941 1" mesh="wte3-m-locking-flange-seal-r1-rp"/>
+            <geom pos="-0.0678948 -0.0135704 -0.0103195" quat="0.5 0.5 -0.5 0.5" type="mesh" contype="0" conaffinity="0"
+                  group="1" density="0" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s105k"/>
+            <geom pos="-0.0678948 -0.0135704 -0.0103195" quat="0.5 0.5 -0.5 0.5" type="mesh"
+                  rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s105k"/>
+            <geom pos="-0.0479333 -0.00907036 -0.0384564" quat="0.707107 0.707107 0 0" type="mesh" contype="0"
+                  conaffinity="0" group="1" density="0" rgba="0.25098 0.25098 0.25098 1" mesh="shoulder_adapter"/>
+            <geom pos="-0.0479333 -0.00907036 -0.0384564" quat="0.707107 0.707107 0 0" type="mesh"
+                  rgba="0.25098 0.25098 0.25098 1" mesh="shoulder_adapter"/>
+            <geom pos="-0.0479333 -0.00900686 -0.0384564" quat="0.707107 0.707107 0 0" type="mesh" contype="0"
+                  conaffinity="0" group="1" density="0" rgba="0.109804 0.109804 0.109804 1" mesh="shoulder_adapter"/>
+            <geom pos="-0.0479333 -0.00900686 -0.0384564" quat="0.707107 0.707107 0 0" type="mesh"
+                  rgba="0.109804 0.109804 0.109804 1" mesh="shoulder_adapter"/>
+            <geom pos="-0.0479333 -0.00900686 -0.0384564" quat="0.707107 0.707107 0 0" type="mesh" contype="0"
+                  conaffinity="0" group="1" density="0" rgba="1 1 1 1" mesh="enclosure_plate"/>
+            <geom pos="-0.0479333 -0.00900686 -0.0384564" quat="0.707107 0.707107 0 0" type="mesh" rgba="1 1 1 1"
+                  mesh="enclosure_plate"/>
+            <geom pos="0 -0.0406034 0.010315" quat="0.707107 0.707107 0 0" type="mesh" contype="0" conaffinity="0"
+                  group="1" density="0" rgba="0.796078 0.823529 0.937255 1" mesh="head_bottom"/>
+            <geom pos="0 -0.0406034 0.010315" quat="0.707107 0.707107 0 0" type="mesh"
+                  rgba="0.796078 0.823529 0.937255 1" mesh="head_bottom"/>
+            <geom pos="0 -0.0406034 0.010315" quat="0.707107 0.707107 0 0" type="mesh" contype="0" conaffinity="0"
+                  group="1" density="0" rgba="0.796078 0.823529 0.937255 1" mesh="head_top"/>
+            <geom pos="0 -0.0406034 0.010315" quat="0.707107 0.707107 0 0" type="mesh"
+                  rgba="0.796078 0.823529 0.937255 1" mesh="head_top"/>
+            <geom pos="-0.0479333 0.299178 -0.0384564" quat="0.707107 0.707107 0 0" type="mesh" contype="0"
+                  conaffinity="0" group="1" density="0" rgba="0.25098 0.25098 0.25098 1" mesh="shoulder_adapter"/>
+            <geom pos="-0.0479333 0.299178 -0.0384564" quat="0.707107 0.707107 0 0" type="mesh"
+                  rgba="0.25098 0.25098 0.25098 1" mesh="shoulder_adapter"/>
+            <geom pos="-0.0479333 0.299241 -0.0384564" quat="0.707107 0.707107 0 0" type="mesh" contype="0"
+                  conaffinity="0" group="1" density="0" rgba="0.109804 0.109804 0.109804 1" mesh="shoulder_adapter"/>
+            <geom pos="-0.0479333 0.299241 -0.0384564" quat="0.707107 0.707107 0 0" type="mesh"
+                  rgba="0.109804 0.109804 0.109804 1" mesh="shoulder_adapter"/>
+            <geom pos="-0.0479333 0.299241 -0.0384564" quat="0.707107 0.707107 0 0" type="mesh" contype="0"
+                  conaffinity="0" group="1" density="0" rgba="1 1 1 1" mesh="enclosure_plate"/>
+            <geom pos="-0.0479333 0.299241 -0.0384564" quat="0.707107 0.707107 0 0" type="mesh" rgba="1 1 1 1"
+                  mesh="enclosure_plate"/>
+            <geom pos="-0.0267103 -0.14548 0.035703" quat="0.560986 0.430459 -0.560986 0.430459" type="mesh" contype="0"
+                  conaffinity="0" group="1" density="0" rgba="0.796078 0.823529 0.937255 1"
+                  mesh="explorehd_2.0_public.step-1-solid1"/>
+            <geom pos="-0.0267103 -0.14548 0.035703" quat="0.560986 0.430459 -0.560986 0.430459" type="mesh"
+                  rgba="0.796078 0.823529 0.937255 1" mesh="explorehd_2.0_public.step-1-solid1"/>
+            <geom pos="-0.0267103 -0.14548 0.035703" quat="0.560986 0.430459 -0.560986 0.430459" type="mesh" contype="0"
+                  conaffinity="0" group="1" density="0" rgba="0.796078 0.823529 0.937255 1"
+                  mesh="explorehd_2.0_case_public.step-1_standoff_and_washer_v4_(1).step-1-solid1"/>
+            <geom pos="-0.0267103 -0.14548 0.035703" quat="0.560986 0.430459 -0.560986 0.430459" type="mesh"
+                  rgba="0.796078 0.823529 0.937255 1"
+                  mesh="explorehd_2.0_case_public.step-1_standoff_and_washer_v4_(1).step-1-solid1"/>
+            <geom pos="0.0209147 -0.147033 0.035703" quat="0.430459 0.560986 -0.430459 0.560986" type="mesh" contype="0"
+                  conaffinity="0" group="1" density="0" rgba="0.796078 0.823529 0.937255 1"
+                  mesh="explorehd_2.0_public.step-1-solid1"/>
+            <geom pos="0.0209147 -0.147033 0.035703" quat="0.430459 0.560986 -0.430459 0.560986" type="mesh"
+                  rgba="0.796078 0.823529 0.937255 1" mesh="explorehd_2.0_public.step-1-solid1"/>
+            <geom pos="0.0209147 -0.147033 0.035703" quat="0.430459 0.560986 -0.430459 0.560986" type="mesh" contype="0"
+                  conaffinity="0" group="1" density="0" rgba="0.796078 0.823529 0.937255 1"
+                  mesh="explorehd_2.0_case_public.step-1_standoff_and_washer_v4_(1).step-1-solid1"/>
+            <geom pos="0.0209147 -0.147033 0.035703" quat="0.430459 0.560986 -0.430459 0.560986" type="mesh"
+                  rgba="0.796078 0.823529 0.937255 1"
+                  mesh="explorehd_2.0_case_public.step-1_standoff_and_washer_v4_(1).step-1-solid1"/>
+            <site name="arm_right_base" pos="0.0 -0.0150704 0.0" />
+            <body name="front_right_link_1" pos="-0.118895 -0.0400704 -0.0103195" quat="0 0 -0.707107 -0.707107">
+                <inertial pos="0.053506 -0.00012799 0.0413092" quat="0.701572 0.0987989 0.0897983 0.69998"
+                          mass="0.237653" diaginertia="0.000125729 0.00012228 8.62056e-05"/>
+                <joint name="shoulder_right_1" pos="0 0 0" axis="0 0 1"/>
+                <geom pos="0.032 0 0.042" quat="0.5 0.5 0.5 -0.5" type="mesh" contype="0" conaffinity="0" group="1"
+                      density="0" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s106k"/>
+                <geom pos="0.032 0 0.042" quat="0.5 0.5 0.5 -0.5" type="mesh" rgba="0.796078 0.823529 0.937255 1"
+                      mesh="fr13-s106k"/>
+                <geom pos="0.03 0 0.0265" quat="0.5 -0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" group="1"
+                      density="0" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-h105k"/>
+                <!--<geom pos="0.03 0 0.0265" quat="0.5 -0.5 -0.5 -0.5" type="mesh" rgba="0.796078 0.823529 0.937255 1"
+                      mesh="fr13-h105k"/>-->
+                <geom pos="0.058 0 0.0575" quat="0.707107 0.707107 0 0" type="mesh" contype="0" conaffinity="0"
+                      group="1" density="0" rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+                <geom pos="0.058 0 0.0575" quat="0.707107 0.707107 0 0" type="mesh" rgba="0.615686 0.811765 0.929412 1"
+                      mesh="xw540.n105.i101.stp"/>
+                <body name="front_right_link_2" pos="0.058 -0.0265 0.0575" quat="0.5 -0.5 0.5 0.5">
+                    <inertial pos="-0.0161017 -0.000139957 -0.0242536" quat="-0.00747436 0.704985 0.00455773 0.709168"
+                              mass="0.217333" diaginertia="0.000103428 9.13442e-05 6.49096e-05"/>
+                    <joint name="shoulder_right_2" pos="0 0 0" axis="0 0 1"/>
+                    <geom pos="-0.0155 0 0" quat="0.707107 -0.707107 0 0" type="mesh" contype="0" conaffinity="0"
+                          group="1" density="0" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s106k"/>
+                    <geom pos="-0.0155 0 0" quat="0.707107 -0.707107 0 0" type="mesh"
+                          rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s106k"/>
+                    <geom pos="-0.031 0 -0.026" quat="0.5 0.5 -0.5 0.5" type="mesh" contype="0" conaffinity="0"
+                          group="1" density="0" rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+                    <geom pos="-0.031 0 -0.026" quat="0.5 0.5 -0.5 0.5" type="mesh" rgba="0.615686 0.811765 0.929412 1"
+                          mesh="xw540.n105.i101.stp"/>
+                    <body name="front_flipper_right" pos="-0.031 -0.0265 -0.026" quat="0 0 -0.707107 -0.707107">
+                        <inertial pos="0.0866839 -1.5647e-06 -0.0996456" quat="0.428982 0.562106 0.562138 0.428967"
+                                  mass="0.475" diaginertia="0.00226568 0.00199752 0.000310736"/>
+                        <joint name="shoulder_right_3" pos="0 0 0" axis="0 0 1"/>
+                        <geom pos="0.193398 0 0.0226798" quat="0.7523 0 0.658821 0" type="mesh"
+                              class="fluid-ellipsoid-model" contype="0" conaffinity="0" group="1" density="0"
+                              rgba="0.917647 0.917647 0.917647 1" mesh="front_flipper"/>
+                        <geom pos="0.193398 0 0.0226798" quat="0.7523 0 0.658821 0" type="mesh"
+                              rgba="0.917647 0.917647 0.917647 1" mesh="front_flipper"/>
+                    </body>
+                </body>
+            </body>
+            <site name="arm_left_base" pos="0.0 -0.0150704 0.0" />
+            <body name="front_left_link_1" pos="0.118895 0.0129566 -0.0103195" quat="0.707107 0.707107 0 0">
+                <inertial pos="0.053506 -0.00012799 0.0116908" quat="0.701658 -0.0987588 -0.0898396 0.699894"
+                          mass="0.237653" diaginertia="0.000125729 0.00012228 8.62057e-05"/>
+                <joint name="shoulder_left_1" pos="0 0 0" axis="0 0 1"/>
+                <geom pos="0.058 0 -0.0045" quat="0 0 -0.707107 0.707107" type="mesh" contype="0" conaffinity="0"
+                      group="1" density="0" rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+                <geom pos="0.058 0 -0.0045" quat="0 0 -0.707107 0.707107" type="mesh"
+                      rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+                <geom pos="0.032 0 0.011" quat="0.5 0.5 0.5 -0.5" type="mesh" contype="0" conaffinity="0" group="1"
+                      density="0" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s106k"/>
+                <geom pos="0.032 0 0.011" quat="0.5 0.5 0.5 -0.5" type="mesh" rgba="0.796078 0.823529 0.937255 1"
+                      mesh="fr13-s106k"/>
+                <geom pos="0.03 0 0.0265" quat="0.5 0.5 0.5 -0.5" type="mesh" contype="0" conaffinity="0" group="1"
+                      density="0" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-h105k"/>
+                <!--<geom pos="0.03 0 0.0265" quat="0.5 0.5 0.5 -0.5" type="mesh" rgba="0.796078 0.823529 0.937255 1"
+                      mesh="fr13-h105k"/>-->
+                <body name="front_left_link_2" pos="0.058 -0.0265 -0.0045" quat="0.5 -0.5 0.5 0.5">
+                    <inertial pos="0.0161017 -0.000139957 -0.0242536" quat="0.00460319 0.709168 -0.00751842 0.704984"
+                              mass="0.217333" diaginertia="0.000103428 9.13443e-05 6.49095e-05"/>
+                    <joint name="shoulder_left_2" pos="0 0 0" axis="0 0 1"/>
+                    <geom pos="0.031 0 -0.026" quat="0.5 0.5 0.5 -0.5" type="mesh" contype="0" conaffinity="0" group="1"
+                          density="0" rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+                    <geom pos="0.031 0 -0.026" quat="0.5 0.5 0.5 -0.5" type="mesh" rgba="0.615686 0.811765 0.929412 1"
+                          mesh="xw540.n105.i101.stp"/>
+                    <geom pos="0.0155 0 0" quat="0.707107 -0.707107 0 0" type="mesh" contype="0" conaffinity="0"
+                          group="1" density="0" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s106k"/>
+                    <geom pos="0.0155 0 0" quat="0.707107 -0.707107 0 0" type="mesh" rgba="0.796078 0.823529 0.937255 1"
+                          mesh="fr13-s106k"/>
+                    <body name="front_flipper_left" pos="0.031 -0.0265 -0.026" quat="0.707107 -0.707107 0 0">
+                        <inertial pos="0.0866839 -1.5647e-06 -0.0996456" quat="0.428982 0.562106 0.562138 0.428967"
+                                  mass="0.475" diaginertia="0.00226568 0.00199752 0.000310736"/>
+                        <joint name="shoulder_left_3" pos="0 0 0" axis="0 0 1"/>
+                        <geom pos="0.193398 0 0.0226798" quat="0.7523 0 0.658821 0" type="mesh"
+                              class="fluid-ellipsoid-model" contype="0" conaffinity="0" group="1" density="0"
+                              rgba="0.917647 0.917647 0.917647 1" mesh="front_flipper"/>
+                        <geom pos="0.193398 0 0.0226798" quat="0.7523 0 0.658821 0" type="mesh"
+                              rgba="0.917647 0.917647 0.917647 1" mesh="front_flipper"/>
+                    </body>
+                </body>
+            </body>
+            <site name="leg_right_base" pos="0.0 0.294678 0.0" />
+            <body name="rear_right_link_1" pos="-0.0998948 0.294678 0.0161805">
+                <inertial pos="-0.00174642 0.0148983 -0.02654" quat="0.701015 0.713137 0.000634249 0.00354948"
+                          mass="0.217333" diaginertia="0.000103428 9.13443e-05 6.49095e-05"/>
+                <joint name="hip_right_1" pos="0 0 0" axis="0 0 1"/>
+                <geom pos="0 0 -0.0264" quat="0 1 0 0" type="mesh" contype="0" conaffinity="0" group="1" density="0"
+                      rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+                <!--<geom pos="0 0 -0.0264" quat="0 1 0 0" type="mesh" rgba="0.615686 0.811765 0.929412 1"
+                      mesh="xw540.n105.i101.stp"/>-->
+                <geom pos="-0.026 0.0155 -0.0264" quat="0 -0.707107 -0.707107 0" type="mesh" contype="0" conaffinity="0"
+                      group="1" density="0" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s106k"/>
+                <geom pos="-0.026 0.0155 -0.0264" quat="0 -0.707107 -0.707107 0" type="mesh"
+                      rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s106k"/>
+                <body name="rear_right_link_2" pos="-0.026 0 -0.0264" quat="0 -0.707107 0 -0.707107">
+                    <inertial pos="-1.45431e-07 -0.0585289 -0.0221094" quat="0.737336 0.675526 1.08265e-05 -1.55402e-05"
+                              mass="0.378725" diaginertia="0.0011479 0.00108244 0.000118497"/>
+                    <joint name="hip_right_2" pos="0 0 0" axis="0 0 1"/>
+                    <geom pos="0 0 -0.0265" type="mesh" contype="0" conaffinity="0" group="1" density="0"
+                          rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+                    <geom pos="0 0 -0.0265" type="mesh" rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+                    <geom pos="0 -0.051 -0.0265" type="mesh" contype="0" conaffinity="0" group="1" density="0"
+                          rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s105k"/>
+                    <geom pos="0 -0.051 -0.0265" type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s105k"/>
+                    <geom pos="0 -0.0760786 -0.0299184" quat="0.663497 0.244483 -0.244483 0.663497" type="mesh"
+                          class="fluid-ellipsoid-model" contype="0" conaffinity="0" group="1" density="0"
+                          rgba="0.768627 0.886275 0.952941 1" mesh="rear_flipper"/>
+                    <geom pos="0 -0.0760786 -0.0299184" quat="0.663497 0.244483 -0.244483 0.663497" type="mesh"
+                          rgba="0.768627 0.886275 0.952941 1" mesh="rear_flipper"/>
+                </body>
+            </body>
+            <site name="leg_left_base" pos="0.0 0.294678 0.0" />
+            <body name="rear_left_link_1" pos="0.0998948 0.294805 0.0161805">
+                <inertial pos="0.00174642 0.0148983 -0.02654" quat="0.701061 0.713093 -0.000633581 -0.00355021"
+                          mass="0.217333" diaginertia="0.000103428 9.13442e-05 6.49096e-05"/>
+                <joint name="hip_left_1" pos="0 0 0" axis="0 0 1"/>
+                <geom pos="0.026 0.0155 -0.0264" quat="0.707107 0 0 0.707107" type="mesh" contype="0" conaffinity="0"
+                      group="1" density="0" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s106k"/>
+                <geom pos="0.026 0.0155 -0.0264" quat="0.707107 0 0 0.707107" type="mesh"
+                      rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s106k"/>
+                <geom pos="0 0 -0.0264" quat="0 1 0 0" type="mesh" contype="0" conaffinity="0" group="1" density="0"
+                      rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+                <!--<geom pos="0 0 -0.0264" quat="0 1 0 0" type="mesh" rgba="0.615686 0.811765 0.929412 1"
+                      mesh="xw540.n105.i101.stp"/>-->
+                <body name="rear_left_link_2" pos="0.026 0 -0.0264" quat="0 -0.707107 0 0.707107">
+                    <inertial pos="-1.45431e-07 -0.0585289 -0.0221094" quat="0.737336 0.675526 1.08265e-05 -1.55402e-05"
+                              mass="0.378725" diaginertia="0.0011479 0.00108244 0.000118497"/>
+                    <joint name="hip_left_2" pos="0 0 0" axis="0 0 1"/>
+                    <geom pos="0 -0.051 -0.0265" type="mesh" contype="0" conaffinity="0" group="1" density="0"
+                          rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s105k"/>
+                    <geom pos="0 -0.051 -0.0265" type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="fr13-s105k"/>
+                    <geom pos="0 0 -0.0265" type="mesh" contype="0" conaffinity="0" group="1" density="0"
+                          rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+                    <geom pos="0 0 -0.0265" type="mesh" rgba="0.615686 0.811765 0.929412 1" mesh="xw540.n105.i101.stp"/>
+                    <geom pos="0 -0.0760786 -0.0299184" quat="0.663497 0.244483 -0.244483 0.663497" type="mesh"
+                          class="fluid-ellipsoid-model" contype="0" conaffinity="0" group="1" density="0"
+                          rgba="0.768627 0.886275 0.952941 1" mesh="rear_flipper"/>
+                    <geom pos="0 -0.0760786 -0.0299184" quat="0.663497 0.244483 -0.244483 0.663497" type="mesh"
+                          rgba="0.768627 0.886275 0.952941 1" mesh="rear_flipper"/>
+                </body>
+            </body>
+        </body>
+    </worldbody>
+</mujoco>
