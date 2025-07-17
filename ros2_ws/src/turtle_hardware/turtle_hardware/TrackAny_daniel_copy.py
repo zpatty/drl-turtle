@@ -79,6 +79,18 @@ from matplotlib.colors import LinearSegmentedColormap
 import matplotlib as plt
 cmap = plt.cm.get_cmap('jet')
 
+#window sizing
+import tkinter as tk
+ScreenWidth = tk.Tk().winfo_screenwidth()
+ScreenHeight = tk.Tk().winfo_screenheight()
+
+desired_width = int(ScreenWidth / 2.2)
+desired_height = int(ScreenHeight / 2.2)
+margin_x = 67
+margin_y = 108
+screen_x = 20
+screen_y = 20
+
 class TrackAny:
     def __init__(self, args):
         self.mission_counter = 0
@@ -95,6 +107,11 @@ class TrackAny:
         self.cfg = vars(args)
         self.cfg['device'] = self.device
         self.button = ""
+
+        #window reshaping
+        self.choose_window_initialized = False
+        self.stream_tracking_initialized = False
+        self.tracker_result_initialized = False
         
         # Setup Tracker Model
         print("Init tracker...")
@@ -155,8 +172,26 @@ class TrackAny:
 
                 
     def plot_and_save_if_neded(self, image_to_plot, stage_and_task, count, multiply = 1, plot = True):
-
-        if self.cfg['plot_visualizations'] and plot: 
+        # print("[DEBUG] plot_and_save_if_neded() called for stage: {}, count: {}".format(stage_and_task, count))
+        if self.cfg['plot_visualizations'] and plot:
+            if stage_and_task == "Stream_tracking" and not self.stream_tracking_initialized:
+                # print("[DEBUG] Creating Stream_tracking window")
+                cv2.namedWindow(stage_and_task, cv2.WINDOW_NORMAL)
+                cv2.resizeWindow(stage_and_task, desired_width, desired_height)
+                cv2.moveWindow(stage_and_task, screen_x, desired_height + margin_y)
+                self.stream_tracking_initialized = True
+            if stage_and_task =="Tracker-result" and not self.tracker_result_initialized:
+                # print("[DEBUG] Creating Tracker-result window")
+                cv2.namedWindow(stage_and_task, cv2.WINDOW_NORMAL)
+                cv2.resizeWindow(stage_and_task, desired_width, desired_height)
+                cv2.moveWindow(stage_and_task, desired_width + margin_x, screen_y)
+                self.tracker_result_initialized = True
+            if stage_and_task == "Choose_object" and not self.choose_window_initialized:
+                # print("[DEBUG] Creating Choose_object window")
+                cv2.namedWindow(stage_and_task, cv2.WINDOW_NORMAL)
+                cv2.resizeWindow(stage_and_task, desired_width, desired_height)
+                cv2.moveWindow(stage_and_task, screen_x, screen_y)
+                self.choose_window_initialized = True
             cv2.imshow(stage_and_task, image_to_plot)
             cv2.waitKey(self.cfg['wait_key'])
         if self.cfg['save_images_to']:
@@ -198,7 +233,7 @@ class TrackAny:
 
     def set_tracker_visualization(self, name = 'Stream_tracking'):
         if self.cfg['plot_visualizations'] or self.cfg['re_detection_mode'] in ['box', 'click']:
-            cv2.namedWindow(name)
+            cv2.namedWindow(name, cv2.WINDOW_NORMAL)
             if self.cfg['re_detection_mode'] == "click":
                 cv2.setMouseCallback(name, self.drop_spot_on_click) 
             else:
@@ -402,7 +437,11 @@ class TrackAny:
         # self.labels = []
         # self.state = 0
         
-        cv2.namedWindow('Choose_object')#, cv2.WINDOW_NORMAL)
+        if not self.choose_window_initialized:
+            cv2.namedWindow('Choose_object', cv2.WINDOW_NORMAL)
+            cv2.resizeWindow('Choose_object', desired_width, desired_height)
+            cv2.moveWindow('Choose_object', screen_x, screen_y)
+            self.choose_window_initialized = True
         cv2.setMouseCallback('Choose_object', self.click_on_object)    
         cv2.imshow('Choose_object', frame)
         
@@ -462,7 +501,12 @@ class TrackAny:
     def detect_by_box(self, frame, clicks = None): 
         self.p1, self.p2 = None, None
         self.state = 0
-        cv2.namedWindow('Choose_object')
+        if not self.choose_window_initialized:
+            print("DETECTED AND RESIZED BY BOX DWJKDKJHDWHWAQKDJW DKIM")
+            cv2.namedWindow('Choose_object', cv2.WINDOW_NORMAL)
+            cv2.resizeWindow('Choose_object', desired_width, desired_height)
+            cv2.moveWindow('Choose_object', screen_x, screen_y)
+            self.choose_window_initialized = True
         cv2.setMouseCallback('Choose_object', self.on_mouse)
         # Our ROI, defined by two points
         
