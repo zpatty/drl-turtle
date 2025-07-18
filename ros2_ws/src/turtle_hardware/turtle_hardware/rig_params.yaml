@@ -1,0 +1,8 @@
+model: similarity
+scale: 1.0
+rot_deg: 0.0
+tx: 297.0
+ty: -2.0
+alpha: 0.47
+canvas_mode: auto
+canvas_size: null
