@@ -15,6 +15,7 @@ import sys
 import numpy as np
 from StereoProcessor import StereoProcessor
 import traceback
+import yaml
 
 
 class CamSubscriber(Node):
@@ -81,6 +82,21 @@ class CamSubscriber(Node):
         os.makedirs(os.path.join(folder_name, "detection"))
         os.makedirs(os.path.join(folder_name, "depth"))
         self.output_folder = folder_name
+
+        yaml_path = os.path.join(script_dir, 'rig_params.yaml')
+
+        with open(yaml_path, 'r') as f:
+            params = yaml.safe_load(f)
+        
+        self.dx = params['tx']
+        self.dy = params['ty']
+        self.scale = params['scale']
+        self.theta = np.deg2rad(params['rot_deg'])
+        self.affine_matrix = np.array([
+            [self.scale * np.cos(self.theta), -self.scale * np.sin(self.theta), self.dx],
+            [self.scale * np.sin(self.theta), self.scale * np.cos(self.theta), self.dy]
+        ])
+
         
 
     def img_callback(self, msg):
@@ -97,8 +113,38 @@ class CamSubscriber(Node):
         fps = 1.0 / seconds
         # print("Estimated frames per second : {0}".format(fps))
         self.start_time = end_time
-        cv2.imshow("left", left)
 
+        h,w = left.shape[:2]
+        corners = np.array([
+            [0,0],
+            [0,h],
+            [w,0],
+            [w,h]
+        ], dtype=np.float32)
+        transformed_corners = cv2.transform(np.array([corners]),self.affine_matrix)[0]
+        all_corners = np.vstack(([[0,0],[0,h],[w,0],[w,h]],transformed_corners))
+
+        [xmin, ymin] = np.floor(all_corners.min(axis=0)).astype(int)
+        [xmax, ymax] = np.ceil(all_corners.max(axis=0)).astype(int)
+
+        offset = np.array([-xmin, -ymin])
+        output_size = (xmax - xmin, ymax - ymin)  # width, height
+
+        affine_with_offset = self.affine_matrix.copy()
+        affine_with_offset[:, 2] += offset
+
+        transformed_right = cv2.warpAffine(right, affine_with_offset, output_size)
+        # transformed_right = cv2.warpAffine(right, self.affine_matrix, (left.shape[1] + abs(int(self.dx)), left.shape[0]))
+        
+        canvas = np.zeros((output_size[1], output_size[0], 3), dtype=np.uint8)
+        canvas[offset[1]:offset[1]+h, offset[0]:offset[0]+w] = left
+        stitched = np.maximum(canvas, transformed_right)
+        # expanded_left = np.zeros_like(transformed_right)
+        # expanded_left[:left.shape[0],:left.shape[1]] = left
+        # stitched = np.maximum(expanded_left,transformed_right)
+
+        cv2.imshow("stitched", stitched)
+        cv2.imshow("left", left)
         cv2.imshow("right", right)
         cv2.waitKey(1)
 
