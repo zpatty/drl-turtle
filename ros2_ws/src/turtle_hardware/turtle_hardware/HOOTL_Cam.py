@@ -130,8 +130,8 @@ class CamNode(Node):
         if self.count < self.num_frames:
             left = cv2.imread(self.left_files[self.count])
             right = cv2.imread(self.right_files[self.count])
-            msg.data[0] = self.br.cv2_to_compressed_imgmsg(right)
-            msg.data[1] = self.br.cv2_to_compressed_imgmsg(left)
+            msg.data[0] = self.br.cv2_to_compressed_imgmsg(left)
+            msg.data[1] = self.br.cv2_to_compressed_imgmsg(right)
             self.cam_publisher.publish(msg)
             self.count += 1
         else:
