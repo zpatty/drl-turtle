@@ -119,7 +119,7 @@ class StereoProcessor():
 
         # Mask to segment regions with depth less than threshold
         mask = cv2.inRange(depth,0.1,depth_thresh)
-        print(self.depth_mean_list)
+        # print(self.depth_mean_list)
         # Check if a significantly large obstacle is present and filter out smaller noisy regions
         if np.sum(mask)/255.0 > 0.01*mask.shape[0]*mask.shape[1]:
             
@@ -158,9 +158,9 @@ class StereoProcessor():
                     self.depth_mean_list.pop(0)
                     self.depth_mean_list.append(depth_mean[0,0])
                     
-                print(self.depth_mean_list)
+                # print(self.depth_mean_list)
                 filtered_depth = np.mean(self.depth_mean_list)
-                print(filtered_depth)
+                # print(filtered_depth)
                 return filtered_depth, x, y, norm_disparity
             else:
                 cv2.putText(norm_disparity, "SAFE!", (100,100),1,3,(0,255,0),2,3)
