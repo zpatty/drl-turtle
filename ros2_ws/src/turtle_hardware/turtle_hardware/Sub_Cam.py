@@ -122,7 +122,7 @@ class CamSubscriber(Node):
         self.previous_H = None
         self.homography_sum = np.zeros((3, 3))
         self.frame_count = 0
-        self.max_frames_to_average = 5
+        self.max_frames_to_average = 3
 
 
     def euler_to_rotation_matrix(self, yaw, pitch, roll):
@@ -285,7 +285,7 @@ class CamSubscriber(Node):
         stitched2 = cv2.warpPerspective(undistorted_right, translation @ H_avg, (output_width, output_height))
         stitched2[-y_min:h1 - y_min, -x_min:w1 - x_min] = undistorted_left
         cv2.imshow("stitched2", stitched2)
-        cropped_stitch = stitched2[-y_min:h1-y_min, 0:x_max-x_min]
+        cropped_stitch = stitched2[-y_min:h1-y_min, 0:1250]
         cv2.imshow("cropped_stitch", cropped_stitch)
 
 
