@@ -285,6 +285,8 @@ class CamSubscriber(Node):
         stitched2 = cv2.warpPerspective(undistorted_right, translation @ H_avg, (output_width, output_height))
         stitched2[-y_min:h1 - y_min, -x_min:w1 - x_min] = undistorted_left
         cv2.imshow("stitched2", stitched2)
+        cropped_stitch = stitched2[-y_min:h1-y_min, 0:x_max-x_min]
+        cv2.imshow("cropped_stitch", cropped_stitch)
 
 
 
@@ -302,7 +304,7 @@ class CamSubscriber(Node):
         [xmax, ymax] = np.ceil(all_corners.max(axis=0)).astype(int)
 
         offset = np.array([-xmin, -ymin])
-        output_size = (xmax - xmin, ymax - ymin)  # width, height
+        output_size = (xmax - xmin, ymax - ymin)
 
         affine_with_offset = self.affine_matrix.copy()
         affine_with_offset[:, 2] += offset
