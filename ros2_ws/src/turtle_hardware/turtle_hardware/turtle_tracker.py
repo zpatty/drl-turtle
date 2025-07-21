@@ -11,6 +11,7 @@ from sensor_msgs.msg import Image, CompressedImage
 from cv_bridge import CvBridge
 import numpy as np
 import json 
+import yaml
 
 submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware"
 sys.path.append(os.path.expanduser("~") + "/work/tortuga_tracker/Yolo-FastestV2")
@@ -125,8 +126,21 @@ class TrackerNode(Node):
         self.pitch_thresh = 480/2
         self.last_ctrl = [1.0, 0.0, 0.0, 0.0]
         self.count = 0
+
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        yaml_path = os.path.join(script_dir, 'rig_params.yaml')
+
+        with open(yaml_path, 'r') as f:
+            params = yaml.safe_load(f)
         
-        
+        self.dx = params['tx']
+        self.dy = params['ty']
+        self.scale = params['scale']
+        self.theta = np.deg2rad(params['rot_deg'])
+        self.affine_matrix = np.array([
+            [self.scale * np.cos(self.theta), -self.scale * np.sin(self.theta), self.dx],
+            [self.scale * np.sin(self.theta), self.scale * np.cos(self.theta), self.dy]
+        ])        
 
 
         
@@ -138,7 +152,35 @@ class TrackerNode(Node):
         # self.get_logger().info('Receiving other video frame')
         left = self.br.compressed_imgmsg_to_cv2(msg.data[0])
         right = self.br.compressed_imgmsg_to_cv2(msg.data[1])
-        frame = np.concatenate((left[:,0:230], right), axis=1)
+
+        h, w = left.shape[:2]
+        image_size = (w, h)
+
+        corners = np.array([
+            [0,0],
+            [0,h],
+            [w,0],
+            [w,h]
+        ], dtype=np.float32)
+        transformed_corners = cv2.transform(np.array([corners]),self.affine_matrix)[0]
+        all_corners = np.vstack(([[0,0],[0,h],[w,0],[w,h]],transformed_corners))
+
+        [xmin, ymin] = np.floor(all_corners.min(axis=0)).astype(int)
+        [xmax, ymax] = np.ceil(all_corners.max(axis=0)).astype(int)
+
+        offset = np.array([-xmin, -ymin])
+        output_size = (xmax - xmin, ymax - ymin)  # width, height
+
+        affine_with_offset = self.affine_matrix.copy()
+        affine_with_offset[:, 2] += offset
+
+        transformed_right = cv2.warpAffine(right, affine_with_offset, output_size)
+        
+        canvas = np.zeros((output_size[1], output_size[0], 3), dtype=np.uint8)
+        canvas[offset[1]:offset[1]+h, offset[0]:offset[0]+w] = left
+        frame = np.maximum(canvas, transformed_right)
+        
+        # frame = np.concatenate((left[:,0:230], right), axis=1)
         # estimate position here
         # print("tracking")
         DIM=(640, 480)

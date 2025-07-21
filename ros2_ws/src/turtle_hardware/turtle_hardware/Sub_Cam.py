@@ -16,6 +16,7 @@ import numpy as np
 from StereoProcessor import StereoProcessor
 import traceback
 import yaml
+from scipy.spatial.transform import Rotation as R_scipy
 
 
 class CamSubscriber(Node):
@@ -81,6 +82,8 @@ class CamSubscriber(Node):
         os.makedirs(os.path.join(folder_name, "right"))
         os.makedirs(os.path.join(folder_name, "detection"))
         os.makedirs(os.path.join(folder_name, "depth"))
+        os.makedirs(os.path.join(folder_name, "flat_left"))
+        os.makedirs(os.path.join(folder_name, "flat_right"))
         self.output_folder = folder_name
 
         yaml_path = os.path.join(script_dir, 'rig_params.yaml')
@@ -103,7 +106,61 @@ class CamSubscriber(Node):
         self.DR = np.array([[0.8809516193294453], [-6.609640306922403], [21.549513701823056], [-24.149385093847197]])
         self.R = np.array([[0.8721459388442752, 0.02130940474841954, -0.4887815162490354], [-0.06589130347707366, 0.9950649291385254, -0.07418977641584823], [0.4847884048567273, 0.09691076342599622, 0.8692459412897253]])
         self.T = np.array([[-2.085136618149882], [0.1939622251215522], [-0.9258137973647751]])*25.4
+
+        self.rotation = R_scipy.from_matrix(self.R)
+        euler_angles = self.rotation.as_euler('zyx', degrees=True)
+
+        self.yaw, self.pitch, self.roll = euler_angles
+
+        self.fx = self.KL[0, 0] 
+        self.baseline = np.linalg.norm(self.T)
+        self.Z = 1000  # assume scene is ~1m away
+
+        self.pixel_shift = int((self.fx * self.baseline) / self.Z)
+
+
+    def euler_to_rotation_matrix(self, yaw, pitch, roll):
+        r = R_scipy.from_euler('zyx', [yaw, pitch, roll], degrees=True)
+        return r.as_matrix()
     
+    def get_3d_rotation_homography(self, K, yaw, pitch, roll):
+        R_mat = self.euler_to_rotation_matrix(yaw, pitch, roll)
+        return K @ R_mat @ np.linalg.inv(K)
+    
+    def get_rotated_image_bounds(self,image, H):
+        h, w = image.shape[:2]
+        corners = np.array([
+            [0, 0],
+            [w, 0],
+            [w, h],
+            [0, h]
+        ], dtype=np.float32).reshape(-1, 1, 2)
+
+        transformed_corners = cv2.perspectiveTransform(corners, H)
+        x_coords = transformed_corners[:, 0, 0]
+        y_coords = transformed_corners[:, 0, 1]
+
+        min_x, max_x = np.min(x_coords), np.max(x_coords)
+        min_y, max_y = np.min(y_coords), np.max(y_coords)
+
+        return int(np.ceil(max_x - min_x)), int(np.ceil(max_y - min_y)), min_x, min_y
+    
+    def warp_image_3d_fullview(self, image, H):
+        h, w = image.shape[:2]
+        new_w, new_h, min_x, min_y = self.get_rotated_image_bounds(image, H)
+
+        # Translate so the top-left corner is visible
+        translation = np.array([
+            [1, 0, -min_x],
+            [0, 1, -min_y],
+            [0, 0, 1]
+        ])
+
+        H_translated = translation @ H
+
+        return cv2.warpPerspective(image, H_translated, (new_w, new_h), flags=cv2.INTER_LINEAR)
+
+
     def img_callback(self, msg):
         #### LEFT RIGHT ####
         # self.get_logger().info('Receiving video frame')
@@ -127,15 +184,24 @@ class CamSubscriber(Node):
             flags=cv2.fisheye.CALIB_USE_INTRINSIC_GUESS, balance=1.0, newImageSize=image_size
         )
 
-        left_map1, left_map2 = cv2.fisheye.initUndistortRectifyMap(
-            self.KL, self.DL, R1, P1, image_size, cv2.CV_16SC2
-        )
-        right_map1, right_map2 = cv2.fisheye.initUndistortRectifyMap(
-            self.KR, self.DR, R2, P2, image_size, cv2.CV_16SC2
+        map1, map2 = cv2.fisheye.initUndistortRectifyMap(
+            K=self.KL, D=self.DL, R=np.eye(3), P=self.KL, size=image_size, m1type=cv2.CV_16SC2
         )
 
-        rectified_left = cv2.remap(left, left_map1, left_map2, cv2.INTER_LINEAR)
-        rectified_right = cv2.remap(right, right_map1, right_map2, cv2.INTER_LINEAR)
+        flat_left = cv2.remap(left, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+        flat_right = cv2.remap(right, map1, map2, interpolation=cv2.INTER_LINEAR,borderMode= cv2.BORDER_CONSTANT)
+
+        yaw_half = self.yaw / 2.0
+        pitch_half = self.pitch / 2.0
+        roll_half = self.roll / 2.0
+
+        H_left = self.get_3d_rotation_homography(self.KL, -yaw_half, -pitch_half, -roll_half)
+        H_right = self.get_3d_rotation_homography(self.KR, yaw_half, pitch_half, roll_half)
+
+        rectified_left = self.warp_image_3d_fullview(flat_left, H_left)
+        rectified_right = self.warp_image_3d_fullview(flat_right, H_right)
+        cv2.imwrite(self.output_folder + "/flat_left/frame%d.jpg" % self.count, flat_left)
+        cv2.imwrite(self.output_folder + "/flat_right/frame%d.jpg" % self.count, flat_right)
 
         cv2.imshow("rectified_left", rectified_left)
         cv2.imshow("rectified_right", rectified_right)
