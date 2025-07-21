@@ -118,6 +118,12 @@ class CamSubscriber(Node):
 
         self.pixel_shift = int((self.fx * self.baseline) / self.Z)
 
+        self.previous_num_keypoints = 0
+        self.previous_H = None
+        self.homography_sum = np.zeros((3, 3))
+        self.frame_count = 0
+        self.max_frames_to_average = 5
+
 
     def euler_to_rotation_matrix(self, yaw, pitch, roll):
         r = R_scipy.from_euler('zyx', [yaw, pitch, roll], degrees=True)
@@ -184,27 +190,104 @@ class CamSubscriber(Node):
             flags=cv2.fisheye.CALIB_USE_INTRINSIC_GUESS, balance=1.0, newImageSize=image_size
         )
 
-        map1, map2 = cv2.fisheye.initUndistortRectifyMap(
+        l_map1, l_map2 = cv2.fisheye.initUndistortRectifyMap(
             K=self.KL, D=self.DL, R=np.eye(3), P=self.KL, size=image_size, m1type=cv2.CV_16SC2
         )
 
-        flat_left = cv2.remap(left, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-        flat_right = cv2.remap(right, map1, map2, interpolation=cv2.INTER_LINEAR,borderMode= cv2.BORDER_CONSTANT)
+        r_map1, r_map2 = cv2.fisheye.initUndistortRectifyMap(
+            K=self.KR, D=self.DR, R=np.eye(3), P=self.KR, size=image_size, m1type=cv2.CV_16SC2
+        )
 
-        yaw_half = self.yaw / 2.0
-        pitch_half = self.pitch / 2.0
-        roll_half = self.roll / 2.0
+        # #Does not work rn tried to turn cameras virtually to be parallel in order to stitch them together using intrinsics
+        # flat_left = cv2.remap(left, l_map1, l_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+        # flat_right = cv2.remap(right, r_map1, r_map2, interpolation=cv2.INTER_LINEAR,borderMode= cv2.BORDER_CONSTANT)
 
-        H_left = self.get_3d_rotation_homography(self.KL, -yaw_half, -pitch_half, -roll_half)
-        H_right = self.get_3d_rotation_homography(self.KR, yaw_half, pitch_half, roll_half)
+        # cv2.imshow("flat_left.jpg", flat_left)
+        # cv2.imshow("flat_right.jpg", flat_right)
 
-        rectified_left = self.warp_image_3d_fullview(flat_left, H_left)
-        rectified_right = self.warp_image_3d_fullview(flat_right, H_right)
-        cv2.imwrite(self.output_folder + "/flat_left/frame%d.jpg" % self.count, flat_left)
-        cv2.imwrite(self.output_folder + "/flat_right/frame%d.jpg" % self.count, flat_right)
+        # yaw_half = self.yaw / 2.0
+        # pitch_half = self.pitch / 2.0
+        # roll_half = self.roll / 2.0
 
-        cv2.imshow("rectified_left", rectified_left)
-        cv2.imshow("rectified_right", rectified_right)
+        # H_left = self.get_3d_rotation_homography(self.KL, -yaw_half, -pitch_half/2, -roll_half)
+        # H_right = self.get_3d_rotation_homography(self.KR, yaw_half, pitch_half/2, roll_half)
+
+        # rectified_left = self.warp_image_3d_fullview(flat_left, H_left)
+        # rectified_right = self.warp_image_3d_fullview(flat_right, H_right)
+        # cv2.imwrite(self.output_folder + "/flat_left/frame%d.jpg" % self.count, rectified_left)
+        # cv2.imwrite(self.output_folder + "/flat_right/frame%d.jpg" % self.count, rectified_right)
+
+        # cv2.imshow("rectified_left", rectified_left)
+        # cv2.imshow("rectified_right", rectified_right)
+
+
+        #gave up now trying to use SIFT to stitch the images together
+        undistorted_left = cv2.remap(left, l_map1, l_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+        undistorted_right = cv2.remap(right, r_map1, r_map2, interpolation=cv2.INTER_LINEAR,borderMode= cv2.BORDER_CONSTANT)
+
+        sift = cv2.SIFT_create()
+        kp1, des1 = sift.detectAndCompute(undistorted_left, None)
+        kp2, des2 = sift.detectAndCompute(undistorted_right, None)
+
+        bf = cv2.BFMatcher()
+        matches = bf.knnMatch(des1, des2, k=2)
+
+        good = []
+        for m,n in matches:
+            if m.distance < 0.75*n.distance:
+                good.append(m)
+
+        H_avg = self.previous_H if self.previous_H is not None else np.eye(3)
+
+        num_keypoints = len(good)
+        if num_keypoints >= self.previous_num_keypoints:
+            self.previous_num_keypoints = num_keypoints
+
+            src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+            dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+
+            H, _ = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
+            self.homography_sum += H
+            print(self.homography_sum)
+
+            self.frame_count += 1
+
+            if self.frame_count >= self.max_frames_to_average:
+                H_avg = self.homography_sum / self.frame_count
+                self.previous_H = H_avg
+                self.frame_count = 0
+                self.homography_sum = np.zeros((3, 3))
+            else:
+                self.previous_H = H
+
+        else:
+            H_avg = self.previous_H if self.previous_H is not None else np.eye(3)
+
+        h1, w1 = undistorted_left.shape[:2]
+        h2, w2 = undistorted_right.shape[:2]
+
+        corners_left = np.array([[0,0], [0,h1], [w1,h1], [w1,0]], dtype=np.float32).reshape(-1,1,2)
+        corners_right = np.array([[0,0], [0,h2], [w2,h2], [w2,0]], dtype=np.float32).reshape(-1,1,2)
+
+        warped_corners_right = cv2.perspectiveTransform(corners_right, H_avg)
+
+        all_corners = np.concatenate((corners_left, warped_corners_right), axis=0)
+        [x_min, y_min] = np.floor(all_corners.min(axis=0).ravel()).astype(int)
+        [x_max, y_max] = np.ceil(all_corners.max(axis=0).ravel()).astype(int)
+
+        output_width = x_max - x_min
+        output_height = y_max - y_min
+
+        translation = np.array([[1, 0, -x_min],
+                                [0, 1, -y_min],
+                                [0, 0, 1]])
+
+        stitched2 = cv2.warpPerspective(undistorted_right, translation @ H_avg, (output_width, output_height))
+        stitched2[-y_min:h1 - y_min, -x_min:w1 - x_min] = undistorted_left
+        cv2.imshow("stitched2", stitched2)
+
+
+
 
         corners = np.array([
             [0,0],
