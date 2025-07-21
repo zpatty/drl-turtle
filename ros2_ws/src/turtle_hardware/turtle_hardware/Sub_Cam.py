@@ -97,8 +97,13 @@ class CamSubscriber(Node):
             [self.scale * np.sin(self.theta), self.scale * np.cos(self.theta), self.dy]
         ])
 
-        
-
+        self.KL = np.array([[708.3477312219868, 0.0, 260.69187590557686], [0.0, 675.3059166594338, 301.31936629865646], [0.0, 0.0, 1.0]])
+        self.DL = np.array([[-0.39383047117877457], [6.721465255404687], [-35.99917141986595], [61.49579122578909]])
+        self.KR = np.array([[667.0400978057647, 0.0, 334.8109094526051], [0.0, 644.922628956739, 364.07228200370565], [0.0, 0.0, 1.0]])
+        self.DR = np.array([[0.8809516193294453], [-6.609640306922403], [21.549513701823056], [-24.149385093847197]])
+        self.R = np.array([[0.8721459388442752, 0.02130940474841954, -0.4887815162490354], [-0.06589130347707366, 0.9950649291385254, -0.07418977641584823], [0.4847884048567273, 0.09691076342599622, 0.8692459412897253]])
+        self.T = np.array([[-2.085136618149882], [0.1939622251215522], [-0.9258137973647751]])*25.4
+    
     def img_callback(self, msg):
         #### LEFT RIGHT ####
         # self.get_logger().info('Receiving video frame')
@@ -114,7 +119,27 @@ class CamSubscriber(Node):
         # print("Estimated frames per second : {0}".format(fps))
         self.start_time = end_time
 
-        h,w = left.shape[:2]
+        h, w = left.shape[:2]
+        image_size = (w, h)
+
+        R1, R2, P1, P2, Q = cv2.fisheye.stereoRectify(
+            self.KL, self.DL, self.KR, self.DR, image_size, self.R, self.T,
+            flags=cv2.fisheye.CALIB_USE_INTRINSIC_GUESS, balance=1.0, newImageSize=image_size
+        )
+
+        left_map1, left_map2 = cv2.fisheye.initUndistortRectifyMap(
+            self.KL, self.DL, R1, P1, image_size, cv2.CV_16SC2
+        )
+        right_map1, right_map2 = cv2.fisheye.initUndistortRectifyMap(
+            self.KR, self.DR, R2, P2, image_size, cv2.CV_16SC2
+        )
+
+        rectified_left = cv2.remap(left, left_map1, left_map2, cv2.INTER_LINEAR)
+        rectified_right = cv2.remap(right, right_map1, right_map2, cv2.INTER_LINEAR)
+
+        cv2.imshow("rectified_left", rectified_left)
+        cv2.imshow("rectified_right", rectified_right)
+
         corners = np.array([
             [0,0],
             [0,h],
@@ -134,18 +159,14 @@ class CamSubscriber(Node):
         affine_with_offset[:, 2] += offset
 
         transformed_right = cv2.warpAffine(right, affine_with_offset, output_size)
-        # transformed_right = cv2.warpAffine(right, self.affine_matrix, (left.shape[1] + abs(int(self.dx)), left.shape[0]))
         
         canvas = np.zeros((output_size[1], output_size[0], 3), dtype=np.uint8)
         canvas[offset[1]:offset[1]+h, offset[0]:offset[0]+w] = left
         stitched = np.maximum(canvas, transformed_right)
-        # expanded_left = np.zeros_like(transformed_right)
-        # expanded_left[:left.shape[0],:left.shape[1]] = left
-        # stitched = np.maximum(expanded_left,transformed_right)
 
         cv2.imshow("stitched", stitched)
-        cv2.imshow("left", left)
-        cv2.imshow("right", right)
+        # cv2.imshow("left", left)
+        # cv2.imshow("right", right)
         cv2.waitKey(1)
 
 
