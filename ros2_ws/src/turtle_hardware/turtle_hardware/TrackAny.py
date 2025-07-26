@@ -175,8 +175,29 @@ class TrackAny:
     def plot_and_save_if_neded(self, image_to_plot, stage_and_task, count, multiply = 1, plot = True):
 
         if self.cfg['plot_visualizations'] and plot: 
+            # cv2.imshow(stage_and_task, image_to_plot)
+            # cv2.waitKey(self.cfg['wait_key'])
+            if stage_and_task == "Stream_tracking" and not self.stream_tracking_initialized:
+                # print("[DEBUG] Creating Stream_tracking window")
+                cv2.namedWindow(stage_and_task, cv2.WINDOW_NORMAL)
+                cv2.resizeWindow(stage_and_task, desired_width, desired_height)
+                cv2.moveWindow(stage_and_task, screen_x, desired_height + margin_y)
+                self.stream_tracking_initialized = True
+            if stage_and_task =="Tracker-result" and not self.tracker_result_initialized:
+                # print("[DEBUG] Creating Tracker-result window")
+                cv2.namedWindow(stage_and_task, cv2.WINDOW_NORMAL)
+                cv2.resizeWindow(stage_and_task, 750, 500)
+                cv2.moveWindow(stage_and_task, desired_width + margin_x, screen_y)
+                self.tracker_result_initialized = True
+            if stage_and_task == "Choose_object" and not self.choose_window_initialized:
+                # print("[DEBUG] Creating Choose_object window")
+                cv2.namedWindow(stage_and_task, cv2.WINDOW_NORMAL)
+                cv2.resizeWindow(stage_and_task, desired_width, desired_height)
+                cv2.moveWindow(stage_and_task, screen_x, screen_y)
+                self.choose_window_initialized = True
             cv2.imshow(stage_and_task, image_to_plot)
             cv2.waitKey(self.cfg['wait_key'])
+
         if self.cfg['save_images_to']:
             file_name = "{}/{}/{}_{}.jpg".format(self.cfg['save_images_to'],stage_and_task,self.mission_counter ,count)
             #if os.path.exists(filename):
@@ -260,7 +281,7 @@ class TrackAny:
         return mask, objects
 
     def should_retrack(self, clicks_for_retrack):
-        print(f"[SHOULD RETRACK CHECK] detection mode: {self.cfg['re_detection_mode']}, clicks for retrack: {clicks_for_retrack}")
+        # print(f"[SHOULD RETRACK CHECK] detection mode: {self.cfg['re_detection_mode']}, clicks for retrack: {clicks_for_retrack}")
         if self.cfg['re_detection_mode'] == "click" and len(clicks_for_retrack) >= self.cfg['num_of_clicks_for_detection']:
             return True
         if self.cfg['re_detection_mode'] == "box" and len(clicks_for_retrack) >= 2:
@@ -298,7 +319,7 @@ class TrackAny:
             #if track_single_object: mask[mask!=1] = 0 
             ###############################################
             mean_point = self.get_mean_point(np_mask)
-            print(f"[DEBUG] mean_point: {mean_point}, np_mask shape: {np_mask.shape}")
+            # print(f"[DEBUG] mean_point: {mean_point}, np_mask shape: {np_mask.shape}")
             #np.save(f"outputs/{frame_idx}", np_mask)
             #if mean_point is None: return "FAILED", None
             self.handle_plots_while_tracking(frame, np_mask, self.frame_idx)
@@ -421,7 +442,6 @@ class TrackAny:
         # self.points = []
         # self.labels = []
         # self.state = 0
-        
         cv2.namedWindow('Choose_object')#, cv2.WINDOW_NORMAL)
         cv2.setMouseCallback('Choose_object', self.click_on_object)    
         cv2.imshow('Choose_object', frame)
@@ -467,7 +487,7 @@ class TrackAny:
                                             multimask_output=False,
                                         )
             input_box = np.array([p2[0], p2[1], p1[0], p1[1]])
-            print(input_box)
+            # print(input_box)
             masks, _, _ = self.segmentor.predict(
                             point_coords=None,
                             point_labels=None,
@@ -530,9 +550,9 @@ class TrackAny:
                 print(f"[DEBUG] Detecting by click with {clicks}")
                 bounding_boxes, masks, saved_frame = self.detect_by_click(frame, clicks=clicks )
             else:
+                print(f"[DEBUG] Detecting by box with {clicks}")
                 bounding_boxes, masks, saved_frame = self.detect_by_box(frame, clicks=clicks)
-            # print("here")
-            if  masks is not None:
+            if masks is not None:
                 masks_of_sam = self.bool_mask_to_integer(masks)
                 vis_masks = self.multiclass_vis(masks_of_sam, saved_frame, 2, np_used = True)
                 self.plot_and_save_if_neded(vis_masks, 'Choose_object',0)

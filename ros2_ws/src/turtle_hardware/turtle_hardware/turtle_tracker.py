@@ -327,7 +327,6 @@ class TrackerNode(Node):
             self.tracker.clicks_for_retrack = []
             self.tracker.state_for_retrack = 0
             self.tracker.state = 0
-        print(f"[STATUS] {self.status}\n")
 
         return frame
     
