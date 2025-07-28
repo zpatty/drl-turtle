@@ -472,6 +472,7 @@ class TrackAny:
             return None, masks, frame 
         
         if self.button == "track":
+            print(f"UNDER BUTTON TRACK STATEMENT")
             self.segmentor.set_image(frame)
             point = [np.floor(np.shape(frame)[1]/2), np.floor(np.shape(frame)[0]/2)]
             p1 = [np.floor(np.shape(frame)[1]/2) + np.floor(np.shape(frame)[1]/10), np.floor(np.shape(frame)[0]/2) + np.floor(np.shape(frame)[1]/10)]
@@ -553,11 +554,18 @@ class TrackAny:
                 print(f"[DEBUG] Detecting by box with {clicks}")
                 bounding_boxes, masks, saved_frame = self.detect_by_box(frame, clicks=clicks)
             if masks is not None:
+                print("[DEBUG] Masks detected, converting to integer masks")
                 masks_of_sam = self.bool_mask_to_integer(masks)
-                vis_masks = self.multiclass_vis(masks_of_sam, saved_frame, 2, np_used = True)
-                self.plot_and_save_if_neded(vis_masks, 'Choose_object',0)
-            
+                if self.choose_window_initialized:
+                    cv2.imshow("Stream_tracking", frame)
+                    cv2.waitKey(self.cfg['wait_key'])
+
+                    
+
+                # vis_masks = self.multiclass_vis(masks_of_sam, saved_frame, 2, np_used = True)
+                # self.plot_and_save_if_neded(vis_masks, 'Choose_object',0)
             else:
+                print(f"[DEBUG] No masks detected, returning None")
                 masks_of_sam = None 
         return bounding_boxes, masks_of_sam, saved_frame
 

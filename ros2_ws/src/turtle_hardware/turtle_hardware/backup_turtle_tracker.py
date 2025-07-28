@@ -165,7 +165,7 @@ class TrackerNode(Node):
             raise KeyboardInterrupt
 
     def img_callback(self, msg):
-        self.get_logger().info('Receiving other video frame')
+        # self.get_logger().info('Receiving other video frame')
         left = self.br.compressed_imgmsg_to_cv2(msg.data[0])
         right = self.br.compressed_imgmsg_to_cv2(msg.data[1])
 
@@ -300,21 +300,14 @@ class TrackerNode(Node):
         print(f"[STATUS] {self.status}\n")
 
         if self.status != "Tracking":
-            """
-            You're in this mode for two reasons:
-            1. You just started the tracker and need to detect the object.
-            2. You lost the object and need to re-detect it.
-
-            Currently when trying to retrack, the frame update slows down significantly.
-            """
-            print(f"NOT IN TRACKING MODE WE'RE IN {self.status}\n")
             bounding_boxes, masks, frame = self.tracker.detect_object(frame)
             self.tracker.clicks_for_retrack = []
             self.tracker.state_for_retrack = 0
+            # print(f"resetting clicks for retrack: {self.tracker.clicks_for_retrack} in mode {self.status}\n")
         if masks is not None:
-            print(f"[DEBUG] Masks detected, with status {self.status}")
             self.tracker.mission_counter +=1
             self.status, mean_point, masks, clicks_for_retrack = self.tracker.track_object_with_cutie(masks, frame)
+            # print(f"[DEBUG] Mean Point: {mean_point}\n")
             self.config_pub.publish(Float32MultiArray(data=mean_point))
         else:
             self.status = None
@@ -334,6 +327,7 @@ class TrackerNode(Node):
             self.tracker.clicks_for_retrack = []
             self.tracker.state_for_retrack = 0
             self.tracker.state = 0
+        print(f"[STATUS] {self.status}\n")
 
         return frame
     
