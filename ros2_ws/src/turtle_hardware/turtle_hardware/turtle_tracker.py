@@ -143,22 +143,6 @@ class TrackerNode(Node):
             [self.scale * np.cos(self.theta), -self.scale * np.sin(self.theta), self.dx],
             [self.scale * np.sin(self.theta), self.scale * np.cos(self.theta), self.dy]
         ])     
-
-        ##Needed for SIFT stitching
-        # self.KL = np.array([[708.3477312219868, 0.0, 260.69187590557686], [0.0, 675.3059166594338, 301.31936629865646], [0.0, 0.0, 1.0]])
-        # self.DL = np.array([[-0.39383047117877457], [6.721465255404687], [-35.99917141986595], [61.49579122578909]])
-        # self.KR = np.array([[667.0400978057647, 0.0, 334.8109094526051], [0.0, 644.922628956739, 364.07228200370565], [0.0, 0.0, 1.0]])
-        # self.DR = np.array([[0.8809516193294453], [-6.609640306922403], [21.549513701823056], [-24.149385093847197]])
-        # self.R = np.array([[0.8721459388442752, 0.02130940474841954, -0.4887815162490354], [-0.06589130347707366, 0.9950649291385254, -0.07418977641584823], [0.4847884048567273, 0.09691076342599622, 0.8692459412897253]])
-        # self.T = np.array([[-2.085136618149882], [0.1939622251215522], [-0.9258137973647751]])*25.4  
-
-        # self.previous_num_keypoints = 0
-        # self.previous_H = None
-        # self.homography_sum = np.zeros((3, 3))
-        # self.frame_count = 0
-        # self.max_frames_to_average = 3 
-
-
         
     def turtle_mode_callback(self, msg):
         if msg.mode == "kill":
@@ -198,88 +182,6 @@ class TrackerNode(Node):
         canvas[offset[1]:offset[1]+h, offset[0]:offset[0]+w] = left
         frame = np.maximum(canvas, transformed_right)
         
-
-
-        # #SIFT stitcher WIP very laggy has issues crashing system
-        # h, w = left.shape[:2]
-        # image_size = (w, h)
-
-        # l_map1, l_map2 = cv2.fisheye.initUndistortRectifyMap(
-        #     K=self.KL, D=self.DL, R=np.eye(3), P=self.KL, size=image_size, m1type=cv2.CV_16SC2
-        # )
-
-        # r_map1, r_map2 = cv2.fisheye.initUndistortRectifyMap(
-        #     K=self.KR, D=self.DR, R=np.eye(3), P=self.KR, size=image_size, m1type=cv2.CV_16SC2
-        # )
-
-        # undistorted_left = cv2.remap(left, l_map1, l_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-        # undistorted_right = cv2.remap(right, r_map1, r_map2, interpolation=cv2.INTER_LINEAR,borderMode= cv2.BORDER_CONSTANT)
-
-        # sift = cv2.SIFT_create()
-        # kp1, des1 = sift.detectAndCompute(undistorted_left, None)
-        # kp2, des2 = sift.detectAndCompute(undistorted_right, None)
-
-        # bf = cv2.BFMatcher()
-        # matches = bf.knnMatch(des1, des2, k=2)
-
-        # good = []
-        # for m,n in matches:
-        #     if m.distance < 0.75*n.distance:
-        #         good.append(m)
-
-        # H_avg = self.previous_H if self.previous_H is not None else np.eye(3)
-
-        # num_keypoints = len(good)
-        # if num_keypoints >= self.previous_num_keypoints:
-        #     self.previous_num_keypoints = num_keypoints
-
-        #     src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
-        #     dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
-
-        #     H, _ = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
-        #     self.homography_sum += H
-        #     print(self.homography_sum)
-
-        #     self.frame_count += 1
-
-        #     if self.frame_count >= self.max_frames_to_average:
-        #         H_avg = self.homography_sum / self.frame_count
-        #         self.previous_H = H_avg
-        #         self.frame_count = 0
-        #         self.homography_sum = np.zeros((3, 3))
-        #     else:
-        #         self.previous_H = H
-
-        # else:
-        #     H_avg = self.previous_H if self.previous_H is not None else np.eye(3)
-
-        # h1, w1 = undistorted_left.shape[:2]
-        # h2, w2 = undistorted_right.shape[:2]
-
-        # corners_left = np.array([[0,0], [0,h1], [w1,h1], [w1,0]], dtype=np.float32).reshape(-1,1,2)
-        # corners_right = np.array([[0,0], [0,h2], [w2,h2], [w2,0]], dtype=np.float32).reshape(-1,1,2)
-
-        # warped_corners_right = cv2.perspectiveTransform(corners_right, H_avg)
-
-        # all_corners = np.concatenate((corners_left, warped_corners_right), axis=0)
-        # [x_min, y_min] = np.floor(all_corners.min(axis=0).ravel()).astype(int)
-        # [x_max, y_max] = np.ceil(all_corners.max(axis=0).ravel()).astype(int)
-
-        # output_width = x_max - x_min
-        # output_height = y_max - y_min
-
-        # translation = np.array([[1, 0, -x_min],
-        #                         [0, 1, -y_min],
-        #                         [0, 0, 1]])
-
-        # stitched2 = cv2.warpPerspective(undistorted_right, translation @ H_avg, (output_width, output_height))
-        # stitched2[-y_min:h1 - y_min, -x_min:w1 - x_min] = undistorted_left
-        # frame = stitched2[-y_min:h1-y_min, 0:1000]
-
-
-        # frame = np.concatenate((left[:,0:230], right), axis=1)
-        # estimate position here
-        # print("tracking")
         DIM=(640, 480)
         # print(self.output_folder + "/frame%d.jpg" % self.count)
         # cv2.imwrite(self.output_folder + "/frame%d.jpg" % self.count, frame)
@@ -308,7 +210,6 @@ class TrackerNode(Node):
             You only go into detect object when you cancel a track
 
             """
-            # print(f"NOT IN TRACKING MODE WE'RE IN {self.status}\n")
             bounding_boxes, masks, frame = self.tracker.detect_object(frame)
             self.tracker.clicks_for_retrack = []
             self.tracker.state_for_retrack = 0
@@ -355,8 +256,7 @@ class TrackerNode(Node):
                 self.first_detect = True
                 print("No detection, random walk...\n")
                 self.config_pub.publish(Float32MultiArray(data=[]))
-                # if random.uniform(0.0, 1.0) < 0.9:
-                    
+                # if random.uniform(0.0, 1.0) < 0.9:       
                 # self.cam_pub.publish(msg)
             else:
                 self.first_detect = False
