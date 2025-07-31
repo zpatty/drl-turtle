@@ -124,6 +124,11 @@ class CamSubscriber(Node):
         self.frame_count = 0
         self.max_frames_to_average = 3
 
+        data = np.load('stitch_matrices.npz')
+        self.H_avg = data['H']
+        self.M_rectify = data['M_rectify']
+
+
 
     def euler_to_rotation_matrix(self, yaw, pitch, roll):
         r = R_scipy.from_euler('zyx', [yaw, pitch, roll], degrees=True)
@@ -221,101 +226,170 @@ class CamSubscriber(Node):
         # cv2.imshow("rectified_right", rectified_right)
 
 
-        #gave up now trying to use SIFT to stitch the images together
+        # #gave up now trying to use SIFT to stitch the images together
+        # undistorted_left = cv2.remap(left, l_map1, l_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+        # undistorted_right = cv2.remap(right, r_map1, r_map2, interpolation=cv2.INTER_LINEAR,borderMode= cv2.BORDER_CONSTANT)
+
+        # sift = cv2.SIFT_create()
+        # kp1, des1 = sift.detectAndCompute(undistorted_left, None)
+        # kp2, des2 = sift.detectAndCompute(undistorted_right, None)
+
+        # bf = cv2.BFMatcher()
+        # matches = bf.knnMatch(des1, des2, k=2)
+
+        # good = []
+        # for m,n in matches:
+        #     if m.distance < 0.75*n.distance:
+        #         good.append(m)
+
+        # H_avg = self.previous_H if self.previous_H is not None else np.eye(3)
+
+        # num_keypoints = len(good)
+        # if num_keypoints >= self.previous_num_keypoints:
+        #     self.previous_num_keypoints = num_keypoints
+
+        #     src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+        #     dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+
+        #     H, _ = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
+        #     self.homography_sum += H
+        #     print(self.homography_sum)
+
+        #     self.frame_count += 1
+
+        #     if self.frame_count >= self.max_frames_to_average:
+        #         H_avg = self.homography_sum / self.frame_count
+        #         self.previous_H = H_avg
+        #         self.frame_count = 0
+        #         self.homography_sum = np.zeros((3, 3))
+        #     else:
+        #         self.previous_H = H
+
+        # else:
+        #     H_avg = self.previous_H if self.previous_H is not None else np.eye(3)
+
+        # h1, w1 = undistorted_left.shape[:2]
+        # h2, w2 = undistorted_right.shape[:2]
+
+        # corners_left = np.array([[0,0], [0,h1], [w1,h1], [w1,0]], dtype=np.float32).reshape(-1,1,2)
+        # corners_right = np.array([[0,0], [0,h2], [w2,h2], [w2,0]], dtype=np.float32).reshape(-1,1,2)
+
+        # warped_corners_right = cv2.perspectiveTransform(corners_right, H_avg)
+
+        # all_corners = np.concatenate((corners_left, warped_corners_right), axis=0)
+        # [x_min, y_min] = np.floor(all_corners.min(axis=0).ravel()).astype(int)
+        # [x_max, y_max] = np.ceil(all_corners.max(axis=0).ravel()).astype(int)
+
+        # output_width = x_max - x_min
+        # output_height = y_max - y_min
+
+        # translation = np.array([[1, 0, -x_min],
+        #                         [0, 1, -y_min],
+        #                         [0, 0, 1]])
+
+        # stitched2 = cv2.warpPerspective(undistorted_right, translation @ H_avg, (output_width, output_height))
+        # stitched2[-y_min:h1 - y_min, -x_min:w1 - x_min] = undistorted_left
+        # # cv2.imshow("stitched2", stitched2)
+
+        # gray = cv2.cvtColor(stitched2, cv2.COLOR_BGR2GRAY)
+        # _, thresh = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
+
+        # contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # if not contours:
+        #     print("No contours found")
+        #     return
+
+        # largest_contour = max(contours, key=cv2.contourArea)
+        # epsilon = 0.02 * cv2.arcLength(largest_contour, True)
+        # approx = cv2.approxPolyDP(largest_contour, epsilon, True)
+
+        # if len(approx) != 4:
+        #     print("Could not find quadrilateral shape; skipping rectification")
+        #     cv2.imshow("stitched2", stitched2)
+        #     return
+
+        # dst_size = (1250,663)
+        # dst_pts = np.array([
+        #     [0, 0],
+        #     [dst_size[0] - 1, 0],
+        #     [dst_size[0] - 1, dst_size[1] - 1],
+        #     [0, dst_size[1] - 1]
+        # ], dtype=np.float32)
+
+        # def order_points(pts):
+        #     pts = pts.reshape(4, 2)
+        #     s = pts.sum(axis=1)
+        #     diff = np.diff(pts, axis=1)
+        #     ordered = np.zeros((4, 2), dtype="float32")
+        #     ordered[0] = pts[np.argmin(s)]     # top-left
+        #     ordered[2] = pts[np.argmax(s)]     # bottom-right
+        #     ordered[1] = pts[np.argmin(diff)]  # top-right
+        #     ordered[3] = pts[np.argmax(diff)]  # bottom-left
+        #     return ordered
+
+        # src_pts = order_points(approx)
+
+        # M = cv2.getPerspectiveTransform(src_pts, dst_pts)
+        # rectified = cv2.warpPerspective(stitched2, M, dst_size)
+
+        # cv2.imshow("stitched2_rectified", rectified)
+
+        #Using presaved matrices
         undistorted_left = cv2.remap(left, l_map1, l_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-        undistorted_right = cv2.remap(right, r_map1, r_map2, interpolation=cv2.INTER_LINEAR,borderMode= cv2.BORDER_CONSTANT)
-
-        sift = cv2.SIFT_create()
-        kp1, des1 = sift.detectAndCompute(undistorted_left, None)
-        kp2, des2 = sift.detectAndCompute(undistorted_right, None)
-
-        bf = cv2.BFMatcher()
-        matches = bf.knnMatch(des1, des2, k=2)
-
-        good = []
-        for m,n in matches:
-            if m.distance < 0.75*n.distance:
-                good.append(m)
-
-        H_avg = self.previous_H if self.previous_H is not None else np.eye(3)
-
-        num_keypoints = len(good)
-        if num_keypoints >= self.previous_num_keypoints:
-            self.previous_num_keypoints = num_keypoints
-
-            src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
-            dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
-
-            H, _ = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
-            self.homography_sum += H
-            print(self.homography_sum)
-
-            self.frame_count += 1
-
-            if self.frame_count >= self.max_frames_to_average:
-                H_avg = self.homography_sum / self.frame_count
-                self.previous_H = H_avg
-                self.frame_count = 0
-                self.homography_sum = np.zeros((3, 3))
-            else:
-                self.previous_H = H
-
-        else:
-            H_avg = self.previous_H if self.previous_H is not None else np.eye(3)
+        undistorted_right = cv2.remap(right, r_map1, r_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
 
         h1, w1 = undistorted_left.shape[:2]
         h2, w2 = undistorted_right.shape[:2]
 
         corners_left = np.array([[0,0], [0,h1], [w1,h1], [w1,0]], dtype=np.float32).reshape(-1,1,2)
         corners_right = np.array([[0,0], [0,h2], [w2,h2], [w2,0]], dtype=np.float32).reshape(-1,1,2)
-
-        warped_corners_right = cv2.perspectiveTransform(corners_right, H_avg)
+        warped_corners_right = cv2.perspectiveTransform(corners_right, self.H_avg)
 
         all_corners = np.concatenate((corners_left, warped_corners_right), axis=0)
         [x_min, y_min] = np.floor(all_corners.min(axis=0).ravel()).astype(int)
         [x_max, y_max] = np.ceil(all_corners.max(axis=0).ravel()).astype(int)
-
         output_width = x_max - x_min
         output_height = y_max - y_min
+        translation = np.array([[1, 0, -x_min], [0, 1, -y_min], [0, 0, 1]])
 
-        translation = np.array([[1, 0, -x_min],
-                                [0, 1, -y_min],
-                                [0, 0, 1]])
+        stitched3 = cv2.warpPerspective(undistorted_right, translation @ self.H_avg, (output_width, output_height))
+        stitched3[-y_min:h1 - y_min, -x_min:w1 - x_min] = undistorted_left
 
-        stitched2 = cv2.warpPerspective(undistorted_right, translation @ H_avg, (output_width, output_height))
-        stitched2[-y_min:h1 - y_min, -x_min:w1 - x_min] = undistorted_left
-        cv2.imshow("stitched2", stitched2)
-        cropped_stitch = stitched2[-y_min:h1-y_min, 0:1250]
-        cv2.imshow("cropped_stitch", cropped_stitch)
-
+        dst_size = (1250, 663)  # wtv works
+        rectified = cv2.warpPerspective(stitched3, self.M_rectify, dst_size)
+        cropped_stitch = rectified[62:663-44,0:1250]
+        cv2.imshow("stitched3_rectified", cropped_stitch)
 
 
 
-        corners = np.array([
-            [0,0],
-            [0,h],
-            [w,0],
-            [w,h]
-        ], dtype=np.float32)
-        transformed_corners = cv2.transform(np.array([corners]),self.affine_matrix)[0]
-        all_corners = np.vstack(([[0,0],[0,h],[w,0],[w,h]],transformed_corners))
 
-        [xmin, ymin] = np.floor(all_corners.min(axis=0)).astype(int)
-        [xmax, ymax] = np.ceil(all_corners.max(axis=0)).astype(int)
+        # #Interactive stitcher very cool very robust
+        # corners = np.array([
+        #     [0,0],
+        #     [0,h],
+        #     [w,0],
+        #     [w,h]
+        # ], dtype=np.float32)
+        # transformed_corners = cv2.transform(np.array([corners]),self.affine_matrix)[0]
+        # all_corners = np.vstack(([[0,0],[0,h],[w,0],[w,h]],transformed_corners))
 
-        offset = np.array([-xmin, -ymin])
-        output_size = (xmax - xmin, ymax - ymin)
+        # [xmin, ymin] = np.floor(all_corners.min(axis=0)).astype(int)
+        # [xmax, ymax] = np.ceil(all_corners.max(axis=0)).astype(int)
 
-        affine_with_offset = self.affine_matrix.copy()
-        affine_with_offset[:, 2] += offset
+        # offset = np.array([-xmin, -ymin])
+        # output_size = (xmax - xmin, ymax - ymin)
 
-        transformed_right = cv2.warpAffine(right, affine_with_offset, output_size)
+        # affine_with_offset = self.affine_matrix.copy()
+        # affine_with_offset[:, 2] += offset
+
+        # transformed_right = cv2.warpAffine(right, affine_with_offset, output_size)
         
-        canvas = np.zeros((output_size[1], output_size[0], 3), dtype=np.uint8)
-        canvas[offset[1]:offset[1]+h, offset[0]:offset[0]+w] = left
-        stitched = np.maximum(canvas, transformed_right)
+        # canvas = np.zeros((output_size[1], output_size[0], 3), dtype=np.uint8)
+        # canvas[offset[1]:offset[1]+h, offset[0]:offset[0]+w] = left
+        # stitched = np.maximum(canvas, transformed_right)
 
-        cv2.imshow("stitched", stitched)
+        # cv2.imshow("stitched", stitched)
+
         # cv2.imshow("left", left)
         # cv2.imshow("right", right)
         cv2.waitKey(1)
