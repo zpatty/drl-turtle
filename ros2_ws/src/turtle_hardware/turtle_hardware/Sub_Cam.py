@@ -413,7 +413,7 @@ class CamSubscriber(Node):
 
         # cv2.imshow("stitched2_rectified", rectified)
 
-        stitched = self.matrix_stitch(left, right)
+        # stitched = self.matrix_stitch(left, right)
         stitched = self.interactive_stitch(left, right)
         cv2.imshow("stitched", stitched)
         cv2.waitKey(1)
