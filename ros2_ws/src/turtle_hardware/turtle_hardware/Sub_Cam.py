@@ -173,6 +173,78 @@ class CamSubscriber(Node):
 
         return cv2.warpPerspective(image, H_translated, (new_w, new_h), flags=cv2.INTER_LINEAR)
 
+    def matrix_stitch(self, left, right):
+        h, w = left.shape[:2]
+        image_size = (w, h)
+
+        l_map1, l_map2 = cv2.fisheye.initUndistortRectifyMap(
+            K=self.KL, D=self.DL, R=np.eye(3), P=self.KL, size=image_size, m1type=cv2.CV_16SC2
+        )
+
+        r_map1, r_map2 = cv2.fisheye.initUndistortRectifyMap(
+            K=self.KR, D=self.DR, R=np.eye(3), P=self.KR, size=image_size, m1type=cv2.CV_16SC2
+        )
+
+        undistorted_left = cv2.remap(left, l_map1, l_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+        undistorted_right = cv2.remap(right, r_map1, r_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+
+        h1, w1 = undistorted_left.shape[:2]
+        h2, w2 = undistorted_right.shape[:2]
+
+        corners_left = np.array([[0,0], [0,h1], [w1,h1], [w1,0]], dtype=np.float32).reshape(-1,1,2)
+        corners_right = np.array([[0,0], [0,h2], [w2,h2], [w2,0]], dtype=np.float32).reshape(-1,1,2)
+        warped_corners_right = cv2.perspectiveTransform(corners_right, self.H_avg)
+        all_corners = np.concatenate((corners_left, warped_corners_right), axis=0)
+
+        [x_min, y_min] = np.floor(all_corners.min(axis=0).ravel()).astype(int)
+        [x_max, y_max] = np.ceil(all_corners.max(axis=0).ravel()).astype(int)
+        output_width = x_max - x_min
+        output_height = y_max - y_min
+
+        translation = np.array([[1, 0, -x_min],
+                                [0, 1, -y_min],
+                                [0, 0, 1]])
+
+        stitched = cv2.warpPerspective(undistorted_right, translation @ self.H_avg, (output_width, output_height))
+        stitched[-y_min:h1 - y_min, -x_min:w1 - x_min] = undistorted_left
+
+        dst_size = (1250, 663)
+        rectified = cv2.warpPerspective(stitched, self.M_rectify, dst_size)
+        cropped = rectified[62:663-44, 0:1250]
+
+        return cropped
+    
+    def interactive_stitch(self, left, right):
+        h, w = left.shape[:2]
+
+        corners = np.array([
+            [0, 0],
+            [0, h],
+            [w, 0],
+            [w, h]
+        ], dtype=np.float32)
+
+        transformed_corners = cv2.transform(np.array([corners]), self.affine_matrix)[0]
+        all_corners = np.vstack((corners, transformed_corners))
+
+        [xmin, ymin] = np.floor(all_corners.min(axis=0)).astype(int)
+        [xmax, ymax] = np.ceil(all_corners.max(axis=0)).astype(int)
+        output_size = (xmax - xmin, ymax - ymin)
+        offset = np.array([-xmin, -ymin])
+
+        affine_with_offset = self.affine_matrix.copy()
+        affine_with_offset[:, 2] += offset
+
+        transformed_right = cv2.warpAffine(right, affine_with_offset, output_size)
+
+        canvas = np.zeros((output_size[1], output_size[0], 3), dtype=np.uint8)
+        canvas[offset[1]:offset[1] + h, offset[0]:offset[0] + w] = left
+
+        stitched = np.maximum(canvas, transformed_right)
+
+        return stitched
+
+
 
     def img_callback(self, msg):
         #### LEFT RIGHT ####
@@ -194,21 +266,21 @@ class CamSubscriber(Node):
         self.last_time = current_time
         print(f"[FPS] {fps:.2f}")
 
-        h, w = left.shape[:2]
-        image_size = (w, h)
+        # h, w = left.shape[:2]
+        # image_size = (w, h)
 
-        R1, R2, P1, P2, Q = cv2.fisheye.stereoRectify(
-            self.KL, self.DL, self.KR, self.DR, image_size, self.R, self.T,
-            flags=cv2.fisheye.CALIB_USE_INTRINSIC_GUESS, balance=1.0, newImageSize=image_size
-        )
+        # R1, R2, P1, P2, Q = cv2.fisheye.stereoRectify(
+        #     self.KL, self.DL, self.KR, self.DR, image_size, self.R, self.T,
+        #     flags=cv2.fisheye.CALIB_USE_INTRINSIC_GUESS, balance=1.0, newImageSize=image_size
+        # )
 
-        l_map1, l_map2 = cv2.fisheye.initUndistortRectifyMap(
-            K=self.KL, D=self.DL, R=np.eye(3), P=self.KL, size=image_size, m1type=cv2.CV_16SC2
-        )
+        # l_map1, l_map2 = cv2.fisheye.initUndistortRectifyMap(
+        #     K=self.KL, D=self.DL, R=np.eye(3), P=self.KL, size=image_size, m1type=cv2.CV_16SC2
+        # )
 
-        r_map1, r_map2 = cv2.fisheye.initUndistortRectifyMap(
-            K=self.KR, D=self.DR, R=np.eye(3), P=self.KR, size=image_size, m1type=cv2.CV_16SC2
-        )
+        # r_map1, r_map2 = cv2.fisheye.initUndistortRectifyMap(
+        #     K=self.KR, D=self.DR, R=np.eye(3), P=self.KR, size=image_size, m1type=cv2.CV_16SC2
+        # )
 
         # #Does not work rn tried to turn cameras virtually to be parallel in order to stitch them together using intrinsics
         # flat_left = cv2.remap(left, l_map1, l_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
@@ -233,7 +305,7 @@ class CamSubscriber(Node):
         # cv2.imshow("rectified_right", rectified_right)
 
 
-        # #gave up now trying to use SIFT to stitch the images together
+        # #Use SIFT to stitch the images together
         # undistorted_left = cv2.remap(left, l_map1, l_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
         # undistorted_right = cv2.remap(right, r_map1, r_map2, interpolation=cv2.INTER_LINEAR,borderMode= cv2.BORDER_CONSTANT)
 
@@ -341,62 +413,9 @@ class CamSubscriber(Node):
 
         # cv2.imshow("stitched2_rectified", rectified)
 
-        # #Using presaved matrices
-        # undistorted_left = cv2.remap(left, l_map1, l_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-        # undistorted_right = cv2.remap(right, r_map1, r_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-
-        # h1, w1 = undistorted_left.shape[:2]
-        # h2, w2 = undistorted_right.shape[:2]
-
-        # corners_left = np.array([[0,0], [0,h1], [w1,h1], [w1,0]], dtype=np.float32).reshape(-1,1,2)
-        # corners_right = np.array([[0,0], [0,h2], [w2,h2], [w2,0]], dtype=np.float32).reshape(-1,1,2)
-        # warped_corners_right = cv2.perspectiveTransform(corners_right, self.H_avg)
-
-        # all_corners = np.concatenate((corners_left, warped_corners_right), axis=0)
-        # [x_min, y_min] = np.floor(all_corners.min(axis=0).ravel()).astype(int)
-        # [x_max, y_max] = np.ceil(all_corners.max(axis=0).ravel()).astype(int)
-        # output_width = x_max - x_min
-        # output_height = y_max - y_min
-        # translation = np.array([[1, 0, -x_min], [0, 1, -y_min], [0, 0, 1]])
-
-        # stitched3 = cv2.warpPerspective(undistorted_right, translation @ self.H_avg, (output_width, output_height))
-        # stitched3[-y_min:h1 - y_min, -x_min:w1 - x_min] = undistorted_left
-
-        # dst_size = (1250, 663)  # wtv works
-        # rectified = cv2.warpPerspective(stitched3, self.M_rectify, dst_size)
-        # cropped_stitch = rectified[62:663-44,0:1250]
-        # cv2.imshow("stitched3_rectified", cropped_stitch)
-
-
-
-
-        # Interactive stitcher very cool very robust
-        corners = np.array([
-            [0,0],
-            [0,h],
-            [w,0],
-            [w,h]
-        ], dtype=np.float32)
-        transformed_corners = cv2.transform(np.array([corners]),self.affine_matrix)[0]
-        all_corners = np.vstack(([[0,0],[0,h],[w,0],[w,h]],transformed_corners))
-
-        [xmin, ymin] = np.floor(all_corners.min(axis=0)).astype(int)
-        [xmax, ymax] = np.ceil(all_corners.max(axis=0)).astype(int)
-
-        offset = np.array([-xmin, -ymin])
-        output_size = (xmax - xmin, ymax - ymin)
-
-        affine_with_offset = self.affine_matrix.copy()
-        affine_with_offset[:, 2] += offset
-
-        transformed_right = cv2.warpAffine(right, affine_with_offset, output_size)
-        
-        canvas = np.zeros((output_size[1], output_size[0], 3), dtype=np.uint8)
-        canvas[offset[1]:offset[1]+h, offset[0]:offset[0]+w] = left
-        stitched = np.maximum(canvas, transformed_right)
-
+        stitched = self.matrix_stitch(left, right)
+        stitched = self.interactive_stitch(left, right)
         cv2.imshow("stitched", stitched)
-
         cv2.waitKey(1)
 
 
