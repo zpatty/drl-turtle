@@ -298,32 +298,41 @@ class TrackerNode(Node):
     def track_anything(self, frame):
         masks = "bloop"
         print(f"[STATUS] {self.status}\n")
-
+        t = time.time()
         if self.status != "Tracking":
             """
             You're in this mode for two reasons:
             1. You just started the tracker and need to detect the object.
             2. You lost the object and need to re-detect it.
 
-            Currently when trying to retrack, the frame update slows down significantly.
+            You only go into detect object when you cancel a track
+
             """
-            print(f"NOT IN TRACKING MODE WE'RE IN {self.status}\n")
+            # print(f"NOT IN TRACKING MODE WE'RE IN {self.status}\n")
             bounding_boxes, masks, frame = self.tracker.detect_object(frame)
             self.tracker.clicks_for_retrack = []
             self.tracker.state_for_retrack = 0
+            print(f"------------time to detect object: {time.time() - t} seconds\n")
         if masks is not None:
             print(f"[DEBUG] Masks detected, with status {self.status}")
             self.tracker.mission_counter +=1
             self.status, mean_point, masks, clicks_for_retrack = self.tracker.track_object_with_cutie(masks, frame)
             self.config_pub.publish(Float32MultiArray(data=mean_point))
-        else:
-            self.status = None
-            self.config_pub.publish(Float32MultiArray(data=[]))
+            print(f"------------time to track object: {time.time() - t} seconds\n")
+        # else:
+        #     print(f"[DEBUG] No masks detected, with status {self.status}")
+        #     self.status = None
+        #     self.config_pub.publish(Float32MultiArray(data=[]))
         
         if self.status == 'Failed': 
             print("Object Lost... Redetecting....")
             self.tracker.clicks_for_retrack = None
             self.tracker.clicks_for_retrack = []
+            self.tracker.state = 0
+            self.tracker.points = []
+            self.tracker.labels = []
+            self.tracker.cfg['clicks_for_retrack'] = []
+            self.tracker.plot_while_failed = True
 
         elif self.status == "retrack":
             print("Retracking based in user comman....")
