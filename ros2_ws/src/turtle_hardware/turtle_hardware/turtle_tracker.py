@@ -201,7 +201,7 @@ class TrackerNode(Node):
         masks = "bloop"
         print(f"[STATUS] {self.status}\n")
         t = time.time()
-        if self.status != "Tracking":
+        if self.status != "Tracking" and self.status != "Failed":
             """
             You're in this mode for two reasons:
             1. You just started the tracker and need to detect the object.
@@ -227,8 +227,8 @@ class TrackerNode(Node):
         
         if self.status == 'Failed': 
             print("Object Lost... Redetecting....")
-            self.tracker.clicks_for_retrack = None
-            self.tracker.clicks_for_retrack = []
+            # self.tracker.clicks_for_retrack = None
+            # self.tracker.clicks_for_retrack = []
             self.tracker.state = 0
             self.tracker.points = []
             self.tracker.labels = []
