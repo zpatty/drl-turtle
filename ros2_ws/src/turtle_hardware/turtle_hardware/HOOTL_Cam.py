@@ -100,7 +100,7 @@ class CamNode(Node):
         self.call_timer = self.create_timer(0.3, self._cam_cb, callback_group=timer_cb_group)
         # where to pull the images
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        self.image_dir = os.path.join(script_dir, 'video/02_10_2025_11_46_08_Barricuda')
+        self.image_dir = os.path.join(script_dir, 'video/02_10_2025_11_58_23_SeaTurtle')
         self.left_folder = os.path.join(self.image_dir, 'left')
         self.right_folder = os.path.join(self.image_dir, 'right')
         self.extension = 'jpg'
