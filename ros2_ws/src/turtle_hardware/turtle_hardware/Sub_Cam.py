@@ -127,6 +127,8 @@ class CamSubscriber(Node):
         data = np.load('stitch_matrices.npz')
         self.H_avg = data['H']
         self.M_rectify = data['M_rectify']
+        self.last_time = time.time()
+
 
 
 
@@ -186,6 +188,11 @@ class CamSubscriber(Node):
         fps = 1.0 / seconds
         # print("Estimated frames per second : {0}".format(fps))
         self.start_time = end_time
+
+        current_time = time.time()
+        fps = 1.0 / (current_time - self.last_time)
+        self.last_time = current_time
+        print(f"[FPS] {fps:.2f}")
 
         h, w = left.shape[:2]
         image_size = (w, h)
@@ -334,64 +341,62 @@ class CamSubscriber(Node):
 
         # cv2.imshow("stitched2_rectified", rectified)
 
-        #Using presaved matrices
-        undistorted_left = cv2.remap(left, l_map1, l_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-        undistorted_right = cv2.remap(right, r_map1, r_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+        # #Using presaved matrices
+        # undistorted_left = cv2.remap(left, l_map1, l_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+        # undistorted_right = cv2.remap(right, r_map1, r_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
 
-        h1, w1 = undistorted_left.shape[:2]
-        h2, w2 = undistorted_right.shape[:2]
+        # h1, w1 = undistorted_left.shape[:2]
+        # h2, w2 = undistorted_right.shape[:2]
 
-        corners_left = np.array([[0,0], [0,h1], [w1,h1], [w1,0]], dtype=np.float32).reshape(-1,1,2)
-        corners_right = np.array([[0,0], [0,h2], [w2,h2], [w2,0]], dtype=np.float32).reshape(-1,1,2)
-        warped_corners_right = cv2.perspectiveTransform(corners_right, self.H_avg)
+        # corners_left = np.array([[0,0], [0,h1], [w1,h1], [w1,0]], dtype=np.float32).reshape(-1,1,2)
+        # corners_right = np.array([[0,0], [0,h2], [w2,h2], [w2,0]], dtype=np.float32).reshape(-1,1,2)
+        # warped_corners_right = cv2.perspectiveTransform(corners_right, self.H_avg)
 
-        all_corners = np.concatenate((corners_left, warped_corners_right), axis=0)
-        [x_min, y_min] = np.floor(all_corners.min(axis=0).ravel()).astype(int)
-        [x_max, y_max] = np.ceil(all_corners.max(axis=0).ravel()).astype(int)
-        output_width = x_max - x_min
-        output_height = y_max - y_min
-        translation = np.array([[1, 0, -x_min], [0, 1, -y_min], [0, 0, 1]])
+        # all_corners = np.concatenate((corners_left, warped_corners_right), axis=0)
+        # [x_min, y_min] = np.floor(all_corners.min(axis=0).ravel()).astype(int)
+        # [x_max, y_max] = np.ceil(all_corners.max(axis=0).ravel()).astype(int)
+        # output_width = x_max - x_min
+        # output_height = y_max - y_min
+        # translation = np.array([[1, 0, -x_min], [0, 1, -y_min], [0, 0, 1]])
 
-        stitched3 = cv2.warpPerspective(undistorted_right, translation @ self.H_avg, (output_width, output_height))
-        stitched3[-y_min:h1 - y_min, -x_min:w1 - x_min] = undistorted_left
+        # stitched3 = cv2.warpPerspective(undistorted_right, translation @ self.H_avg, (output_width, output_height))
+        # stitched3[-y_min:h1 - y_min, -x_min:w1 - x_min] = undistorted_left
 
-        dst_size = (1250, 663)  # wtv works
-        rectified = cv2.warpPerspective(stitched3, self.M_rectify, dst_size)
-        cropped_stitch = rectified[62:663-44,0:1250]
-        cv2.imshow("stitched3_rectified", cropped_stitch)
-
-
+        # dst_size = (1250, 663)  # wtv works
+        # rectified = cv2.warpPerspective(stitched3, self.M_rectify, dst_size)
+        # cropped_stitch = rectified[62:663-44,0:1250]
+        # cv2.imshow("stitched3_rectified", cropped_stitch)
 
 
-        # #Interactive stitcher very cool very robust
-        # corners = np.array([
-        #     [0,0],
-        #     [0,h],
-        #     [w,0],
-        #     [w,h]
-        # ], dtype=np.float32)
-        # transformed_corners = cv2.transform(np.array([corners]),self.affine_matrix)[0]
-        # all_corners = np.vstack(([[0,0],[0,h],[w,0],[w,h]],transformed_corners))
 
-        # [xmin, ymin] = np.floor(all_corners.min(axis=0)).astype(int)
-        # [xmax, ymax] = np.ceil(all_corners.max(axis=0)).astype(int)
 
-        # offset = np.array([-xmin, -ymin])
-        # output_size = (xmax - xmin, ymax - ymin)
+        # Interactive stitcher very cool very robust
+        corners = np.array([
+            [0,0],
+            [0,h],
+            [w,0],
+            [w,h]
+        ], dtype=np.float32)
+        transformed_corners = cv2.transform(np.array([corners]),self.affine_matrix)[0]
+        all_corners = np.vstack(([[0,0],[0,h],[w,0],[w,h]],transformed_corners))
 
-        # affine_with_offset = self.affine_matrix.copy()
-        # affine_with_offset[:, 2] += offset
+        [xmin, ymin] = np.floor(all_corners.min(axis=0)).astype(int)
+        [xmax, ymax] = np.ceil(all_corners.max(axis=0)).astype(int)
 
-        # transformed_right = cv2.warpAffine(right, affine_with_offset, output_size)
+        offset = np.array([-xmin, -ymin])
+        output_size = (xmax - xmin, ymax - ymin)
+
+        affine_with_offset = self.affine_matrix.copy()
+        affine_with_offset[:, 2] += offset
+
+        transformed_right = cv2.warpAffine(right, affine_with_offset, output_size)
         
-        # canvas = np.zeros((output_size[1], output_size[0], 3), dtype=np.uint8)
-        # canvas[offset[1]:offset[1]+h, offset[0]:offset[0]+w] = left
-        # stitched = np.maximum(canvas, transformed_right)
+        canvas = np.zeros((output_size[1], output_size[0], 3), dtype=np.uint8)
+        canvas[offset[1]:offset[1]+h, offset[0]:offset[0]+w] = left
+        stitched = np.maximum(canvas, transformed_right)
 
-        # cv2.imshow("stitched", stitched)
+        cv2.imshow("stitched", stitched)
 
-        # cv2.imshow("left", left)
-        # cv2.imshow("right", right)
         cv2.waitKey(1)
 
 
