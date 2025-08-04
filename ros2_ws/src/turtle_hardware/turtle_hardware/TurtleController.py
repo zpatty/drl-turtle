@@ -335,5 +335,7 @@ def main():
         control_node.publish_u([0]*10)
     except:
         print("Kill command failed, check connection.")
+    control_node.destroy_node()
+    print("Closed turtle controller node")
 if __name__ == '__main__':
     main()

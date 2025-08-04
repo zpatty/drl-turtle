@@ -446,7 +446,6 @@ if __name__ == '__main__':
     remote_node.gamepad.disconnect()
     remote_node.save_data()
     remote_node.save_config()
-    remote_node.destroy_node()
     print("Saved data and config")
-    rclpy.shutdown()
+    remote_node.destroy_node()
     print("Gamepad node shutdown")
