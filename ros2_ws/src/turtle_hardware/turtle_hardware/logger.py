@@ -18,20 +18,17 @@ from std_msgs.msg import Float32MultiArray
 
 from turtle_interfaces.msg import TurtleCtrl, TurtleMode
 
-
+from datetime import datetime
 # Load the gamepad and time libraries
 import time
 
 
 class Logger(Node):
 
-# class TurtleRobot(Node, gym.Env):
     """
     This node is responsible for continously reading sensor data and receiving commands from the keyboard node
     to execute specific trajectoreies or handle emergency stops. It also is responsible for sending motor pos commands to the RL node
     for training and deployment purposes.
-    TODO: migrate dynamixel motors into this class
-    TLDR; this is the node that handles all turtle hardware things
     """
 
     def __init__(self, params=None):
@@ -78,22 +75,16 @@ class Logger(Node):
             self.turtle_mode_callback,
             qos_profile)
         
-
-
         t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
         self.folder_name =  "data/" + t
+        print(f"Attempting to create folder: {self.folder_name}", flush=True)
         os.makedirs(self.folder_name)
+        print(f"Created folder: {self.folder_name}", flush=True)
         self.create_rate(100)
         params, __ = self.parse_ctrl_params()
-
         self.reset()
-
         self.mode = "rest"
         self.traj = "nav"
-
-
-
-    
 
     def sensors_callback(self, msg):
         """
@@ -312,13 +303,15 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        # rclpy.shutdown()
         print("some error occurred")
-        # turtle_node.shutdown_motors()
         exec_type, obj, tb = sys.exc_info()
         fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
         print(exec_type, fname, tb.tb_lineno)
         print(e)
-    # remote_node.gamepad.disconnect()
     logger_node.save_data()
     logger_node.save_config()
+    print("Saved data and config")
+    logger_node.destroy_node()
+    rclpy.shutdown()
+    print("Logger node shutdown")
+    sys.exit(0)
