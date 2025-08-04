@@ -1,50 +1,29 @@
+import sys
+import os
+import time
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
-import rclpy.parameter
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
-
-import sys
-import os
 from rclpy.parameter_event_handler import ParameterEventHandler
 
 from turtle_interfaces.msg import TurtleTraj, TurtleCtrl, TurtleMode, TurtleState
 from std_msgs.msg import String, Float32MultiArray
 
-import numpy as np
-
 from statistics import mode as md
-
-import time
-
 from datetime import datetime
-# submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/install/turtle_hardware/lib/python3.12/site-packages/turtle_hardware/"
-# sys.path.append(submodule)
-# # submodule = os.path.expanduser("~") + "/colcon_venv/venv/lib/python3.12/site-packages/"
-# # sys.path.append(submodule)
-# submodule = os.path.expanduser("~") + "/git-repos/orbitally-stable-motion-primitives-for-turtle-locomotion/src/"
-# sys.path.append(submodule)
-
-
+import numpy as np
 from turtle_dynamixel.torque_control import torque_control  
-# from turtle_dynamixel import torque_control
-
-# from mjc_turtle_robot.controllers.joint_space_controllers import cornelia_joint_space_control_factory, cornelia_joint_space_motion_primitive_control_factory
-# from mjc_turtle_robot.controllers.task_space_controller import green_sea_turtle_task_space_control_factory
-# from mjc_turtle_robot.controllers.joint_space_controllers import navigation_joint_space_motion_primitive_control_factory
 from turtle_ctrl.turtle_ctrl_factory import cornelia_joint_space_trajectory_tracking_control_factory
 from turtle_ctrl.template_model_oracles import reverse_stroke_joint_oracle_factory
 
 class TurtleController(Node):
-
-# class TurtleRobot(Node, gym.Env):
     """
-    This node is responsible for continously reading sensor data and receiving commands from the keyboard node
-    to execute specific trajectoreies or handle emergency stops. It also is responsible for sending motor pos commands to the RL node
-    for training and deployment purposes.
-    TODO: migrate dynamixel motors into this class
-    TLDR; this is the node that handles all turtle hardware things
+    This node is responsible for sending control commands to the turtle motors based on the received parameters and mode.
+    It subscribes to various topics to receive control parameters, turtle states, and mode commands.
+    The node continuously computes the control signals based on the current state and desired trajectory,
+    and publishes the computed control signals to the motors.
     """
 
     def __init__(self, params=None):
@@ -65,11 +44,9 @@ class TurtleController(Node):
         self.dt = 0.001
         timer_cb_group = None
         self.call_timer = self.create_timer(self.dt, self._ctrl_cb, callback_group=timer_cb_group)
-
         self.handler = ParameterEventHandler(self)
 
-        
-        # subscribes to keyboard setting different turtle modes 
+        # subscribes to keyboard setting different turtle modes
         self.ctrl_params_sub = self.create_subscription(
             TurtleCtrl,
             'turtle_ctrl_params',
@@ -95,13 +72,6 @@ class TurtleController(Node):
             self.sensors_callback,
             qos_profile
         )
-        # # for case camera mode, receives motion primitive
-        # self.cam_sub = self.create_subscription(
-        #     String,
-        #     'primitive',
-        #     self.primitive_callback,
-        #     buff_profile
-        # )
 
         # continously publishes the current motor position      
         self.u_pub = self.create_publisher(
@@ -109,15 +79,12 @@ class TurtleController(Node):
             'turtle_u',
             qos_profile
         )
-        # self.mode_cmd_sub       # prevent unused variable warning
         self.create_rate(1000)
         self.mode = 'rest'      # initialize motors mode to rest state
         self.traj = self.new_controller
         self.traj_str = 'nav'
         self.voltage = 12.0
         self.n_axis = 3
-
-
         self.nq = 10
         
         # set thresholds for motor angles 
@@ -157,8 +124,8 @@ class TurtleController(Node):
         self.use_learned_motion_primitive = False
         self.d_pinv = 2e-3
 
-        self.kp_th = 5e0 * np.ones(2)  # Proportional gain for twist
-        self.w_th = 1e-3  # weight for the twist tracking in the Jacobian product
+        self.kp_th = 5e0 * np.ones(2)   # Proportional gain for twist
+        self.w_th = 1e-3                # weight for the twist tracking in the Jacobian product
         self.kp_s = 20
 
         self.joint_space_control_fn = cornelia_joint_space_trajectory_tracking_control_factory(kp=[2.0]*6, sw=self.sw)
@@ -212,14 +179,12 @@ class TurtleController(Node):
         
         # print(self.mode)
 
-        
     def turtle_ctrl_callback(self, msg):
         self.nav_u = np.array(msg.data[:-1])
         # print(f"[DEBUG] navu: {self.nav_u}\n")
         self.rear_pitch = msg.data[-1]
     
     def turtle_ctrl_params_callback(self, msg):
-
         print(msg)
         kp = msg.kp
         kd = msg.kd
@@ -232,8 +197,6 @@ class TurtleController(Node):
             self.Kp = np.diag(kp)
         elif len(kd) == 1:
             self.Kp = kp[0] * np.eye(10)
-
-            
 
     def sensors_callback(self, msg):
         """
@@ -294,8 +257,6 @@ class TurtleController(Node):
         qd = np.squeeze(q) + dqd * self.dt
 
         return qd, dqd, dqd * 0.0
-    
-
     
     def convert_motors_to_q(self, q, dq):
         q = np.array(q).reshape(10,)  - np.pi
