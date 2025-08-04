@@ -438,9 +438,7 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        # rclpy.shutdown()
-        print("some error occurred")
-        # turtle_node.shutdown_motors()
+        print(f"[EXCEPTION] Some error occurred")
         exec_type, obj, tb = sys.exc_info()
         fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
         print(exec_type, fname, tb.tb_lineno)
@@ -448,3 +446,7 @@ if __name__ == '__main__':
     remote_node.gamepad.disconnect()
     remote_node.save_data()
     remote_node.save_config()
+    remote_node.destroy_node()
+    print("Saved data and config")
+    rclpy.shutdown()
+    print("Gamepad node shutdown")
