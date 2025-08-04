@@ -311,7 +311,9 @@ def main(args):
         fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
         print(exec_type, fname, tb.tb_lineno)
         print(e)
-    # control_node.save_data()
+    print("Shutting down tracker node")
+    rclpy.shutdown()
+    print("Tracker node shutdown")
 
 
 
