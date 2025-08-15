@@ -148,23 +148,7 @@ class CamSubscriber(Node):
         self.M_rectify = data['M_rectify']
         self.last_time = time.time()
 
-        SCREEN_W, SCREEN_H = 1400, 1080   # set your screen size
-        HALF_W = SCREEN_W // 2
-        LEFT_POS  = (0, 0)
-        RIGHT_POS = (HALF_W, 0)
-        TARGET_H  = SCREEN_H
-        TARGET_W  = HALF_W
-
-        cv2.namedWindow("Left",  cv2.WINDOW_NORMAL)
-        cv2.namedWindow("Right", cv2.WINDOW_NORMAL)
-
-        cv2.resizeWindow("Left",  TARGET_W, TARGET_H)
-        cv2.resizeWindow("Right", TARGET_W, TARGET_H)
-        cv2.moveWindow("Left",  *LEFT_POS)
-        cv2.moveWindow("Right", *RIGHT_POS)
-
-        cv2.setWindowProperty("Left",  cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty("Right", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+        self.make_windows = True
 
 
 
@@ -568,16 +552,44 @@ class CamSubscriber(Node):
         print(f"[FPS] {fps:.2f}")
 
         ##stitching
+        # # Matrix Stitch
         # stitched = self.matrix_stitch(left, right)
+        # cv2.imshow("stitched", stitched)
+
+        # # Find Matrix
         # stitched = self.find_matrix(left,right)
+        # cv2.imshow("stitched", stitched)
+
+        # # Non alpha blending interactive stitch
         # stitched = self.interactive_stitch(left, right)
+        # cv2.imshow("stitched", stitched)
+
+        # # Alpha blend interactive stitch
+        # stitched = self.alpha_interactive_stitch(left,right)
+        # cv2.imshow("stitched", stitched)
+
+        # Compare alpha and non alpha stitching 
         stitched = self.alpha_interactive_stitch(left,right)
         stitched2 = self.interactive_stitch(left,right)
-
+        if self.make_windows:
+            SCREEN_W, SCREEN_H = 1375, 1080   # set your screen size
+            HALF_W = SCREEN_W // 2
+            LEFT_POS  = (-10, 0)
+            RIGHT_POS = (HALF_W+70, 0)
+            TARGET_H  = SCREEN_H
+            TARGET_W  = HALF_W
+            cv2.namedWindow("Left",  cv2.WINDOW_NORMAL)
+            cv2.namedWindow("Right", cv2.WINDOW_NORMAL)
+            cv2.resizeWindow("Left",  TARGET_W, TARGET_H)
+            cv2.resizeWindow("Right", TARGET_W, TARGET_H)
+            cv2.moveWindow("Left",  *LEFT_POS)
+            cv2.moveWindow("Right", *RIGHT_POS)
+            cv2.setWindowProperty("Left",  cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+            cv2.setWindowProperty("Right", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+            self.make_windows = False
         cv2.imshow("Left", stitched)
         cv2.imshow("Right", stitched2)
 
-        # cv2.imshow("stitched", stitched)
         cv2.waitKey(1)
 
 
