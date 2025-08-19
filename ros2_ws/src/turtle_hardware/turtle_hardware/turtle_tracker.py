@@ -57,6 +57,7 @@ class TrackerNode(Node):
         os.makedirs(folder_name + "/left_detect")
         os.makedirs(folder_name + "/right_detect")
         self.output_folder = folder_name
+        print(f"Output folder created at: {self.output_folder}")
         if args.save_images_to:
             os.makedirs(folder_name + "/track")
             args.save_images_to = folder_name + "/track"
@@ -142,8 +143,91 @@ class TrackerNode(Node):
         self.affine_matrix = np.array([
             [self.scale * np.cos(self.theta), -self.scale * np.sin(self.theta), self.dx],
             [self.scale * np.sin(self.theta), self.scale * np.cos(self.theta), self.dy]
-        ])     
-        
+        ])   
+
+        self.KL = np.array([[708.3477312219868, 0.0, 260.69187590557686], [0.0, 675.3059166594338, 301.31936629865646], [0.0, 0.0, 1.0]])
+        self.DL = np.array([[-0.39383047117877457], [6.721465255404687], [-35.99917141986595], [61.49579122578909]])
+        self.KR = np.array([[667.0400978057647, 0.0, 334.8109094526051], [0.0, 644.922628956739, 364.07228200370565], [0.0, 0.0, 1.0]])
+        self.DR = np.array([[0.8809516193294453], [-6.609640306922403], [21.549513701823056], [-24.149385093847197]])
+        self.R = np.array([[0.8721459388442752, 0.02130940474841954, -0.4887815162490354], [-0.06589130347707366, 0.9950649291385254, -0.07418977641584823], [0.4847884048567273, 0.09691076342599622, 0.8692459412897253]])
+        self.T = np.array([[-2.085136618149882], [0.1939622251215522], [-0.9258137973647751]])*25.4
+
+        data = np.load('stitch_matrices.npz')
+        self.H_avg = data['H']
+        self.M_rectify = data['M_rectify']     
+
+
+    def matrix_stitch(self, left, right):
+        h, w = left.shape[:2]
+        image_size = (w, h)
+
+        l_map1, l_map2 = cv2.fisheye.initUndistortRectifyMap(
+            K=self.KL, D=self.DL, R=np.eye(3), P=self.KL, size=image_size, m1type=cv2.CV_16SC2
+        )
+
+        r_map1, r_map2 = cv2.fisheye.initUndistortRectifyMap(
+            K=self.KR, D=self.DR, R=np.eye(3), P=self.KR, size=image_size, m1type=cv2.CV_16SC2
+        )
+
+        undistorted_left = cv2.remap(left, l_map1, l_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+        undistorted_right = cv2.remap(right, r_map1, r_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+
+        h1, w1 = undistorted_left.shape[:2]
+        h2, w2 = undistorted_right.shape[:2]
+
+        corners_left = np.array([[0,0], [0,h1], [w1,h1], [w1,0]], dtype=np.float32).reshape(-1,1,2)
+        corners_right = np.array([[0,0], [0,h2], [w2,h2], [w2,0]], dtype=np.float32).reshape(-1,1,2)
+        warped_corners_right = cv2.perspectiveTransform(corners_right, self.H_avg)
+        all_corners = np.concatenate((corners_left, warped_corners_right), axis=0)
+
+        [x_min, y_min] = np.floor(all_corners.min(axis=0).ravel()).astype(int)
+        [x_max, y_max] = np.ceil(all_corners.max(axis=0).ravel()).astype(int)
+        output_width = x_max - x_min
+        output_height = y_max - y_min
+
+        translation = np.array([[1, 0, -x_min],
+                                [0, 1, -y_min],
+                                [0, 0, 1]])
+
+        stitched = cv2.warpPerspective(undistorted_right, translation @ self.H_avg, (output_width, output_height))
+        stitched[-y_min:h1 - y_min, -x_min:w1 - x_min] = undistorted_left
+
+        dst_size = (1250, 663)
+        rectified = cv2.warpPerspective(stitched, self.M_rectify, dst_size)
+        cropped = rectified[62:663-44, 0:1250]
+
+        return cropped
+    
+    def interactive_stitch(self, left, right):
+        h, w = left.shape[:2]
+
+        corners = np.array([
+            [0, 0],
+            [0, h],
+            [w, 0],
+            [w, h]
+        ], dtype=np.float32)
+
+        transformed_corners = cv2.transform(np.array([corners]), self.affine_matrix)[0]
+        all_corners = np.vstack((corners, transformed_corners))
+
+        [xmin, ymin] = np.floor(all_corners.min(axis=0)).astype(int)
+        [xmax, ymax] = np.ceil(all_corners.max(axis=0)).astype(int)
+        output_size = (xmax - xmin, ymax - ymin)
+        offset = np.array([-xmin, -ymin])
+
+        affine_with_offset = self.affine_matrix.copy()
+        affine_with_offset[:, 2] += offset
+
+        transformed_right = cv2.warpAffine(right, affine_with_offset, output_size)
+
+        canvas = np.zeros((output_size[1], output_size[0], 3), dtype=np.uint8)
+        canvas[offset[1]:offset[1] + h, offset[0]:offset[0] + w] = left
+
+        stitched = np.maximum(canvas, transformed_right)
+
+        return stitched
+       
     def turtle_mode_callback(self, msg):
         if msg.mode == "kill":
             raise KeyboardInterrupt
@@ -153,38 +237,13 @@ class TrackerNode(Node):
         left = self.br.compressed_imgmsg_to_cv2(msg.data[0])
         right = self.br.compressed_imgmsg_to_cv2(msg.data[1])
 
-        
-        #interactive stitcher
-        h, w = left.shape[:2]
-        image_size = (w, h)
-
-        corners = np.array([
-            [0,0],
-            [0,h],
-            [w,0],
-            [w,h]
-        ], dtype=np.float32)
-        transformed_corners = cv2.transform(np.array([corners]),self.affine_matrix)[0]
-        all_corners = np.vstack(([[0,0],[0,h],[w,0],[w,h]],transformed_corners))
-
-        [xmin, ymin] = np.floor(all_corners.min(axis=0)).astype(int)
-        [xmax, ymax] = np.ceil(all_corners.max(axis=0)).astype(int)
-
-        offset = np.array([-xmin, -ymin])
-        output_size = (xmax - xmin, ymax - ymin)  # width, height
-
-        affine_with_offset = self.affine_matrix.copy()
-        affine_with_offset[:, 2] += offset
-
-        transformed_right = cv2.warpAffine(right, affine_with_offset, output_size)
-        
-        canvas = np.zeros((output_size[1], output_size[0], 3), dtype=np.uint8)
-        canvas[offset[1]:offset[1]+h, offset[0]:offset[0]+w] = left
-        frame = np.maximum(canvas, transformed_right)
-        
+        # stitcher
+        frame = self.interactive_stitch(left,right)
+        # frame = self.matrix_stitch(left,right)
+        # frame = np.concatenate((left[:,0:230], right), axis=1)
+        # frame = right.copy()
         DIM=(640, 480)
-        # print(self.output_folder + "/frame%d.jpg" % self.count)
-        # cv2.imwrite(self.output_folder + "/frame%d.jpg" % self.count, frame)
+
         self.count += 1
         cv2.imwrite(self.output_folder + "/left_detect/frame%d.jpg" % self.count, left)
         cv2.imwrite(self.output_folder + "/right_detect/frame%d.jpg" % self.count, right)
@@ -219,16 +278,9 @@ class TrackerNode(Node):
             self.tracker.mission_counter +=1
             self.status, mean_point, masks, clicks_for_retrack = self.tracker.track_object_with_cutie(masks, frame)
             self.config_pub.publish(Float32MultiArray(data=mean_point))
-            print(f"------------time to track object: {time.time() - t} seconds\n")
-        # else:
-        #     print(f"[DEBUG] No masks detected, with status {self.status}")
-        #     self.status = None
-        #     self.config_pub.publish(Float32MultiArray(data=[]))
-        
+            print(f"------------time to track object: {time.time() - t} seconds\n")        
         if self.status == 'Failed': 
             print("Object Lost... Redetecting....")
-            # self.tracker.clicks_for_retrack = None
-            # self.tracker.clicks_for_retrack = []
             self.tracker.state = 0
             self.tracker.points = []
             self.tracker.labels = []

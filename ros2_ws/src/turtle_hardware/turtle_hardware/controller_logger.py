@@ -22,6 +22,7 @@ from turtle_interfaces.msg import TurtleCtrl, TurtleMode
 # Load the gamepad and time libraries
 from Gamepad import Gamepad as GP
 import time
+from datetime import datetime
 
 class XboxNew(GP.Gamepad):
     fullName = 'Xbox new'
@@ -148,9 +149,10 @@ class GamePad(Node):
         self.gamepad.startBackgroundUpdates()
 
 
-        t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
-        self.folder_name =  "data/" + t
-        os.makedirs(self.folder_name)
+        self.timestamp = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+        self.folder_name =  "data/" + self.timestamp
+        os.makedirs(self.folder_name, exist_ok=True)
+        print(f"Output folder created at: {self.folder_name}")
         self.create_rate(100)
         params, __ = self.parse_ctrl_params()
 
@@ -299,10 +301,16 @@ class GamePad(Node):
         self.kp_s_data.append(self.kp_s)
 
     def save_data(self):
-        np.savez(self.folder_name + "_np_data", q=self.q_data, dq=self.dq_data, t=self.timestamps, input=self.input_data, 
+        filename = os.path.join(self.folder_name, f"{os.path.basename(self.folder_name)}_np_data")
+        np.savez(filename, q=self.q_data, dq=self.dq_data, t=self.timestamps, input=self.input_data, 
                  u=self.u_data, qd=self.qd_data, dqd=self.dqd_data, depth=self.depth_sensor_data, depth_d=self.depth_d_data, 
-                 quat = self.quat_data, alt=self.alt_data, alt_d=self.alt_d_data, yaw_d=self.yaw_data)  
-            
+                 quat = self.quat_data, alt=self.alt_data, alt_d=self.alt_d_data, yaw_d=self.yaw_data) 
+        print(f"q_data size: {len(self.q_data)}") 
+        print(f"dq data: {len(self.dq_data)}")
+        print(f"timestmaps: {len(self.timestamps)}")
+        print(len(self.u_data))
+        print(len(self.depth_sensor_data))
+        print(len(self.depth_d_data))
 
     def update_config(self):
         t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
@@ -315,13 +323,6 @@ class GamePad(Node):
         cfg_msg = TurtleCtrl()
         mode_msg = TurtleMode()
         print(params)
-        # if params["mode"] == " " or params["mode"] == "":
-        #     mode_msg.mode = "rest"
-        # else:
-        #     mode_msg.mode = params["mode"]
-
-        # mode_msg.traj = params["traj"]
-
         cfg_msg.kp = params["kp"]
         # print("HJere")
         cfg_msg.kd = params["kd"]
@@ -335,9 +336,6 @@ class GamePad(Node):
         cfg_msg.roll = params["roll"]
         cfg_msg.frequency_offset = params["frequency_offset"]
         cfg_msg.period = params["period"]
-
-
-
         cfg_msg.kpv = params["kpv"]
         cfg_msg.d_pinv = params["d_pinv"]
         cfg_msg.learned = bool(params["learned"])
@@ -346,14 +344,7 @@ class GamePad(Node):
         cfg_msg.kp_th = params["kp_th"]
         cfg_msg.offset = params["offset"]
         cfg_msg.sw = params["sw"]
-        # print(cfg_msg)
-        # if mode_msg.traj != self.traj or mode_msg.mode != self.mode:
-        #     self.mode_pub.publish(mode_msg)
-        #     print("sent mode message")
         self.config_pub.publish(cfg_msg)
-        # self.traj = mode_msg.traj
-        # self.mode = mode_msg.mode
-        
         self.get_logger().info('Updated Config')
 
     def parse_ctrl_params(self):
@@ -376,9 +367,6 @@ class GamePad(Node):
         self.roll = params["roll"]
         self.frequency_offset = params["frequency_offset"]
         self.period = params["period"]
-
-
-
         self.kpv = params["kpv"]
         self.d_pinv = params["d_pinv"]
         self.learned = bool(params["learned"])
@@ -391,11 +379,12 @@ class GamePad(Node):
     
     def save_config(self):  
         # print(self.kpv_data)
-        np.savez(self.folder_name + "_np_config", amplitude=self.amplitude_data, 
+        filename = os.path.join(self.folder_name, f"{os.path.basename(self.folder_name)}_np_config")
+        np.savez(filename, amplitude=self.amplitude_data, 
                  center=self.center_data, yaw=self.yaw_data, depth=self.depth_d_data, altitude=self.alt_data, roll=self.roll_data, 
                  frequency_offset=self.freq_offset_data, period=self.period_data, offset=self.q_off_data,
                  sw=self.sw_data, kpv=self.kpv_data, learn=self.learn_data, d_pinv=self.d_pinv_data,
-                 kp_th=self.kp_th_data, w_th=self.w_th_data, kps = self.kp_s_data
+                 kp_th=self.kp_th_data, w_th=self.w_th_data, kps=self.kp_s_data
                  )
      
     def reset(self):
@@ -446,6 +435,6 @@ if __name__ == '__main__':
     remote_node.gamepad.disconnect()
     remote_node.save_data()
     remote_node.save_config()
-    print("Saved data and config")
+    print(f"Saved data and config to {remote_node.folder_name}")
     remote_node.destroy_node()
     print("Gamepad node shutdown")
