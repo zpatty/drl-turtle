@@ -13,7 +13,7 @@ import transforms3d.quaternions as quat
 # from EPHE import EPHE
 # from DualCPG import DualCPG
 # from AukeCPG import AukeCPG
-from continuous_primitive import *
+from ros2_ws.src.turtle_hardware.turtle_hardware.archive.continuous_primitive import *
 
 
 # import gymnasium as gym

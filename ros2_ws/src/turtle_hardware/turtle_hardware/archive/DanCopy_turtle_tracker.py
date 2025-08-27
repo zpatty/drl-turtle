@@ -237,7 +237,7 @@ class TrackerNode(Node):
 
         
         #stitcher
-        frame = self.interactive_stitch(left,right)
+        # frame = self.interactive_stitch(left,right)
         frame = self.matrix_stitch(left,right)
         
         DIM=(640, 480)

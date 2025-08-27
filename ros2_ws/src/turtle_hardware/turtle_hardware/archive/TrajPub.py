@@ -5,7 +5,7 @@ from turtle_interfaces.msg import TurtleTraj, TurtleSensors
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from continuous_primitive import *
+from ros2_ws.src.turtle_hardware.turtle_hardware.archive.continuous_primitive import *
 import time
 
 class TrajPub(Node):

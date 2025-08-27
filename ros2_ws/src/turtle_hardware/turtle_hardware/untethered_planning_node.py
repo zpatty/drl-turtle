@@ -42,8 +42,6 @@ def c_map(theta):
 
 
 class TurtlePlanner(Node):
-
-# class TurtleRobot(Node, gym.Env):
     """
     Takes input from the cameras, vision-based tracker, sensors (IMU, depth), teleop controller,
     and proprioception. Publishes the desired control parameters
