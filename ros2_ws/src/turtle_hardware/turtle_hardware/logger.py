@@ -92,6 +92,7 @@ class Logger(Node):
         msg: [quat acc gyr voltage t_0 q dq ddq u qd t]
         """    
         # self.get_logger().info(f"Received update to q")
+        print(msg.q)
         self.q_data.append(msg.q)
         self.dq_data.append(msg.dq)
         self.qd_data.append(msg.qd)
