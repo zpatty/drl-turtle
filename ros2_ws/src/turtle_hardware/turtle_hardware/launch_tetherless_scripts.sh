@@ -8,10 +8,10 @@ SCRIPTS=(
     "TurtleController.py"
     "TurtleSensors.py"
     "TurtleRobot_tetherless.py"
-    # "Cam.py"
-    # "Sub_Cam_ut.py"
+    "Cam.py"
+    "Sub_Cam_ut.py"
     "logger.py"
-    "depth_yaw_control.py"
+    "untethered_planning_node.py"
 )
 
 # Function to display usage
