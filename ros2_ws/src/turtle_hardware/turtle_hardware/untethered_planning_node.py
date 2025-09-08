@@ -42,8 +42,6 @@ def c_map(theta):
 
 
 class TurtlePlanner(Node):
-
-# class TurtleRobot(Node, gym.Env):
     """
     Takes input from the cameras, vision-based tracker, sensors (IMU, depth), teleop controller,
     and proprioception. Publishes the desired control parameters
@@ -149,7 +147,7 @@ class TurtlePlanner(Node):
 
         self.print_sensors = True
         self.pitch_d = 0.0
-        self.yaw_d = -2.4
+        self.yaw_d = 2.2
 
         self.qd = quat.axangle2quat([0.0, 0.0, 0.0], np.pi/2)
         self.last_yaw = 0.0
@@ -162,7 +160,7 @@ class TurtlePlanner(Node):
         self.remote_v = [0.0, 0.0, 0.0, 0.0]
         self.altitude_d = 20.0
         # self.depth_d = 0.5
-        self.depth_d = 0.7
+        self.depth_d = 1.0
         self.altitude = [0.0]
         self.alt_confidence = 0.0
         self.depth_sensor = 0.0
@@ -245,11 +243,12 @@ class TurtlePlanner(Node):
             msg_d.pitch = self.depth_d
             self.desired_pub.publish(msg_d)
             # if self.time > 6000000.0:
-            if self.time > 60.0:
+            if self.time > 500.0:
                 print("------------going to surface!!!---------------")
                 self.depth_d = 0.0
-            if self.time > 100.0:
+            if self.time > 600.0:
                 print("------------------ending program!!-----------------")
+                mode_msg = TurtleMode()
                 mode_msg.mode = "kill"
                 self.mode = mode_msg.mode
                 self.mode_pub.publish(mode_msg)
