@@ -147,7 +147,8 @@ class TurtlePlanner(Node):
 
         self.print_sensors = True
         self.pitch_d = 0.0
-        self.yaw_d = 0.0
+        self.yaw_d = 2.2
+
         self.qd = quat.axangle2quat([0.0, 0.0, 0.0], np.pi/2)
         self.last_yaw = 0.0
         self.yaw_accumulator = 0.0
@@ -158,7 +159,8 @@ class TurtlePlanner(Node):
         self.pilot = "depth"
         self.remote_v = [0.0, 0.0, 0.0, 0.0]
         self.altitude_d = 20.0
-        self.depth_d = 0.4
+        # self.depth_d = 0.5
+        self.depth_d = 1.0
         self.altitude = [0.0]
         self.alt_confidence = 0.0
         self.depth_sensor = 0.0
@@ -170,59 +172,61 @@ class TurtlePlanner(Node):
         self.x = None
         self.y = None
         self.last_time = time.time()
-
+        self.turn_command = "left"
         self.first = True
         self.plot_depth = []
-
-        self.depth_time
-
-        # emily rememeber comment this out vvv 
+        self.flag_turn = False
+        self.u_last = [1, 0, 0, 0, 0]
+        self.experiment_time = time.time()
+        self.flag_command = "null"
         mode_msg = TurtleMode()
         time.sleep(2)
         print('Position')
         mode_msg.mode = "p"
         self.mode = mode_msg.mode
         self.mode_pub.publish(mode_msg)
-        # emily remember to comment above ^^^
-
-        # t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
-        # self.folder_name =  "data/" + t
-        # os.makedirs(self.folder_name)
-        
-
-        
+        self.time_elapsed = 0
     def _timer_cb(self):
         # 
         self.time = time.time() - self.last_time
+        # self.time_elapsed = time.time() - self.experiment_time
+        # print(self.time_elapsed)
+        # YAW pitch roll 
         q_eul = euler.quat2euler(self.quat,self.euler_convention)
-        heading = q_eul[2]
+        # this is definitely yaw
+        heading = q_eul[0]
+        print(f"heading: {heading}")
         filtered_alt = scipy.signal.medfilt(self.altitude)
+        # if self.time_elapsed <= 120:
+            
         if self.pilot == "depth":
             
-            
+            print(f"[DEBUG] stereo depth: {self.stereo_depth}")
+            x_bounds = [157,425]        # trial 1 and trial 2 may 16th with depth < 2.5 with OG intrinsics from Zach
+            # x_bounds = [162,455]        # trial 3 and 4 may 16th with depth < 2.5 and OG intrinsics from Zach
+            # x_bounds = [185, 450]
+            y_bounds = [30,450]
+            # TODO: fix heading wrap around issues
             msg_d = TurtleCtrl()
             if self.stereo_depth  is not None:
-                if self.stereo_depth < 2.5:
-                    # print("ABORT")
-                    x_bounds = [157,425]
-                    y_bounds = [30,450]
-                    u_euler = euler.quat2euler(self.quat)
-                    
-                    if (self.x - 157) / (425 - 157) > 0.5:
+                # we are about to hit an obstacle and are not in turn state
+                if self.stereo_depth < 3.5 and not self.flag_turn:
+                    u_euler = euler.quat2euler(self.quat)                    
+                    if (self.x - x_bounds[0]) / (x_bounds[1] - x_bounds[0]) > 0.5:
+                        # print(f"[DEBUG] yaw left")
                         u_yaw = -1.0
                         u_roll = -1.0
-                        # u[3] = u_yaw
-                        # u[1] = u_roll
-                        self.yaw_d = heading + np.pi/2
+                        self.yaw_d = np.arctan2(np.sin(heading + np.deg2rad(120)), np.cos(heading + np.deg2rad(120)))
+                        # if heading + np.pi/2 > np.pi:
+                            # self.yaw_d = - heading  + np.pi/2
                     else:
+                        # print(f"[DEBUG] yaw right")
                         u_yaw = 1.0
                         u_roll = 1.0
-                        # u[3] = u_yaw
-                        # u[1] = u_roll
-                        self.yaw_d = heading - np.pi/2
-            
+                        self.yaw_d = np.arctan2(np.sin(heading - np.deg2rad(120)), np.cos(heading - np.deg2rad(120)))
+                        # if heading - np.pi/2 < -np.pi:
+                        #     self.yaw_d = - heading  - np.pi/2            
             if self.stereo_depth is None:
-                
                 if len(self.plot_depth) < 100:
                     self.plot_depth.append(np.nan)
                 else:
@@ -234,58 +238,73 @@ class TurtlePlanner(Node):
                 else:
                     self.plot_depth.pop(0)
                     self.plot_depth.append(self.stereo_depth)
-            # if self.first:
-            #     plt.ion()
-            #     self.fig, ax = plt.subplots()
-            #     self.myplot, = ax.plot(self.plot_depth)   
-            #     plt.show()
-            #     self.first = 0
-            # else:
-            #     self.myplot.set_ydata(self.plot_depth)
-            #     self.fig.canvas.flush_events()
-            # self.update_plot()
-
-            if self.yaw_d + np.pi < 0:
-                self.yaw_d += np.pi
-                # self.yaw_accumulator = np.pi
-            elif self.yaw_d + np.pi > 2*np.pi:
-                self.yaw_d += -np.pi
-            msg_d.yaw = self.yaw_d
             
+            msg_d.yaw = self.yaw_d
             msg_d.pitch = self.depth_d
             self.desired_pub.publish(msg_d)
-                # self.yaw_d = self.yaw_d
-            # yaw_display = (self.yaw_d % (2 * np.pi)) * 360 / np.pi
-
             # if self.time > 6000000.0:
-            #     self.depth_d = 0.0
-            # else:
-            #     self.depth_d = 0.4
-            if self.time - self.depth_time > 15:
-                self.depth_d = np.random.uniform(0.0, 1.0) * 3.0
+            if self.time > 500.0:
+                print("------------going to surface!!!---------------")
+                self.depth_d = 0.0
+            if self.time > 600.0:
+                print("------------------ending program!!-----------------")
+                mode_msg = TurtleMode()
+                mode_msg.mode = "kill"
+                self.mode = mode_msg.mode
+                self.mode_pub.publish(mode_msg)
+                raise KeyboardInterrupt
+
             depth_err = self.depth_sensor - self.depth_d
-            # in base coordinates
-            qd_dive = quat.axangle2quat([0.0, 0.0, 1.0], np.clip(- 5.0 * depth_err, -np.pi/2, np.pi/2)) 
+            # (yaw, pitch, roll)
             qd_dive = euler.euler2quat(*tuple([self.yaw_d, np.clip(- 4.0 * depth_err, -np.pi/2, np.pi/2), 0.0]),self.euler_convention)
-            qd_dive = euler.euler2quat(*tuple([np.clip(- 4.0 * depth_err, -np.pi/2, np.pi/2), 0.0, self.yaw_d]),self.euler_convention)
-            # qd_dive = quat.axangle2quat([1.0, 0.0, 0.0], np.pi/4) 
+            # print(f"qd_dive: {qd_dive}")
             q_inv = quat.qinverse(self.quat)
-            err = 2.0 * quat.qmult(qd_dive, q_inv)
-            w = - np.clip(1.0*(np.array(err[1:]) - 0.1*np.array(self.omega)), -1.0, 1.0)
-            u = [1.0, - w[1], - 5.0*depth_err, - w[0], -5.0*depth_err - 0.25]
+            # err = 2.0 * quat.qmult(qd_dive, q_inv)
+            err = 2.0 * quat.qmult(q_inv, qd_dive)
+
+            # Add this check to ensure we get the "short path" rotation:
+            if err[0] < 0:  # If scalar part is negative
+                err = -err   # Flip the entire quaternion
+            # print(f"err: {err}")
+            # [x, y, z]
+            w = np.clip(1.0*(np.array(err[1:]) - 0.1*np.array(self.omega)), -1.0, 1.0)
+            # print(f"w: {w}")
+            if not self.flag_turn:
+                u = [1.0, - w[0], - 5.0*depth_err,  -w[2], -5.0*depth_err - 0.25]
+                print(f"no flag u: {u}")
+            else:
+                u = self.u_last
+                # if u[3] == 1.0:
+                #     print("[DEBUG] turn right")
+                #     if (self.x - x_bounds[0]) / (x_bounds[1] - x_bounds[0]) > 0.3:
+                #         u[3] = -1.0
+                #         self.u_last[3] = -1.0
+                # elif u[3] == -1.0:
+                #     print("[DEBUG] turn left")
+                #     if (self.x - x_bounds[0]) / (x_bounds[1] - x_bounds[0]) < 0.7:
+                #         u[3] = 1.0
+                #         self.u_last[3] = 1.0
+                # if self.stereo_depth  is not None:
+                #     if self.stereo_depth < 0.3:
+                #         u[0] = -1.0
 
             if self.stereo_depth  is not None:
-                if self.stereo_depth < 3.5 and not self.flag_turn:
+                if self.stereo_depth < 3.0 and not self.flag_turn:
                     self.flag_turn = True
                     u_euler = euler.quat2euler(self.quat)
-                    # self.yaw_d = heading + np.pi
-                    if (self.x - 157) / (425 - 157) > 0.5:
+                    if (self.x - x_bounds[0]) / (x_bounds[1] - x_bounds[0]) > 0.5:
+                        print("[DEBUG] turn left ")
+                        self.flag_command = "left"
                         u_yaw = -1.0
                         u_roll = -1.0
                         u[3] = u_yaw
                         u[1] = u_roll
                         u[4] = -1.0
+                        # u[0] = 0.75
+                        
                     else:
+                        print("[DEBUG] turn right")
+                        self.flag_command = "right"
                         u_yaw = 1.0
                         u_roll = 1.0
                         u[3] = u_yaw
@@ -294,7 +313,7 @@ class TurtlePlanner(Node):
                         # u[0] = 0.75
                     
                     self.u_last = u
-                if self.stereo_depth > 3.5 and self.flag_turn:
+                if self.stereo_depth > 3.0 and self.flag_turn:
                     self.flag_turn = False
                     self.yaw_d = heading
             # print(f"current quat norm: {np.linalg.norm(self.quat)}")
@@ -307,10 +326,6 @@ class TurtlePlanner(Node):
             # print(f"Current yaw: {heading}, Desired yaw: {self.yaw_d}")
             # print(f"flag command: {self.flag_command}")
             
-
-            
-                
-
         elif self.pilot == "altitude":
             q_inv = quat.qinverse(self.quat)
             alt_err = filtered_alt[0] - self.altitude_d
@@ -353,16 +368,8 @@ class TurtlePlanner(Node):
                 u = np.clip([u_fwd, u_roll - 0.2* w[1], - w[2], - w[0], - 1.0 * depth_err],-1,1)
             if abs(v[2]) > 0.05:
                 u[3] = u_yaw
-            
-            # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
-            #       self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n")
         
         elif self.pilot == "track":
-            # err = quat.qmult([1.0, 0.0, 0.0, 0.0], quat.qinverse(self.quat))
-            # u_euler = euler.quat2euler(err,self.euler_convention)
-            # if self.stereo_depth is not None:
-            #     u_fwd = 1.0 - 2.0 * 1 / (1 + np.exp(((self.stereo_depth - 0.5) - 0.1)/0.1))
-            # else:
             u_fwd = 1.0
             if np.size(self.centroids) == 2:
                 # print(self.centroids)
@@ -379,27 +386,22 @@ class TurtlePlanner(Node):
                     self.rand_yaw = np.random.uniform(-1.0, 1.0)
                 u_yaw = self.rand_yaw
             u = [u_fwd, 0.0, - u_pitch, u_yaw, - u_pitch]
-            # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
-            #       self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n centroids: ", self.centroids, "\n")
 
         # for emily debugging
         # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
         #           self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", 
         #           self.yaw_d,"\n centroids: ", self.centroids,"\n depth: ", [self.stereo_depth, self.x, self.y], "\n")
-       
-       
-       
-       
-       
     
-        # else:
-            # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
-            #       self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", 
-            #       self.yaw_d,"\n centroids: ", self.centroids,"\n depth: ", [self.stereo_depth, self.x, self.y], "\n")
         u = np.clip(u, -1.0, 1.0)
         self.config_pub.publish(Float32MultiArray(data=u))
-        
-
+        # else:
+        #     print("time has elapsed")
+        #     u = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        #     self.config_pub.publish(Float32MultiArray(data=u))
+        #     mode_msg.mode = "kill"
+        #     self.mode = mode_msg.mode
+        #     self.mode_pub.publish(mode_msg)
+        #     raise KeyboardInterrupt
 
     def np2msg(self, mat):
         """

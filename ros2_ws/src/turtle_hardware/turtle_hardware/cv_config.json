@@ -13,7 +13,7 @@
     "dive_thresh": 100,
     "num_cycles": 1,
     "numDisparities": 128,
-    "blockSize": 61,
+    "blockSize":61,
     "MinDisparity": 0,
     "TextureThreshold": 0,
     "SpeckleRange": 2,
