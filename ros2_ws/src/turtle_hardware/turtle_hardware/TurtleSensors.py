@@ -135,7 +135,7 @@ class TurtleSensorsNode(Node):
                 break
             self.xiao.reset_input_buffer()
             sensors = self.xiao.readline()
-            # self.get_logger().info(sensors)
+            self.get_logger().info(sensors)
             # make sure it's a valid byte that's read
             if len(sensors) != 0:
                 # this ensures the right json string format
@@ -158,7 +158,11 @@ class TurtleSensorsNode(Node):
                             self.acc = a - g_local           # acc without gravity 
                             self.quat_vec = q.reshape((4,1))
                             self.voltage = sensor_dict['Voltage'][0]
-                            self.depth = sensor_dict['Depth'][0]
+                            # self.depth = sensor_dict['Depth'][0]
+                            # to make sure we don't get crazy values
+                            raw_depth = sensor_dict['Depth'][0]
+                            if 0 <= raw_depth <= 2:
+                                self.depth = raw_depth
 
                             keep_trying = False
             attempts += 1

@@ -23,7 +23,7 @@ from rclpy.node import Node
 from rclpy.executors import Executor, MultiThreadedExecutor
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from turtle_interfaces.msg import TurtleCam, TurtleMode
-from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
+# from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
 
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import Float64MultiArray
@@ -100,9 +100,13 @@ class CamNode(Node):
         self.call_timer = self.create_timer(0.1, self._cam_cb, callback_group=timer_cb_group)
         # where to pull the images
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        self.image_dir = os.path.join(script_dir, 'video/08_14_2025_10_42_38')
-        self.left_folder = os.path.join(self.image_dir, 'left_detect')
-        self.right_folder = os.path.join(self.image_dir, 'right_detect')
+        # self.image_dir = os.path.join(script_dir, '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/video/09_04_2025_NEA_video/04_16_2025_03_03_17_tetherless_A/')
+        # /home/ranger/fall_2025/pysot/02_07_2025_15_39_36_ToyTurtle/left_detect
+        # /home/ranger/11_24_2025_16_06_18
+        self.image_dir = os.path.join(script_dir, '/home/ranger/11_24_2025_16_06_18')
+
+        self.left_folder = os.path.join(self.image_dir, 'left')
+        self.right_folder = os.path.join(self.image_dir, 'right')
         self.extension = 'jpg'
         self.left_files = glob.glob(os.path.join(self.left_folder, f"*.{self.extension}"))
         self.right_files = glob.glob(os.path.join(self.right_folder, f"*.{self.extension}"))
@@ -111,6 +115,7 @@ class CamNode(Node):
 
         # Ensure all folders have the same number of files
         self.num_frames = min(len(self.left_files), len(self.right_files))
+        # self.num_frames = 500
         print(f"Using {self.num_frames} frames from each folder")
         
         self.left_files = self.left_files[:self.num_frames]

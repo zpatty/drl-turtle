@@ -78,12 +78,18 @@ class CamSubscriber(Node):
         script_dir = os.path.dirname(os.path.abspath(__file__))
         t = datetime.today().strftime("%m_%d_%Y_%H_%M_%S")
         folder_name =  os.path.join(script_dir, "video" , t)
-        os.makedirs(os.path.join(folder_name, "left"))
-        os.makedirs(os.path.join(folder_name, "right"))
-        os.makedirs(os.path.join(folder_name, "detection"))
-        os.makedirs(os.path.join(folder_name, "depth"))
-        os.makedirs(os.path.join(folder_name, "flat_left"))
-        os.makedirs(os.path.join(folder_name, "flat_right"))
+        # os.makedirs(os.path.join(folder_name, "left"))
+        # os.makedirs(os.path.join(folder_name, "right"))
+        # os.makedirs(os.path.join(folder_name, "detection"))
+        # os.makedirs(os.path.join(folder_name, "depth"))
+        # os.makedirs(os.path.join(folder_name, "flat_left"))
+        # os.makedirs(os.path.join(folder_name, "flat_right"))
+        os.makedirs(os.path.join(folder_name, "left"), exist_ok=True)
+        os.makedirs(os.path.join(folder_name, "right"), exist_ok=True)
+        os.makedirs(os.path.join(folder_name, "detection"), exist_ok=True)
+        os.makedirs(os.path.join(folder_name, "depth"), exist_ok=True)
+        os.makedirs(os.path.join(folder_name, "flat_left"), exist_ok=True)
+        os.makedirs(os.path.join(folder_name, "flat_right"), exist_ok=True)
         self.output_folder = folder_name
 
         yaml_path = os.path.join(script_dir, 'rig_params.yaml')
@@ -489,51 +495,9 @@ class CamSubscriber(Node):
 
         return out
 
-    #does not work
-    def intrinsic_stitch(self, left, right):
-        return None
-        # h, w = left.shape[:2]
-        # image_size = (w, h)
-
-        # R1, R2, P1, P2, Q = cv2.fisheye.stereoRectify(
-        #     self.KL, self.DL, self.KR, self.DR, image_size, self.R, self.T,
-        #     flags=cv2.fisheye.CALIB_USE_INTRINSIC_GUESS, balance=1.0, newImageSize=image_size
-        # )
-
-        # l_map1, l_map2 = cv2.fisheye.initUndistortRectifyMap(
-        #     K=self.KL, D=self.DL, R=np.eye(3), P=self.KL, size=image_size, m1type=cv2.CV_16SC2
-        # )
-
-        # r_map1, r_map2 = cv2.fisheye.initUndistortRectifyMap(
-        #     K=self.KR, D=self.DR, R=np.eye(3), P=self.KR, size=image_size, m1type=cv2.CV_16SC2
-        # )
-
-        # #Does not work rn tried to turn cameras virtually to be parallel in order to stitch them together using intrinsics
-        # flat_left = cv2.remap(left, l_map1, l_map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-        # flat_right = cv2.remap(right, r_map1, r_map2, interpolation=cv2.INTER_LINEAR,borderMode= cv2.BORDER_CONSTANT)
-
-        # cv2.imshow("flat_left.jpg", flat_left)
-        # cv2.imshow("flat_right.jpg", flat_right)
-
-        # yaw_half = self.yaw / 2.0
-        # pitch_half = self.pitch / 2.0
-        # roll_half = self.roll / 2.0
-
-        # H_left = self.get_3d_rotation_homography(self.KL, -yaw_half, -pitch_half/2, -roll_half)
-        # H_right = self.get_3d_rotation_homography(self.KR, yaw_half, pitch_half/2, roll_half)
-
-        # rectified_left = self.warp_image_3d_fullview(flat_left, H_left)
-        # rectified_right = self.warp_image_3d_fullview(flat_right, H_right)
-        # cv2.imwrite(self.output_folder + "/flat_left/frame%d.jpg" % self.count, rectified_left)
-        # cv2.imwrite(self.output_folder + "/flat_right/frame%d.jpg" % self.count, rectified_right)
-
-        # cv2.imshow("rectified_left", rectified_left)
-        # cv2.imshow("rectified_right", rectified_right)
-
-
     def img_callback(self, msg):
         #### LEFT RIGHT ####
-        # self.get_logger().info('Receiving video frame')
+        self.get_logger().info('Receiving video frame')
         left = self.br.compressed_imgmsg_to_cv2(msg.data[0])
         right = self.br.compressed_imgmsg_to_cv2(msg.data[1])
         # fused = np.concatenate((left[:,0:230], right), axis=1)
@@ -551,108 +515,6 @@ class CamSubscriber(Node):
         self.last_time = current_time
         print(f"[FPS] {fps:.2f}")
 
-        ##stitching
-        # # Matrix Stitch
-        # stitched = self.matrix_stitch(left, right)
-        # cv2.imshow("stitched", stitched)
-
-        # # Find Matrix
-        # stitched = self.find_matrix(left,right)
-        # cv2.imshow("stitched", stitched)
-
-        # H_avg = self.previous_H if self.previous_H is not None else np.eye(3)
-
-        # num_keypoints = len(good)
-        # if num_keypoints >= self.previous_num_keypoints:
-        #     self.previous_num_keypoints = num_keypoints
-
-        #     src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
-        #     dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
-
-        #     H, _ = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
-        #     self.homography_sum += H
-        #     print(self.homography_sum)
-
-        #     self.frame_count += 1
-
-        #     if self.frame_count >= self.max_frames_to_average:
-        #         H_avg = self.homography_sum / self.frame_count
-        #         self.previous_H = H_avg
-        #         self.frame_count = 0
-        #         self.homography_sum = np.zeros((3, 3))
-        #     else:
-        #         self.previous_H = H
-
-        # else:
-        #     H_avg = self.previous_H if self.previous_H is not None else np.eye(3)
-
-        # h1, w1 = undistorted_left.shape[:2]
-        # h2, w2 = undistorted_right.shape[:2]
-
-        # corners_left = np.array([[0,0], [0,h1], [w1,h1], [w1,0]], dtype=np.float32).reshape(-1,1,2)
-        # corners_right = np.array([[0,0], [0,h2], [w2,h2], [w2,0]], dtype=np.float32).reshape(-1,1,2)
-
-        # warped_corners_right = cv2.perspectiveTransform(corners_right, H_avg)
-
-        # all_corners = np.concatenate((corners_left, warped_corners_right), axis=0)
-        # [x_min, y_min] = np.floor(all_corners.min(axis=0).ravel()).astype(int)
-        # [x_max, y_max] = np.ceil(all_corners.max(axis=0).ravel()).astype(int)
-
-        # output_width = x_max - x_min
-        # output_height = y_max - y_min
-
-        # translation = np.array([[1, 0, -x_min],
-        #                         [0, 1, -y_min],
-        #                         [0, 0, 1]])
-
-        # stitched2 = cv2.warpPerspective(undistorted_right, translation @ H_avg, (output_width, output_height))
-        # stitched2[-y_min:h1 - y_min, -x_min:w1 - x_min] = undistorted_left
-        # # cv2.imshow("stitched2", stitched2)
-
-        # gray = cv2.cvtColor(stitched2, cv2.COLOR_BGR2GRAY)
-        # _, thresh = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
-
-        # contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # if not contours:
-        #     print("No contours found")
-        #     return
-
-        # largest_contour = max(contours, key=cv2.contourArea)
-        # epsilon = 0.02 * cv2.arcLength(largest_contour, True)
-        # approx = cv2.approxPolyDP(largest_contour, epsilon, True)
-
-        # if len(approx) != 4:
-        #     print("Could not find quadrilateral shape; skipping rectification")
-        #     cv2.imshow("stitched2", stitched2)
-        #     return
-
-        # dst_size = (1250,663)
-        # dst_pts = np.array([
-        #     [0, 0],
-        #     [dst_size[0] - 1, 0],
-        #     [dst_size[0] - 1, dst_size[1] - 1],
-        #     [0, dst_size[1] - 1]
-        # ], dtype=np.float32)
-
-        # def order_points(pts):
-        #     pts = pts.reshape(4, 2)
-        #     s = pts.sum(axis=1)
-        #     diff = np.diff(pts, axis=1)
-        #     ordered = np.zeros((4, 2), dtype="float32")
-        #     ordered[0] = pts[np.argmin(s)]     # top-left
-        #     ordered[2] = pts[np.argmax(s)]     # bottom-right
-        #     ordered[1] = pts[np.argmin(diff)]  # top-right
-        #     ordered[3] = pts[np.argmax(diff)]  # bottom-left
-        #     return ordered
-
-        # src_pts = order_points(approx)
-
-        # M = cv2.getPerspectiveTransform(src_pts, dst_pts)
-        # rectified = cv2.warpPerspective(stitched2, M, dst_size)
-
-        # cv2.imshow("stitched2_rectified", rectified)
-
-        # stitched = self.matrix_stitch(left, right)
         stitched = self.interactive_stitch(left, right)
         cv2.imshow("stitched", stitched)
         cv2.waitKey(1)
@@ -677,11 +539,6 @@ class CamSubscriber(Node):
         else:
             self.im.set_data(norm_disparity)
             self.fig.canvas.flush_events()
-        
-
-
-        
-
 
     def img_callback_detect(self, data):
         # self.destroy_subscription(self.frames_sub)
@@ -720,6 +577,35 @@ class CamSubscriber(Node):
         else:
             self.im.set_data(current_frame)
             self.fig.canvas.flush_events()
+    def img_callback_track(self, msg):
+        """
+        Callback function for tracking simple objects
+
+        """
+        self.get_logger().info('Receiving video frame')
+        left = self.br.compressed_imgmsg_to_cv2(msg.data[0])
+        right = self.br.compressed_imgmsg_to_cv2(msg.data[1])
+        # fused = np.concatenate((left[:,0:230], right), axis=1)
+        cv2.imwrite(self.output_folder + "/left/frame%d.jpg" % self.count, left)
+        cv2.imwrite(self.output_folder + "/right/frame%d.jpg" % self.count, right)
+        self.count += 1
+        end_time = time.time()
+        seconds = end_time - self.start_time
+        fps = 1.0 / seconds
+        # print("Estimated frames per second : {0}".format(fps))
+        self.start_time = end_time
+
+        current_time = time.time()
+        fps = 1.0 / (current_time - self.last_time)
+        self.last_time = current_time
+        print(f"[FPS] {fps:.2f}")
+
+        stitched = self.interactive_stitch(left, right)
+        cv2.imshow("stitched", stitched)
+        cv2.waitKey(1)
+
+
+
     
     def turtle_mode_callback(self, msg):
         if msg.mode == "kill":

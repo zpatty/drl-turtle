@@ -157,7 +157,6 @@ class Logger(Node):
                  quat = self.quat_data, alt=self.alt_data, alt_d=self.alt_d_data, yaw_d=self.yaw_data, 
                  stereo_depth=self.stereo_depth_data, stereo_point=np.vstack((self.stereo_x_list, self.stereo_y_list)))
             
-
     def update_config(self):
         t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
         self.folder_name =  "data/" + t

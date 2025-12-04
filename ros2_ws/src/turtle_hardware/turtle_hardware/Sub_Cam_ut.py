@@ -6,7 +6,6 @@ from sensor_msgs.msg import Image, CompressedImage
 from turtle_interfaces.msg import TurtleCam, TurtleMode
 import cv2
 from cv_bridge import CvBridge
-import cv2 
 from matplotlib import pyplot as plt
 import time
 import os
@@ -73,22 +72,23 @@ class CamSubscriber(Node):
         self.stereo = StereoProcessor()
         self.first = 1
         self.start_time = time.time()
-        t = datetime.today().strftime("%m_%d_%Y_%H_%M_%S")
-        folder_name =  "video/" + t
-        os.makedirs(folder_name + "/left")
-        os.makedirs(folder_name + "/right")
-        os.makedirs(folder_name + "/detection")
-        os.makedirs(folder_name + "/depth")
-        self.output_folder = folder_name
+        # t = datetime.today().strftime("%m_%d_%Y_%H_%M_%S")
+        # folder_name =  "video/" + t
+        # os.makedirs(folder_name + "/left")
+        # os.makedirs(folder_name + "/right")
+        # os.makedirs(folder_name + "/detection")
+        # os.makedirs(folder_name + "/depth")
+        # self.output_folder = folder_name
         
 
     def img_callback(self, msg):
         #### LEFT RIGHT ####
+        print(f"frame: {self.count}")
         # self.get_logger().info('Receiving video frame')
         left = self.br.compressed_imgmsg_to_cv2(msg.data[0])
         right = self.br.compressed_imgmsg_to_cv2(msg.data[1])
-        cv2.imwrite(self.output_folder + "/left/frame%d.jpg" % self.count, left)
-        cv2.imwrite(self.output_folder + "/right/frame%d.jpg" % self.count, right)
+        # cv2.imwrite(self.output_folder + "/left/frame%d.jpg" % self.count, left)
+        # cv2.imwrite(self.output_folder + "/right/frame%d.jpg" % self.count, right)
         # np.save(self.output_folder + "/left/frame%d.npy" % self.count, left)
         # np.save(self.output_folder + "/right/frame%d.npy" % self.count, right)
         self.count += 1

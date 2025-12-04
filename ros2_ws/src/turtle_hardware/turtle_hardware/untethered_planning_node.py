@@ -206,21 +206,23 @@ class TurtlePlanner(Node):
             # x_bounds = [162,455]        # trial 3 and 4 may 16th with depth < 2.5 and OG intrinsics from Zach
             # x_bounds = [185, 450]
             y_bounds = [30,450]
-            # TODO: fix heading wrap around issues
             msg_d = TurtleCtrl()
             if self.stereo_depth  is not None:
                 # we are about to hit an obstacle and are not in turn state
                 if self.stereo_depth < 3.5 and not self.flag_turn:
                     u_euler = euler.quat2euler(self.quat)                    
                     if (self.x - x_bounds[0]) / (x_bounds[1] - x_bounds[0]) > 0.5:
-                        # print(f"[DEBUG] yaw left")
+                        print(f"[DEBUG] yaw left")
+                        print(f"stereo depth: {self.stereo_depth}, x: {self.x}, y: {self.y}")
+
                         u_yaw = -1.0
                         u_roll = -1.0
                         self.yaw_d = np.arctan2(np.sin(heading + np.deg2rad(120)), np.cos(heading + np.deg2rad(120)))
                         # if heading + np.pi/2 > np.pi:
                             # self.yaw_d = - heading  + np.pi/2
                     else:
-                        # print(f"[DEBUG] yaw right")
+                        print(f"[DEBUG] yaw right")
+                        print(f"stereo depth: {self.stereo_depth}, x: {self.x}, y: {self.y}")
                         u_yaw = 1.0
                         u_roll = 1.0
                         self.yaw_d = np.arctan2(np.sin(heading - np.deg2rad(120)), np.cos(heading - np.deg2rad(120)))
@@ -274,19 +276,6 @@ class TurtlePlanner(Node):
                 print(f"no flag u: {u}")
             else:
                 u = self.u_last
-                # if u[3] == 1.0:
-                #     print("[DEBUG] turn right")
-                #     if (self.x - x_bounds[0]) / (x_bounds[1] - x_bounds[0]) > 0.3:
-                #         u[3] = -1.0
-                #         self.u_last[3] = -1.0
-                # elif u[3] == -1.0:
-                #     print("[DEBUG] turn left")
-                #     if (self.x - x_bounds[0]) / (x_bounds[1] - x_bounds[0]) < 0.7:
-                #         u[3] = 1.0
-                #         self.u_last[3] = 1.0
-                # if self.stereo_depth  is not None:
-                #     if self.stereo_depth < 0.3:
-                #         u[0] = -1.0
 
             if self.stereo_depth  is not None:
                 if self.stereo_depth < 3.0 and not self.flag_turn:
@@ -294,6 +283,8 @@ class TurtlePlanner(Node):
                     u_euler = euler.quat2euler(self.quat)
                     if (self.x - x_bounds[0]) / (x_bounds[1] - x_bounds[0]) > 0.5:
                         print("[DEBUG] turn left ")
+                        print(f"stereo depth: {self.stereo_depth}, x: {self.x}, y: {self.y}")
+
                         self.flag_command = "left"
                         u_yaw = -1.0
                         u_roll = -1.0
@@ -304,6 +295,8 @@ class TurtlePlanner(Node):
                         
                     else:
                         print("[DEBUG] turn right")
+                        print(f"stereo depth: {self.stereo_depth}, x: {self.x}, y: {self.y}")
+
                         self.flag_command = "right"
                         u_yaw = 1.0
                         u_roll = 1.0
