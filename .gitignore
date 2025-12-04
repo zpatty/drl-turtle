@@ -1,14 +1,3 @@
-# ROS directories
-ros2_ws/build/
-ros2_ws/install/
-ros2_ws/log/
-
-# Python misc.
-__pycache__/
-python/build/
-python/dist/
-python/src/dynamixel_sdk.egg-info/
-ros2_ws/src/turtle_rl
-ros2_ws/src/turtle_hardware/turtle_hardware/data
+# Directories to ignore
 ros2_ws/src/turtle_hardware/turtle_hardware/video
-ros2_ws/src/turtle_hardware/turtle_hardware/turtle_trajectory
+ros2_ws/src/turtle_hardware/turtle_hardware/data
