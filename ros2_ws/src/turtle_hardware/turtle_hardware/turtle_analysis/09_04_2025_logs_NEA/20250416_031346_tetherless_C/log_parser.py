@@ -162,7 +162,7 @@ class TurtleLogParser:
                 nav_str = nav_match.group(1)
                 # Parse the array string
                 nav_values = eval(nav_str)  # Safe here since we control the format
-                print(f"parse nav u before: {self.no_flag_u_count}, len yaw: {len(self.yaw_ds)}, nav u: {len(self.nav_commands)}, depth_value: {self.depth_value}, flag_turn: {self.flag_turn}, turn_command: {self.turn_command}")
+                # print(f"parse nav u before: {self.no_flag_u_count}, len yaw: {len(self.yaw_ds)}, nav u: {len(self.nav_commands)}, depth_value: {self.depth_value}, flag_turn: {self.flag_turn}, turn_command: {self.turn_command}")
 
                 if len(nav_values) >= 4: 
                     # also add yaw_d here
@@ -181,7 +181,7 @@ class TurtleLogParser:
                                 self.no_flag_u_count += 1    
                             else:
                                 # if depth > 3.5, just repeat last yaw_d and the current no flag u
-                                print(f"--------------depth is {self.depth_value}, repeating last yaw_d")
+                                # print(f"--------------depth is {self.depth_value}, repeating last yaw_d")
                                 yaw_d = self.yaw_ds[-1]
                                 self.yaw_ds.append(yaw_d)
                                 self.nav_commands.append(nav_values[:4])  # Take first 4 for nav_u
@@ -197,7 +197,7 @@ class TurtleLogParser:
                         self.nav_commands.append(nav_values[:4])  # Take first 4 for nav_u
                         self.no_flag_u_count += 1
 
-                    print(f"parse nav u after: {self.no_flag_u_count}, len yaw: {len(self.yaw_ds)}, nav u: {len(self.nav_commands)}, depth_value: {self.depth_value}, flag_turn: {self.flag_turn}, turn_command: {self.turn_command}")
+                    # print(f"parse nav u after: {self.no_flag_u_count}, len yaw: {len(self.yaw_ds)}, nav u: {len(self.nav_commands)}, depth_value: {self.depth_value}, flag_turn: {self.flag_turn}, turn_command: {self.turn_command}")
                     return True
                 else:
                     print(f"-------------nav u length not 4, got {len(nav_values)}")
@@ -209,7 +209,7 @@ class TurtleLogParser:
     
     def parse_stereo_debug_line(self, line):
         """Parse stereo debug depth values from untethered planning node"""
-        print(f"stereo count: {self.stereo_count}, {self.count_turn_commands}, len yaw: {len(self.yaw_ds)}, nav u: {len(self.nav_commands)}, depth_value: {self.depth_value}, flag_turn: {self.flag_turn}, turn_command: {self.turn_command}")
+        # print(f"stereo count: {self.stereo_count}, {self.count_turn_commands}, len yaw: {len(self.yaw_ds)}, nav u: {len(self.nav_commands)}, depth_value: {self.depth_value}, flag_turn: {self.flag_turn}, turn_command: {self.turn_command}")
         self.stereo_count += 1
         try:
             stereo_match = re.search(self.stereo_debug_pattern, line)
@@ -218,9 +218,10 @@ class TurtleLogParser:
                 depth_value = float(stereo_match.group(1))
                 self.stereo_debug_depths.append(depth_value)
                 self.depth_value = depth_value
-                print(f"stereo match!: {self.stereo_count}, {self.count_turn_commands}, len yaw: {len(self.yaw_ds)}, nav u: {len(self.nav_commands)}, depth_value: {self.depth_value}, flag_turn: {self.flag_turn}, turn_command: {self.turn_command}")
+                # print(f"stereo match!: {self.stereo_count}, {self.count_turn_commands}, len yaw: {len(self.yaw_ds)}, nav u: {len(self.nav_commands)}, depth_value: {self.depth_value}, flag_turn: {self.flag_turn}, turn_command: {self.turn_command}")
 
                 if self.flag_turn:
+                    self.turn_commands.append(self.turn_command)
                     u = self.nav_commands[-1].copy()
                     if self.turn_command == "turn left":
                         u_yaw = -1.0
@@ -240,7 +241,9 @@ class TurtleLogParser:
                     self.count_turn_commands += 1
                     self.count += 1
                 else:
-                    print("-----------------not in turn, just append from no flag u")
+                    self.turn_commands.append("no turn")
+
+                    # print("-----------------not in turn, just append from no flag u")
 
                 
                 if self.depth_value > 3.0 and self.flag_turn:
@@ -259,8 +262,8 @@ class TurtleLogParser:
                     print("-------------We got None")
                     self.stereo_debug_depths.append(np.nan)
                     self.depth_value = None
+                    self.turn_commands.append("no turn")
                     # print(f"None case stereo count: {self.stereo_count}, {self.count_turn_commands}, len yaw: {len(self.yaw_ds)}, nav u: {len(self.nav_commands)}, depth_value: {self.depth_value}, flag_turn: {self.flag_turn}, turn_command: {self.turn_command}")
-
                     return True    
             return False                
         except ValueError:
@@ -277,7 +280,7 @@ class TurtleLogParser:
                 print(f"count turn commands: {self.count_turn_commands}")
                 self.turn_counts.append(self.count_turn_commands)
                 self.count_turn_commands = 0
-                self.turn_commands.append(turn_cmd)
+                # self.turn_commands.append(turn_cmd)
                 self.turn_command = turn_cmd
                 # print(f"turn command: {self.turn_command}")
                 # remember to pop out last nav command and replace with turn command
@@ -481,7 +484,8 @@ class TurtleLogParser:
         yaw_d_data = np.array(self.yaw_ds)  # Desired yaw from untethered planner 
         alt_data = altitude_data[:, 0] if altitude_data.shape[1] > 0 else np.zeros(n_samples)
         stereo_point_data = np.zeros((2, n_samples))  # Stereo points - would need actual data
-        print(f"we have {len(self.turn_commands)} turn commands! {self.turn_commands}")
+        # print(f"we have {len(self.turn_commands)} turn commands! {self.turn_commands}")
+        print(f"we have {len(self.turn_commands)} turn commands!")
         print(f"we have {self.count_turn_commands} yaw d repeats!")
         print(f"we have {self.no_flag_u_count} no flag u commands!")
         print(f"we have {sum(self.turn_counts)} turn counts!")

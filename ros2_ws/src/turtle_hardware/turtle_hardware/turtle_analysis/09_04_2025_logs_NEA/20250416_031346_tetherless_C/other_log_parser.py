@@ -6,6 +6,11 @@ from datetime import datetime
 import argparse
 
 class TurtleLogParser:
+    """
+    Parser for turtle robot log files to extract sensor data, motor commands,
+    navigation commands, and other relevant information. Converts the parsed data
+    into a structured NPZ format compatible with existing analysis tools.
+    """
     def __init__(self):
         self.sensor_data = []
         self.motor_inputs = []
@@ -346,7 +351,7 @@ class TurtleLogParser:
             'dq': dq_data,                  # Joint velocities (NEEDS REAL DATA)
             't': self.timestamps,           # Time vector from TurtleSensors.py ✓
             'input': input_data,            # Motor inputs ✓
-            'nav_u': nav_u_data,                # Navigation u ✓
+            'nav_u': nav_u_data,            # Navigation u ✓
             'qd': qd_data,                  # Desired positions (NEEDS REAL DATA)  
             'dqd': dqd_data,                # Desired velocities (NEEDS REAL DATA)
             'depth': depth_data,            # Depth sensor ✓
@@ -355,9 +360,8 @@ class TurtleLogParser:
             'alt': alt_data,                # Altitude ✓
             'yaw_d': yaw_d_data,            # Desired yaw ✓ (from headings)
             'stereo_depth': stereo_depth_data,  # Stereo depth from Sub Cam ✓
-            'stereo_debug_depth': stereo_debug_depth_data   # Stereo depth from untethered planning node
+            'stereo_debug_depth': stereo_debug_depth_data,   # Stereo depth from untethered planning node
             'stereo_point': stereo_point_data,  # Stereo points (NEEDS REAL DATA)
-            # Additional logged data
             'acc': acc_data,                # Accelerometer ✓
             'gyr': gyr_data,                # Gyroscope ✓  
             'voltage': voltage_data,        # Battery voltage ✓
