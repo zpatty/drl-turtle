@@ -34,7 +34,9 @@ class CamStream():
     """
     def __init__(self, idx=0):
         self.cap = cv2.VideoCapture(0)
+        print("opened first cam")
         self.cap1 = cv2.VideoCapture(4)
+        print("opened second cam")
         self.ret, self.left = self.cap.read()
         self.ret1, self.right = self.cap1.read()
         self.stopped = False
@@ -65,7 +67,7 @@ class CamNode(Node):
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
             history=HistoryPolicy.KEEP_LAST,
-            depth=2
+            depth=1
         )
         buff_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -97,12 +99,15 @@ class CamNode(Node):
         self.call_timer = self.create_timer(0.1, self._cam_cb, callback_group=timer_cb_group)
     def _cam_cb(self):
         msg = TurtleCam()
-        msg.data[0] = self.br.cv2_to_compressed_imgmsg(self.stream.right)
-        msg.data[1] = self.br.cv2_to_compressed_imgmsg(self.stream.left)
+        # print(f"frame: {self.count}")
+        # print(f"shape: {self.stream.right.shape}")
+        msg.data[0] = self.br.cv2_to_compressed_imgmsg(self.stream.left)
+        msg.data[1] = self.br.cv2_to_compressed_imgmsg(self.stream.right)
         self.cam_publisher.publish(msg)
         # cv2.imwrite(self.output_folder + "/left/frame%d.jpg" % self.count, self.stream.left)
         # cv2.imwrite(self.output_folder + "/right/frame%d.jpg" % self.count, self.stream.right)
         self.count += 1
+
     def turtle_mode_callback(self, msg):
         if msg.mode == "kill":
             raise KeyboardInterrupt

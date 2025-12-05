@@ -1,0 +1,428 @@
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
+import rclpy.parameter
+
+from rclpy.parameter_event_handler import ParameterEventHandler
+
+import os, sys
+submodule = os.path.expanduser("~") + "/drl-turtle/ros2_ws/install/turtle_hardware/lib/python3.12/site-packages/turtle_hardware/"
+sys.path.append(submodule)
+import transforms3d.quaternions as quat
+from turtle_interfaces.msg import TurtleTraj, TurtleSensors, TurtleCtrl, TurtleMode, TurtleState
+from std_msgs.msg import String, Float32MultiArray
+from turtle_dynamixel.dynamixel_sdk import *                                     # Uses Dynamixel SDK library
+from turtle_dynamixel.Dynamixel import *                        # Dynamixel motor class                                  
+from turtle_dynamixel.dyn_functions import *                    # Dynamixel support functions
+from turtle_dynamixel.Constants import *                        # File of constant variables
+from turtle_dynamixel.Mod import *
+from turtle_dynamixel.utilities import *
+from turtle_dynamixel.utilities import *
+from rclpy.executors import MultiThreadedExecutor
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
+
+
+
+
+class TurtleRobot(Node):
+
+# class TurtleRobot(Node, gym.Env):s
+    """
+    This node is responsible for continously reading sensor data and receiving commands from the keyboard node
+    to execute specific trajectoreies or handle emergency stops. It also is responsible for sending motor pos commands to the RL node
+    for training and deployment purposes.
+    TODO: migrate dynamixel motors into this class
+    TLDR; this is the node that handles all turtle hardware things
+    """
+
+    def __init__(self, params=None):
+        super().__init__('turtle_hardware_node')
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=2
+        )
+        buff_profile = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10
+        )
+        timer_cb_group = None
+        self.call_timer = self.create_timer(0.001, self._timer_cb, callback_group=timer_cb_group)
+
+        self.watchdog_timer = self.create_timer(0.04, self._watchdog_cb, callback_group=timer_cb_group)
+
+
+        # # subscribes to keyboard setting different turtle modes 
+        self.mode_sub = self.create_subscription(
+            TurtleMode,
+            'turtle_mode',
+            self.turtle_mode_callback,
+            qos_profile)
+        
+        # # subscribes to keyboard setting different turtle modes 
+        self.u_sub = self.create_subscription(
+            TurtleTraj,
+            'turtle_u',
+            self.turtle_input_callback,
+            qos_profile)
+
+        # continously reads from all the sensors and publishes data at end of trajectory
+        self.sensors_pub = self.create_publisher(
+            TurtleState,
+            'turtle_sensors',
+            qos_profile
+        )
+
+        # continously reads sensor data from SensorNode.
+        # and publishes data at end of trajectory
+        self.sensors_sub = self.create_subscription(
+            TurtleSensors,
+            'turtle_imu',
+            self.turtle_sensors_callback,
+            qos_profile
+        )
+
+        self.create_rate(1000)
+        self.mode = 'rest'      # initialize motors mode to rest state
+        self.last_mode = self.mode
+        self.primitives = ['dwell']
+        self.voltage = 12.0
+
+
+
+        self.t0 = time.time()
+        # dynamixel setup
+        self.IDs = [1, 2, 3, 4,5,6, 7, 8, 9, 10]
+        self.nq = 10
+
+        if portHandlerJoint.openPort():
+            print("[MOTORS STATUS] Suceeded to open port")
+        else:
+            print("[ERROR] Failed to open port")
+        if portHandlerJoint.setBaudRate(BAUDRATE):
+            print("[MOTORS STATUS] Suceeded to open port")
+        else:
+            print("[ERROR] Failed to change baudrate")
+
+        self.Joints = Mod(packetHandlerJoint, portHandlerJoint, self.IDs)
+        self.Joints.all_reboot()
+        self.Joints.disable_torque()
+        # self.Joints.set_vel_gains(1920, 500)
+        self.Joints.set_max_velocity(1000)
+        # self.Joints.set_current_cntrl_mode()
+        # self.Joints.enable_torque()
+        self.Joints.reset_watchdog()
+        self.Joints.set_watchdog(10)
+        # # sensors and actuators
+        self.q = np.array(self.Joints.get_position()).reshape(-1,1)
+        self.dq = np.array(self.Joints.get_velocity()).reshape(-1,1)
+
+        self.min_threshold = np.array([1.60, 2.5, 1.0, 1.35, 1.2, 1.0, 1.45, 1.2, 3.0, 2.3])/1.25
+        self.max_threshold = np.array([4.75, 5.0, 5.0, 4.5, 4.15, 5.0, 3.2, 4.0, 4.0, 4.7])*1.25
+
+        # self.q = np.zeros((self.nq,1))
+        # self.dq = np.zeros((self.nq,1))
+        self.qd = np.zeros((self.nq,1))
+        self.dqd = np.zeros((self.nq,1))
+        self.nav_u = np.array([0,0,0,0])
+        # self.u = [0]*self.nq
+        self.u = np.array([0,0,0,0,0,0,0,0,0,0])
+        self.input = [0]*self.nq
+        self.t = 0
+        self.acc = np.zeros((3,1))
+        self.gyr = np.zeros((3,1))
+        self.quat_vec = np.zeros((4,1))
+
+        self.off_flag = False
+        self.depth = 0.0
+        self.altitude = 0.0
+        self.alt_confidence = 0.0
+
+        # self.xiao = serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
+        # self.xiao.reset_input_buffer()
+        self.input_history = np.zeros((self.nq,10))
+        
+        self.voltage_threshold = 11.2
+
+        self.print_sensors = True
+
+        # arrays to store trajectories if desired
+        self.q_data = []
+        self.dq_data = []
+        self.u_data = []
+        self.input_data = []
+        self.timestamps = []
+        self.qd_data = []
+        self.dqd_data = []
+
+        self.food = True
+        self.first_bark = False
+
+        # t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+        # self.folder_name =  "data/" + t
+        # os.makedirs(self.folder_name)
+        
+
+    def _timer_cb(self):
+        # print(self.mode)
+        # t_meas = time.time() - self.t0
+        self.read_joints()
+        # self.read_sensors()
+        # print(self.mode)
+        if self.voltage < self.voltage_threshold:
+            self.get_logger().info('Battery Low, Please Charge')
+            self.mode = "rest"
+        self.t = time.time() - self.t0
+        # print(f"[DEBUG] dt_read: {self.t - t_meas}\n")
+        if not self.off_flag:
+            if self.mode == 'p':
+                # print("p mode...")
+                u = np.squeeze(self.u)
+                q = np.array(self.q)
+                dq = np.array(self.dq)
+                # print("hi")
+                lower = q < self.min_threshold
+                l_limit = np.logical_and(u<0,lower)
+                u[l_limit] = 150 * ((lower[l_limit] - q[l_limit]) - 0.1*dq[l_limit])
+                # print("hoi")
+                upper = q > self.max_threshold
+                u_limit = np.logical_and(u>0,upper)
+                u[u_limit] = 150 * ((upper[u_limit] - q[u_limit]) - 0.1*dq[u_limit])
+                # print("you")
+                # print(f"u: {self.u}")
+
+                self.input = grab_arm_current(self.u, xw_min_torque, xw_max_torque)
+                # self.input = np.clip(self.input, -30.0, 30.0).astype(int).squeeze().tolist()
+                # print("what is u")
+                # print(self.input)
+                # self.input[0] = int(self.input[0]/3)
+                # self.input[6] = 0
+                # self.input[8] = 0
+                # self.input = [0,0,0,0,0,0,0,0,0,0]
+                # self.Joints.send_torque_cmd(self.input)
+                print(f"input: {self.input}")
+            elif self.mode == 'v':
+                # print("v mode...")
+                lower = self.q < self.min_threshold
+                u = np.squeeze(self.u)
+                l_limit = np.logical_and(u<0,lower)
+                q = np.array(self.q)
+                print(f"[DEBUG] lower: {l_limit}\n")
+
+
+                u[l_limit] = 0.5 * ((lower[l_limit] - q[l_limit]))
+                upper = q > self.max_threshold
+                u_limit = np.logical_and(u>0,upper)
+                u[u_limit] = 0.5 * ((upper[u_limit] - q[u_limit]))
+                print(f"[DEBUG] upper: {u_limit}\n")
+                self.input = np.clip(self.u * 30.0 / np.pi / 0.229, -700., 700.).astype(int).squeeze().tolist()
+                print(self.u)
+                
+                self.Joints.send_vel_cmd(self.input)
+        else:
+            self.Joints.disable_torque()
+
+        self.publish_turtle_data()
+        # self.get_logger().info('Received response')
+        self.log_data()
+
+    def turtle_input_callback(self, msg):
+        self.u = self.convert_u_to_motors(np.array(msg.u))
+        self.qd = np.array(msg.qd)
+        # print(f"nav: {msg.navu}")
+        self.nav_u = np.array(msg.navu)
+        self.dqd = np.array(msg.dqd)
+        self.food = True
+
+    def _watchdog_cb(self):
+        if not self.food:
+            print(f"[DEBUG] q: {self.q}\n")
+            # print(self.voltage)
+            self.get_logger().info('Bark Bark!')
+            # print(self.voltage)
+            self.mode = "rest"
+            # self.shutdown_motors()
+            self.off_flag = True
+        elif self.off_flag and self.food:
+            self.off_flag = False
+            self.mode = self.last_mode
+            self.activate_mode()
+
+        self.food = False
+        self.first_bark = False
+
+    def turtle_mode_callback(self, msg):
+        self.mode = msg.mode
+        self.last_mode = self.mode
+        if msg.mode == "kill":
+            raise KeyboardInterrupt
+        self.activate_mode()
+
+    def activate_mode(self):
+        match self.mode:
+            case "rest":
+                self.shutdown_motors()
+                # cmd_msg = String()
+                # cmd_msg.data = 'rest mode'
+                # self.cmd_received_pub.publish(cmd_msg)
+                print(self.q)
+                self.get_logger().info('Rest Mode!')
+            case "v":
+                self.Joints.disable_torque()
+                self.Joints.set_velocity_cntrl_mode()
+                self.Joints.enable_torque()
+                self.get_logger().info('Velocity Mode!')
+                # cmd_msg = String()
+                # cmd_msg.data = 'velocity ctrl'
+                # self.cmd_received_pub.publish(cmd_msg)
+            case "p":
+                self.Joints.disable_torque()
+                self.Joints.set_current_cntrl_mode()
+                self.Joints.enable_torque()
+                self.get_logger().info('Position Mode!')
+                # cmd_msg = String()
+                # cmd_msg.data = 'compliant position ctrl'
+                # self.cmd_received_pub.publish(cmd_msg)
+
+    def get_turtle_mode(self):
+        return self.mode
+
+    def np2msg(self, mat):
+        """
+        flattens nd numpy array into a lst for ros pkg messaging
+        """
+        nq = 10
+        squeezed = np.reshape(mat, (nq * mat.shape[1]))
+        return squeezed.tolist()
+    
+    def publish_turtle_data(self):
+        """
+        Send data out
+        """
+        turtle_msg = TurtleState()
+        # turtle_msg.q = self.q
+        # turtle_msg.dq = self.dq
+        turtle_msg.q, turtle_msg.dq = self.convert_motors_to_q(self.q, self.dq)
+        turtle_msg.t = self.t
+        _, turtle_msg.u = self.convert_motors_to_q(self.u, self.u)
+        turtle_msg.navu = self.nav_u
+        turtle_msg.qd = self.qd
+        turtle_msg.dqd = self.dqd
+        turtle_msg.input = self.input
+        turtle_msg.imu.quat = self.quat_vec
+        # # angular velocity
+        turtle_msg.imu.gyr = self.gyr
+        # print("acc msg")
+        # # linear acceleration
+        turtle_msg.imu.acc = self.acc
+        turtle_msg.depth = self.depth
+        turtle_msg.altitude = self.altitude
+        turtle_msg.alt_confidence = self.alt_confidence
+
+        # publish msg 
+        self.sensors_pub.publish(turtle_msg)
+
+    def convert_motors_to_q(self, q, dq):
+        q = np.array(q).reshape(10,)  - np.pi
+        qd = np.array(dq).reshape(10,)
+        q_new = np.hstack((-q[3:6], [q[0], -q[1], -q[2]], q[6:]))
+        qd_new = np.hstack((-qd[3:6], [qd[0], -qd[1], -qd[2]], qd[6:]))
+        return q_new, qd_new
+
+    def convert_u_to_motors(self, u):
+        if np.size(u) == 6:
+            u = np.hstack((u, np.zeros(4,)))
+        u_new = np.hstack(([u[3], -u[4], -u[5]], -u[0:3], u[6:]))
+        return u_new.reshape(-1,1)
+
+
+        
+    def shutdown_motors(self):
+        self.Joints.disable_torque()
+        self.Joints.set_current_cntrl_mode()
+        self.Joints.enable_torque()
+        self.Joints.send_torque_cmd([0] *len(self.IDs))
+        self.Joints.disable_torque()
+        print("Motors Off")
+        pass
+    
+    def read_joints(self):
+        self.q = self.Joints.get_position()
+        self.dq = self.Joints.get_velocity()
+    
+    def log_joints(self):
+        self.q_data.append(self.q)
+        self.dq_data.append(self.dq)
+    
+    def log_time(self, t):
+        self.timestamps = t
+    
+    def log_u(self, u):
+        self.tau_data = u
+    
+    def log_data(self):
+        self.q_data.append(self.q)
+        self.dq_data.append(self.dq)
+        self.u_data.append(self.q)
+        self.dq_data.append(self.dq)
+        self.input_data.append(self.dq)
+        self.timestamps.append(self.t)
+        self.qd_data.append(self.qd)
+        self.dqd_data.append(self.dqd)
+
+    def save_data(self):
+        np.savez(self.folder_name + "_np_data", q=self.q_data, dq=self.dq_data, t=self.timestamps, u=self.u_data, input=self.input_data, qd=self.qd_data, dqd=self.dqd_data)  
+
+    def log_desired_state(self, qd, dqd):
+        self.qd_data = qd
+        self.dqd_data = dqd
+
+    def get_state(self):
+        return self.q, self.dq
+
+    def get_state_np(self):
+        return np.array(self.q).reshape(-1,1), np.array(self.dq).reshape(-1,1)
+
+    
+    def turtle_sensors_callback(self, msg):
+
+        # turtle_msg.q = self.q
+        # turtle_msg.dq = self.dq
+        self.quat_vec = msg.imu.quat
+        # # angular velocity
+        self.gyr = msg.imu.gyr
+        # print("acc msg")
+        # # linear acceleration
+        self.acc = msg.imu.acc
+        self.voltage = msg.voltage
+        self.depth = msg.depth
+        self.altitude = msg.altitude
+        self.alt_confidence = msg.alt_confidence
+
+
+def main():
+    os.system('sudo ' + '~/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/turtle_dynamixel/latency_write.sh')
+    rclpy.init()
+    turtle_node = TurtleRobot()
+    try:
+        rclpy.spin(turtle_node)
+        # rclpy.shutdown()
+    except KeyboardInterrupt:
+        turtle_node.shutdown_motors()
+        print("shutdown")
+    except Exception as e:
+        turtle_node.shutdown_motors()
+        print("some error occurred")
+        # turtle_node.shutdown_motors()
+        exec_type, obj, tb = sys.exc_info()
+        fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
+        print(exec_type, fname, tb.tb_lineno)
+        print(e)
+    # turtle_node.save_data()
+    turtle_node.shutdown_motors()
+
+if __name__ == '__main__':
+    main()

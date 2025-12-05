@@ -18,19 +18,15 @@ from std_msgs.msg import Float32MultiArray
 
 from turtle_interfaces.msg import TurtleCtrl, TurtleMode
 
-from datetime import datetime
+
 # Load the gamepad and time libraries
 import time
 
 
 class Logger(Node):
-
     """
-    This node is responsible for continously reading sensor data and receiving commands from the keyboard node
-    to execute specific trajectoreies or handle emergency stops. It also is responsible for sending motor pos commands to the RL node
-    for training and deployment purposes.
+    This node is responsible for collecting output from turtle sensor node and turtle motor node
     """
-
     def __init__(self, params=None):
         super().__init__('log_node')
         qos_profile = QoSProfile(
@@ -39,14 +35,19 @@ class Logger(Node):
             history=HistoryPolicy.KEEP_LAST,
             depth=2
         )
-
-
         # timer_cb_group = None
         # self.call_timer = self.create_timer(0.01, self._config_cb, callback_group=timer_cb_group)
 
         # self.handler = ParameterEventHandler(self)
 
         # for case when trajectory mode, receives trajectory msg
+        # self.sensors_sub = self.create_subscription(
+        #     TurtleState,
+        #     'turtle_sensors',
+        #     self.sensors_callback,
+        #     qos_profile
+        # )
+
         self.sensors_sub = self.create_subscription(
             TurtleState,
             'turtle_sensors',
@@ -54,7 +55,8 @@ class Logger(Node):
             qos_profile
         )
 
-                # continously publishes the current motor position      
+
+        # continously publishes the current motor position      
         self.desired_sub = self.create_subscription(
             TurtleCtrl,
             'turtle_ctrl_params',
@@ -75,16 +77,18 @@ class Logger(Node):
             self.turtle_mode_callback,
             qos_profile)
         
-        t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
-        self.folder_name =  "data/" + t
-        print(f"Attempting to create folder: {self.folder_name}", flush=True)
+        self.timestamp = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+        self.folder_name =  "data/" + self.timestamp
         os.makedirs(self.folder_name)
-        print(f"Created folder: {self.folder_name}", flush=True)
+        print(f"Making folder: {self.folder_name}\n")
         self.create_rate(100)
         params, __ = self.parse_ctrl_params()
+
         self.reset()
+
         self.mode = "rest"
         self.traj = "nav"
+    
 
     def sensors_callback(self, msg):
         """
@@ -92,31 +96,32 @@ class Logger(Node):
         msg: [quat acc gyr voltage t_0 q dq ddq u qd t]
         """    
         # self.get_logger().info(f"Received update to q")
-        print(msg.q)
+        # print(msg)
         self.q_data.append(msg.q)
         self.dq_data.append(msg.dq)
         self.qd_data.append(msg.qd)
         self.dqd_data.append(msg.dqd)
         self.u_data.append(msg.u)
+        self.nav_u_data.append(msg.navu)
         self.input_data.append(msg.input)
         self.timestamps.append(msg.t)
         self.quat_data.append(msg.imu.quat.tolist())
         self.depth_sensor_data.append(msg.depth)
         self.alt_data.append(msg.altitude)
+        # print(f"current: {self.alt_data[-1]}")
         self.depth_d_data.append(self.depth_d)
-        self.alt_data.append(self.altitude)
+        # self.alt_data.append(self.altitude)
         self.alt_d_data.append(self.altitude_d)
         self.yaw_data.append(self.yaw)
         self.stereo_depth_data.append(self.stereo_depth)
         self.stereo_x_list.append(self.x)
-        print(self.x)
+        # print(self.stereo_depth)
         
         self.stereo_y_list.append(self.y)
 
         # control variables
         self.amplitude_data.append(self.amplitude)
         self.center_data.append(self.center)
-        self.yaw_data.append(self.yaw)
         self.pitch_data.append(self.pitch)
         
         self.roll_data.append(self.roll)
@@ -147,16 +152,58 @@ class Logger(Node):
         self.y = msg.data[2]
         # print(f"[DEBUG] \n x: ", self.x, "   y: ", self.y, "/n")
 
+    # def save_data(self):
+    #     # print(np.shape(self.stereo_x_list))
+    #     # print(np.shape(self.stereo_y_list))
+    #     # print(np.shape(np.vstack((self.stereo_x_list, self.stereo_y_list))))
+    #     print(np.shape(self.stereo_depth_data))
+    #     print(f"saved data in {self.folder_name}")
+    #     save_path = os.path.join(self.folder_name, f"np_data_{self.timestamp}")
+    #     np.savez(save_path, q=self.q_data, dq=self.dq_data, t=self.timestamps, input=self.input_data, 
+    #              u=self.u_data, nav_u=self.nav_u_data, qd=self.qd_data, dqd=self.dqd_data, depth=self.depth_sensor_data, depth_d=self.depth_d_data, 
+    #              quat = self.quat_data, alt=self.alt_data, yaw_d=self.yaw_data, 
+    #              stereo_depth=self.stereo_depth_data, stereo_point=np.vstack((self.stereo_x_list, self.stereo_y_list)))
+    #     print("SAVED DATA")
+    #     print(len(self.alt_data))
+    #     print(len(self.q_data))
+    #     # np.savez(save_path, q=self.q_data, dq=self.dq_data, t=self.timestamps, input=self.input_data, 
+    #     #          u=self.u_data, qd=self.qd_data, dqd=self.dqd_data, depth=self.depth_sensor_data, depth_d=self.depth_d_data, 
+    #     #          quat = self.quat_data, alt=self.alt_data, alt_d=self.alt_d_data, yaw_d=self.yaw_data, 
+    #     #          stereo_depth=self.stereo_depth_data, stereo_point=np.vstack((self.stereo_x_list, self.stereo_y_list)))
     def save_data(self):
-        # print(np.shape(self.stereo_x_list))
-        # print(np.shape(self.stereo_y_list))
-        # print(np.shape(np.vstack((self.stereo_x_list, self.stereo_y_list))))
-        print(np.shape(self.stereo_depth_data))
-        np.savez(self.folder_name + "_np_data", q=self.q_data, dq=self.dq_data, t=self.timestamps, input=self.input_data, 
-                 u=self.u_data, qd=self.qd_data, dqd=self.dqd_data, depth=self.depth_sensor_data, depth_d=self.depth_d_data, 
-                 quat = self.quat_data, alt=self.alt_data, alt_d=self.alt_d_data, yaw_d=self.yaw_data, 
-                 stereo_depth=self.stereo_depth_data, stereo_point=np.vstack((self.stereo_x_list, self.stereo_y_list)))
-            
+        save_path = os.path.join(self.folder_name, f"np_data_{self.timestamp}")
+        
+        print(f"saved data in {self.folder_name}")
+        
+        # Pad nav_u to consistent shape (length 4) with NaNs
+        nav_u_padded = []
+        for item in self.nav_u_data:
+            if len(item) == 0:
+                nav_u_padded.append(np.full(4, np.nan))
+            else:
+                nav_u_padded.append(item)
+        
+        np.savez(save_path, 
+                q=self.q_data, 
+                dq=self.dq_data, 
+                t=self.timestamps, 
+                input=self.input_data, 
+                u=self.u_data, 
+                nav_u=nav_u_padded, 
+                qd=self.qd_data, 
+                dqd=self.dqd_data, 
+                depth=self.depth_sensor_data, 
+                depth_d=self.depth_d_data, 
+                quat=self.quat_data, 
+                alt=self.alt_data, 
+                yaw_d=self.yaw_data, 
+                stereo_depth=self.stereo_depth_data, 
+                stereo_point=np.vstack((self.stereo_x_list, self.stereo_y_list)))
+        
+        print("SAVED DATA")
+        print(len(self.alt_data))
+        print(len(self.q_data))
+
     def update_config(self):
         t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
         self.folder_name =  "data/" + t
@@ -244,7 +291,8 @@ class Logger(Node):
     
     def save_config(self):  
         # print(self.kpv_data)
-        np.savez(self.folder_name + "_np_config", amplitude=self.amplitude_data, 
+        save_path = os.path.join(self.folder_name, f"np_config_{self.timestamp}")
+        np.savez(save_path, amplitude=self.amplitude_data, 
                  center=self.center_data, yaw=self.yaw_data, depth=self.depth_d_data, altitude=self.alt_data, roll=self.roll_data, 
                  frequency_offset=self.freq_offset_data, period=self.period_data, offset=self.q_off_data,
                  sw=self.sw_data, kpv=self.kpv_data, learn=self.learn_data, d_pinv=self.d_pinv_data,
@@ -255,6 +303,7 @@ class Logger(Node):
         self.q_data = []
         self.dq_data = []
         self.u_data = []
+        self.nav_u_data = []
         self.input_data = []
         self.timestamps = []
         self.qd_data = []
@@ -303,15 +352,13 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     except Exception as e:
+        # rclpy.shutdown()
         print("some error occurred")
+        # turtle_node.shutdown_motors()
         exec_type, obj, tb = sys.exc_info()
         fname = os.path.split(tb.tb_frame.f_code.co_filename)[1]
         print(exec_type, fname, tb.tb_lineno)
         print(e)
+    # remote_node.gamepad.disconnect()
     logger_node.save_data()
     logger_node.save_config()
-    print("Saved data and config")
-    logger_node.destroy_node()
-    rclpy.shutdown()
-    print("Logger node shutdown")
-    sys.exit(0)

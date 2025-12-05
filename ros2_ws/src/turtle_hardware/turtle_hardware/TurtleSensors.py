@@ -1,3 +1,4 @@
+
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
@@ -69,24 +70,11 @@ class TurtleSensorsNode(Node):
         self.quat_vec = np.zeros((4,1))
         self.off_flag = False
 
-        self.xiao = serial.Serial('/dev/ttyACM0', 115200, timeout=3)   
+        self.xiao = serial.Serial('/dev/ttyACM0', 115200, dsrdtr=False,timeout=1)   
         self.xiao.reset_input_buffer()        
 
-        self.print_sensors = True
-
-        # t = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
-        # self.folder_name =  "data/" + t
-        # os.makedirs(self.folder_name)
-        
-
-
     def _timer_cb(self):
-        # print(self.mode)
-        # t_meas = time.time()
         self.read_sensors()
-        # print(self.mode)
-        # print(f"[DEBUG] dt_read: {time.time() - t_meas}\n")
-
         self.publish_turtle_sensors()
 
 
@@ -103,12 +91,9 @@ class TurtleSensorsNode(Node):
         Send data out
         """
         turtle_msg = TurtleSensors()
-        # turtle_msg.q = self.q
-        # turtle_msg.dq = self.dq
         turtle_msg.imu.quat = self.quat_vec
-        # # angular velocity
+        # angular velocity
         turtle_msg.imu.gyr = self.gyr
-        # print("acc msg")
         # # linear acceleration
         turtle_msg.imu.acc = self.acc
         turtle_msg.voltage = self.voltage
@@ -130,8 +115,6 @@ class TurtleSensorsNode(Node):
         attempts = 0
         while keep_trying:
             if attempts >= 1:
-                # print("adding place holder")
-                # self.add_place_holder()
                 break
             self.xiao.reset_input_buffer()
             sensors = self.xiao.readline()
@@ -163,7 +146,6 @@ class TurtleSensorsNode(Node):
                             raw_depth = sensor_dict['Depth'][0]
                             if 0 <= raw_depth <= 2:
                                 self.depth = raw_depth
-
                             keep_trying = False
             attempts += 1
 
