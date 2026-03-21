@@ -160,115 +160,9 @@ class TurtlePlanner(Node):
         mode_msg.mode = "p"
         self.mode = mode_msg.mode
         self.mode_pub.publish(mode_msg)
-  
 
     def _timer_cb(self):
-        q_eul = euler.quat2euler(self.quat,self.euler_convention)
-        heading = q_eul[2]
-        filtered_alt = scipy.signal.medfilt(self.altitude)
-        if self.pilot == "depth":
-            v = self.remote_v
-            if abs(v[2]) > 0.05 and self.last_yaw <= abs(v[2]):
-                self.last_yaw = abs(v[2])
-                self.yaw_accumulator += 0.05*v[2]
-                self.yaw_d = self.yaw_accumulator + heading*0
-                self.last_time  = time.time()
-            elif self.last_yaw > abs(v[2]):
-                self.last_yaw = abs(v[2])
-                self.yaw_accumulator = 0
-            if self.yaw_d + np.pi < 0:
-                self.yaw_d = np.pi
-                self.yaw_accumulator = np.pi
-                print("here")
-            elif self.yaw_d + np.pi > 2*np.pi:
-                self.yaw_d = -np.pi
-                self.yaw_accumulator = -np.pi
-             
-            depth_err = self.depth_sensor - self.depth_d
-            # in base coordinates
-            qd_dive = quat.axangle2quat([0.0, 0.0, 1.0], np.clip(- 5.0 * depth_err, -np.pi/2, np.pi/2)) 
-            qd_dive = euler.euler2quat(*tuple([self.yaw_d, np.clip(- 4.0 * depth_err, -np.pi/2, np.pi/2), 0.0]),self.euler_convention)
-            qd_dive = euler.euler2quat(*tuple([np.clip(- 4.0 * depth_err, -np.pi/2, np.pi/2), 0.0, self.yaw_d]),self.euler_convention)
-            # qd_dive = quat.axangle2quat([1.0, 0.0, 0.0], np.pi/4) 
-            q_inv = quat.qinverse(self.quat)
-            err = 2.0 * quat.qmult(qd_dive, q_inv)
-            w = - np.clip(1.0*(np.array(err[1:]) - 0.1*np.array(self.omega)), -1.0, 1.0)
-            u = [1.0, - w[1], - w[2], - w[0], -1.0*depth_err]
-            # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
-            #       self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n")
-           
-        elif self.pilot == "altitude":
-            q_inv = quat.qinverse(self.quat)
-            alt_err = filtered_alt[0] - self.altitude_d
-            qd_alt = quat.axangle2quat([0.0, 0.0, 1.0], np.clip(1.0 * alt_err, -np.pi/6, np.pi/6)) 
-            qd_alt = euler.euler2quat(*tuple([np.clip(- 4.0 * alt_err, -np.pi/2, np.pi/2), 0.0, self.yaw_d]),self.euler_convention)
-            err = 2.0 * quat.qmult(qd_alt, q_inv)
-            w = - 1.0*(np.array(err[1:]) - 0.1*np.array(self.omega))
-            # u = [1.0, - 0.2* w[1], w[2], - 0.2*w[0], w[2]]
-            u = [1.0, - w[1], w[2], - w[0], w[2]]
-            # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
-            #       self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n")
-
-        elif self.pilot == "remote":
-            v = self.remote_v
-            # print(f"[DEBUG] w: ", np.array(w), "desired: ", np.array(self.quat),"\n")
-            u_pitch = v[1]
-            u_yaw = v[2]
-            u_fwd = v[0]
-            u_roll = v[3]
-            u = [u_fwd, u_roll, u_pitch, u_yaw, u_pitch]
-            # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
-            #       self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n")
-
-        elif self.pilot == "DR":
-            v = self.remote_v
-            depth_err = self.depth_sensor - self.depth_d
-            # in base coordinates
-            qd_dive = euler.euler2quat(*tuple([np.clip(- 10.0 * depth_err, -np.pi/2, np.pi/2), 0.0, 0.0]),self.euler_convention)
-            q_inv = quat.qinverse(self.quat)
-            err = 2.0 * quat.qmult(qd_dive, q_inv)
-            w = - np.clip(1.0*(np.array(err[1:]) - 0.1*np.array(self.omega)), -1.0, 1.0)
-            u = [1.0, - 0.2* w[1], w[2], - 0.2*w[0], w[2]]
-            u_pitch = v[1]
-            u_yaw = v[2]
-            u_fwd = v[0]
-            u_roll = v[3]
-            if abs(v[1]) > 0.05:
-                u = np.clip([u_fwd, u_roll - 0.2* w[1], u_pitch - w[2],  - w[0], u_pitch - 1.0 * depth_err],-1,1)
-            else:
-                u = np.clip([u_fwd, u_roll - 0.2* w[1], - w[2], - w[0], - 1.0 * depth_err],-1,1)
-            if abs(v[2]) > 0.05:
-                u[3] = u_yaw
-            
-            # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
-            #       self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n")
         
-        elif self.pilot == "track":
-            u_fwd = 1.0
-            
-            if np.size(self.centroids) == 2:
-                u_yaw = self.centroids[1]/870 * 2 - 1
-                u_pitch = 1 - self.centroids[0]/480 * 2
-                self.centroids_hist.append(self.centroids)
-            elif self.centroids_hist != []:
-                c = self.centroids_hist[-1] 
-                u_pitch = 1 - c[0]/480 * 2
-                u_yaw = c[1]/870 * 2 - 1
-            else:
-                u_pitch = 0
-                if np.random.uniform(0.0, 1.0) > 0.97:
-                    self.rand_yaw = np.random.uniform(-1.0, 1.0)
-                u_yaw = self.rand_yaw
-            u = [u_fwd, 0.0, - u_pitch, u_yaw, - u_pitch]
-            # print(f"[DEBUG] \n mode: ", self.pilot, "\n ctrl: ", np.array(u), "\n quat: ", np.array(self.quat), "\n alt: ", filtered_alt[0], "\n depth: ", 
-            #       self.depth_sensor, "\n desired depth", self.depth_d, "\n yaw", heading, "\n yaw desired", self.yaw_d,"\n centroids: ", self.centroids, "\n")
-            u = np.clip(u, -1.0, 1.0)
-            print(f"u: {u}")
-            if np.size(self.centroids) == 2:
-                self.config_pub.publish(Float32MultiArray(data=u))
-                print("published!!!!")
-
-
         if self.stereo_depth  is not None:
             if self.stereo_depth < 13:
                 x_bounds = [157,425]
@@ -288,8 +182,6 @@ class TurtlePlanner(Node):
         # self.config_pub.publish(Float32MultiArray(data=u))
         # print("published!!!!")
         
-
-
     def np2msg(self, mat):
         """
         flattens nd numpy array into a lst for ros pkg messaging
@@ -298,29 +190,6 @@ class TurtlePlanner(Node):
         squeezed = np.reshape(mat, (nq * mat.shape[1]))
         return squeezed.tolist()
     
-    def sensors_callback(self, msg):
-        """
-        Callback function that takes in list of squeezed arrays
-        msg: [quat acc gyr voltage t_0 q dq ddq u qd t]
-        """    
-        self.quat = msg.imu.quat.tolist()
-        self.depth_sensor = msg.depth
-        if len(self.altitude) < 20:
-            self.altitude.append(msg.altitude)
-        else:
-            self.altitude.pop(0)
-            self.altitude.append(msg.altitude)
-        self.alt_confidence = msg.alt_confidence
-        self.omega = msg.imu.gyr
-        if self.quat_first:
-            self.quat_init = self.quat
-        # print(f"[DEBUG] altitude: ", self.altitude, "confidence: ", self.alt_confidence, "\n")
-    
-    def stereo_callback(self, msg):
-        self.stereo_depth = msg.data[0]
-        self.x = msg.data[1]
-        self.y = msg.data[2]
-
     def turtle_desired_callback(self, msg):
         self.yaw_d = msg.yaw
         self.depth_d = msg.pitch
@@ -329,26 +198,7 @@ class TurtlePlanner(Node):
     def tracker_callback(self, msg):
         self.centroids = msg.data
         print(msg.data)
-        
-
-    def gamepad_callback(self, msg):
-        if self.pilot != "track":
-            if msg.data[-1] == 0:
-                self.pilot = "remote"
-            elif msg.data[-1] == 1:
-                self.pilot = "depth"
-            elif msg.data[-1] == 2:
-                self.pilot = "altitude"
-            elif msg.data[-1] == 3:
-                self.pilot = "DR"
-            elif msg.data[-1] == 4:
-                self.pilot = "track"
-        else:
-            if msg.data[-1] == 0:
-                self.pilot = "remote"
-
-        self.remote_v = msg.data[:-1]
-        
+                
     def img_callback(self, msg):
         left = self.br.compressed_imgmsg_to_cv2(msg.data[0])
         right = self.br.compressed_imgmsg_to_cv2(msg.data[1])

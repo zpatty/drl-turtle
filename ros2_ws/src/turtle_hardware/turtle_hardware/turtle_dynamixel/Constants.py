@@ -31,7 +31,9 @@ DXL_IDALL                   = 254
 PROTOCOL_VERSION            = 2.0            # See which protocol version is used in the Dynamixel
 # MOD_DEVICE                  = '/dev/ttyUSB0'
 JOINTS                      = '/dev/ttyUSB0'
-BAUDRATE                    = 4000000
+# BAUDRATE                    = 4000000
+BAUDRATE                    = 1000000
+
 # portHandlerMod              = PortHandler(MOD_DEVICE)
 # packetHandlerMod            = PacketHandler(PROTOCOL_VERSION)
 portHandlerJoint            = PortHandler(JOINTS)

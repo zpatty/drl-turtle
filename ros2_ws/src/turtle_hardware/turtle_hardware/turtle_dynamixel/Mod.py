@@ -11,6 +11,7 @@ ADDR_TORQUE_ENABLE          = 64
 ADDR_VEL_I                  = 76
 ADDR_VEL_P                  = 78
 ADDR_WATCHDOG               = 98
+ADDR_MAX_VELOCITY       = 44
 ADDR_GOAL_CURRENT           = 102
 ADDR_GOAL_POSITION          = 116
 ADDR_GOAL_VELOCITY          = 104
@@ -93,6 +94,7 @@ class Mod:
         for ID in self.IDS:
             dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, ID, ADDR_TORQUE_ENABLE, TORQUE_DISABLE)
             if dxl_comm_result != COMM_SUCCESS:
+                print(f"ID {ID} failed!")
                 print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
             elif dxl_error != 0:
                 print("%s" % self.packetHandler.getRxPacketError(dxl_error))
@@ -101,6 +103,7 @@ class Mod:
         for ID in self.IDS:
             dxl_comm_result, dxl_error = self.packetHandler.reboot(self.portHandler, ID)
             if dxl_comm_result != COMM_SUCCESS:
+                print(f"ID {ID} failed to reboot")
                 print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
             elif dxl_error != 0:
                 print("%s" % self.packetHandler.getRxPacketError(dxl_error))
@@ -146,35 +149,42 @@ class Mod:
         # note about line below- though dxl_comm_result isn't used, you still need to call txRxPacket()
         # otherwise dynamixel won't read out its position 
         t = time.time()
-        dxl_comm_result = self.groupSyncRead.txRxPacket()
-        # print(f"[DEBUG] dt: {time.time() - t}\n") 
+        dxl_comm_result = self.groupSyncRead.fastSyncRead()
+        
         address = ADDR_PRESENT_POSITION
         # print(f"address: {address}\n")
         pos = []
         # print(f"pos dict: {self.groupSyncRead.data_dict}")
+        
         for ID in self.IDS:
+
             # print(f"ID pos: {ID}\n")
-            data = self.groupSyncRead.data_dict[ID]
-            # print(f"data: {data}\n")
-            d3 = bin(data[3])[2:]
-            # print(f"byte: {d3}\n")
-            if d3[0] == '0':
-                p = DXL_MAKEDWORD(DXL_MAKEWORD(self.groupSyncRead.data_dict[ID][address - self.groupSyncRead.start_address + 0],
-                                              self.groupSyncRead.data_dict[ID][address - self.groupSyncRead.start_address + 1]),
-                                 DXL_MAKEWORD(self.groupSyncRead.data_dict[ID][address - self.groupSyncRead.start_address + 2],
-                                              self.groupSyncRead.data_dict[ID][address - self.groupSyncRead.start_address + 3])) 
-                pos.append(to_radians(p))
-            else:
-                # TODO: test for loop
-                comb = d3
-                for i in range(2,-1, -1):
-                    if data[i] < 128:
-                        d = (8 - len(bin(data[i])[2:])) * '0' + bin(data[i])[2:]
-                        comb += d
-                    else:
-                        comb += bin(data[i])[2:]
-                p = twos_comp(comb)
-                pos.append(to_radians(p))
+            try:
+                data = self.groupSyncRead.data_dict[ID]
+                # print(f"data: {data}\n")
+                d3 = bin(data[3])[2:]
+                # print(f"byte: {d3}\n")
+                if d3[0] == '0':
+                    p = DXL_MAKEDWORD(DXL_MAKEWORD(self.groupSyncRead.data_dict[ID][address - self.groupSyncRead.start_address + 0],
+                                                self.groupSyncRead.data_dict[ID][address - self.groupSyncRead.start_address + 1]),
+                                    DXL_MAKEWORD(self.groupSyncRead.data_dict[ID][address - self.groupSyncRead.start_address + 2],
+                                                self.groupSyncRead.data_dict[ID][address - self.groupSyncRead.start_address + 3])) 
+                    pos.append(to_radians(p))
+                else:
+                    # TODO: test for loop
+                    comb = d3
+                    for i in range(2,-1, -1):
+                        if data[i] < 128:
+                            d = (8 - len(bin(data[i])[2:])) * '0' + bin(data[i])[2:]
+                            comb += d
+                        else:
+                            comb += bin(data[i])[2:]
+                    p = twos_comp(comb)
+                    pos.append(to_radians(p))
+            except IndexError:
+                print(f"[ERROR] The following motor ID cannot be read: {ID}\n")
+
+        # print(f"[DEBUG] dt: {time.time() - t}\n") 
         return pos
     def get_velocity(self):
         '''
@@ -184,7 +194,7 @@ class Mod:
         # note about line below- though dxl_comm_result isn't used, you still need to call txRxPacket()
         # otherwise dynamixel won't read out its position 
         t = time.time()
-        dxl_comm_result = self.groupSyncReadVel.txRxPacket()
+        dxl_comm_result = self.groupSyncReadVel.fastSyncRead()
         # print(f"[DEBUG] dt: {time.time() - t}\n") 
         # address = ADDR_PRESENT_VELOCITY
         address = ADDR_PRESENT_VELOCITY
@@ -192,28 +202,31 @@ class Mod:
         pos = []
         # print(f"dict: {self.groupSyncReadVel.data_dict}")
         for ID in self.IDS:
-            # print(f"ID pos: {ID}\n")
-            data = self.groupSyncReadVel.data_dict[ID]
-            # print(f"data: {data}\n")
-            d3 = bin(data[3])[2:]
-            # print(f"byte: {d3}\n")
-            if d3[0] == '0':
-                p = DXL_MAKEDWORD(DXL_MAKEWORD(self.groupSyncReadVel.data_dict[ID][address - self.groupSyncReadVel.start_address + 0],
-                                              self.groupSyncReadVel.data_dict[ID][address - self.groupSyncReadVel.start_address + 1]),
-                                 DXL_MAKEWORD(self.groupSyncReadVel.data_dict[ID][address - self.groupSyncReadVel.start_address + 2],
-                                              self.groupSyncReadVel.data_dict[ID][address - self.groupSyncReadVel.start_address + 3])) 
-                pos.append(((p * 0.229)/60) * 2 * math.pi)
-            else:
-                # TODO: test for loop
-                comb = d3
-                for i in range(2,-1, -1):
-                    if data[i] < 128:
-                        d = (8 - len(bin(data[i])[2:])) * '0' + bin(data[i])[2:]
-                        comb += d
-                    else:
-                        comb += bin(data[i])[2:]
-                p = twos_comp(comb)
-                pos.append(((p * 0.229)/60) * 2 * math.pi)
+            try:
+                # print(f"ID pos: {ID}\n")
+                data = self.groupSyncReadVel.data_dict[ID]
+                # print(f"data: {data}\n")
+                d3 = bin(data[3])[2:]
+                # print(f"byte: {d3}\n")
+                if d3[0] == '0':
+                    p = DXL_MAKEDWORD(DXL_MAKEWORD(self.groupSyncReadVel.data_dict[ID][address - self.groupSyncReadVel.start_address + 0],
+                                                self.groupSyncReadVel.data_dict[ID][address - self.groupSyncReadVel.start_address + 1]),
+                                    DXL_MAKEWORD(self.groupSyncReadVel.data_dict[ID][address - self.groupSyncReadVel.start_address + 2],
+                                                self.groupSyncReadVel.data_dict[ID][address - self.groupSyncReadVel.start_address + 3])) 
+                    pos.append(((p * 0.229)/60) * 2 * math.pi)
+                else:
+                    # TODO: test for loop
+                    comb = d3
+                    for i in range(2,-1, -1):
+                        if data[i] < 128:
+                            d = (8 - len(bin(data[i])[2:])) * '0' + bin(data[i])[2:]
+                            comb += d
+                        else:
+                            comb += bin(data[i])[2:]
+                    p = twos_comp(comb)
+                    pos.append(((p * 0.229)/60) * 2 * math.pi)
+            except IndexError:
+                print(f"[ERROR] The following motor ID cannot be read: {ID}\n")
         return pos
     # TODO: try implementing speed sync
     def set_current_cntrl_mode(self):
@@ -262,7 +275,7 @@ class Mod:
         # Set operating mode to extended pos mode (used to manually reset arm)
         for ID in self.IDS:
             # Set max velocity of dynamixel
-            dxl_comm_result, dxl_error = self.packetHandler.write4ByteTxRx(self.portHandler, ID, ADDR_PROFILE_VELOCITY, velocity)
+            dxl_comm_result, dxl_error = self.packetHandler.write4ByteTxRx(self.portHandler, ID, ADDR_MAX_VELOCITY, velocity)
             if dxl_comm_result != COMM_SUCCESS:
                 print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
             elif dxl_error != 0:
