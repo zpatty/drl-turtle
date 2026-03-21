@@ -35,18 +35,6 @@ class Logger(Node):
             history=HistoryPolicy.KEEP_LAST,
             depth=2
         )
-        # timer_cb_group = None
-        # self.call_timer = self.create_timer(0.01, self._config_cb, callback_group=timer_cb_group)
-
-        # self.handler = ParameterEventHandler(self)
-
-        # for case when trajectory mode, receives trajectory msg
-        # self.sensors_sub = self.create_subscription(
-        #     TurtleState,
-        #     'turtle_sensors',
-        #     self.sensors_callback,
-        #     qos_profile
-        # )
 
         self.sensors_sub = self.create_subscription(
             TurtleState,
@@ -69,13 +57,21 @@ class Logger(Node):
             'stereo',
             self.stereo_callback,
             qos_profile
-            )
+        )
         
         self.mode_sub = self.create_subscription(
             TurtleMode,
             'turtle_mode',
             self.turtle_mode_callback,
-            qos_profile)
+            qos_profile
+        )
+
+        self.decision_sub = self.create_subscription(
+            Float32MultiArray,
+            'control_decisions',
+            self.decision_callback,
+            qos_profile
+        )
         
         self.timestamp = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
         self.folder_name =  "data/" + self.timestamp
@@ -90,13 +86,60 @@ class Logger(Node):
         self.traj = "nav"
     
 
+    # def sensors_callback(self, msg):
+    #     """
+    #     Callback function that takes in list of squeezed arrays
+    #     msg: [quat acc gyr voltage t_0 q dq ddq u qd t]
+    #     """    
+        # # self.get_logger().info(f"Received update to q")
+        # # print(msg)
+        # self.q_data.append(msg.q)
+        # self.dq_data.append(msg.dq)
+        # self.qd_data.append(msg.qd)
+        # self.dqd_data.append(msg.dqd)
+        # self.u_data.append(msg.u)
+        # self.nav_u_data.append(msg.navu)
+        # self.input_data.append(msg.input)
+        # self.timestamps.append(msg.t)
+        # self.quat_data.append(msg.imu.quat.tolist())
+        # self.depth_sensor_data.append(msg.depth)
+        # self.alt_data.append(msg.altitude)
+        # # print(f"current: {self.alt_data[-1]}")
+        # self.depth_d_data.append(self.depth_d)
+        # # self.alt_data.append(self.altitude)
+        # self.alt_d_data.append(self.altitude_d)
+        # self.yaw_data.append(self.yaw)
+        # self.stereo_depth_data.append(self.stereo_depth)
+        # self.stereo_x_list.append(self.x)
+        # # print(self.stereo_depth)
+        
+        # self.stereo_y_list.append(self.y)
+
+        # # control variables
+        # self.amplitude_data.append(self.amplitude)
+        # self.center_data.append(self.center)
+        # self.pitch_data.append(self.pitch)
+        
+        # self.roll_data.append(self.roll)
+        # self.freq_offset_data.append(self.frequency_offset)
+        # self.period_data.append(self.period)
+        # self.q_off_data.append(self.offset)
+        # self.sw_data.append(self.sw)
+        # self.kpv_data.append(self.kpv)
+        # self.learn_data.append(self.learned)
+        # self.d_pinv_data.append(self.d_pinv)
+        # self.kp_th_data.append(self.kp_th)
+        # self.w_th_data.append(self.w_th)
+        # self.kp_s_data.append(self.kp_s)
+
     def sensors_callback(self, msg):
         """
         Callback function that takes in list of squeezed arrays
         msg: [quat acc gyr voltage t_0 q dq ddq u qd t]
         """    
-        # self.get_logger().info(f"Received update to q")
-        # print(msg)
+        # Record when this callback fires (for synchronization check)
+        sensor_time = time.time()
+        
         self.q_data.append(msg.q)
         self.dq_data.append(msg.dq)
         self.qd_data.append(msg.qd)
@@ -108,22 +151,14 @@ class Logger(Node):
         self.quat_data.append(msg.imu.quat.tolist())
         self.depth_sensor_data.append(msg.depth)
         self.alt_data.append(msg.altitude)
-        # print(f"current: {self.alt_data[-1]}")
         self.depth_d_data.append(self.depth_d)
-        # self.alt_data.append(self.altitude)
         self.alt_d_data.append(self.altitude_d)
         self.yaw_data.append(self.yaw)
-        self.stereo_depth_data.append(self.stereo_depth)
-        self.stereo_x_list.append(self.x)
-        # print(self.stereo_depth)
         
-        self.stereo_y_list.append(self.y)
-
-        # control variables
+        # Control variables (all original)
         self.amplitude_data.append(self.amplitude)
         self.center_data.append(self.center)
         self.pitch_data.append(self.pitch)
-        
         self.roll_data.append(self.roll)
         self.freq_offset_data.append(self.frequency_offset)
         self.period_data.append(self.period)
@@ -135,6 +170,22 @@ class Logger(Node):
         self.kp_th_data.append(self.kp_th)
         self.w_th_data.append(self.w_th)
         self.kp_s_data.append(self.kp_s)
+        
+        self.sensor_times.append(sensor_time)
+        
+        self.frame_numbers.append(self.current_frame if hasattr(self, 'current_frame') else -1)
+        self.capture_times.append(self.capture_time if hasattr(self, 'capture_time') else np.nan)
+        self.processing_times.append(self.processing_time if hasattr(self, 'processing_time') else np.nan)
+        self.stereo_receipt_times.append(self.stereo_receipt_time if hasattr(self, 'stereo_receipt_time') else np.nan)
+        self.stereo_depth_data.append(self.stereo_depth)
+        self.stereo_x_list.append(self.x)
+        self.stereo_y_list.append(self.y)
+        
+        self.decision_times.append(self.decision_time if hasattr(self, 'decision_time') else np.nan)
+        self.decision_receipt_times.append(self.decision_receipt_time if hasattr(self, 'decision_receipt_time') else np.nan)
+        self.decision_codes.append(self.decision_code if hasattr(self, 'decision_code') else 0)
+        self.heading_data.append(self.current_heading if hasattr(self, 'current_heading') else np.nan)
+        self.yaw_d_data.append(self.current_yaw_d if hasattr(self, 'current_yaw_d') else np.nan)
 
     def turtle_desired_callback(self, msg):
         self.yaw = msg.yaw
@@ -142,34 +193,35 @@ class Logger(Node):
         self.altitude_d = msg.fwd
 
     def stereo_callback(self, msg):
-        if msg.data[0] is not None:
-            self.stereo_depth = msg.data[0]
-        else:
-            self.stereo_depth = np.nan
+        # if msg.data[0] is not None:
+        #     self.stereo_depth = msg.data[0]
+        # else:
+        #     self.stereo_depth = np.nan
+        # self.x = msg.data[1]
+        # self.y = msg.data[2]
 
-        self.x = msg.data[1]
+        receipt_time = time.time()
+        self.current_frame = int(msg.data[0])
+        self.capture_time = msg.data[1]      # T0
+        self.processing_time = msg.data[2]   # T1
+        self.stereo_depth = msg.data[3] if msg.data[3] is not None else np.nan
+        self.x = msg.data[4]
+        self.y = msg.data[5]
+        self.stereo_receipt_time = receipt_time  # T4
+    
+    def decision_callback(self, msg):
+        # T5: Logger receives decision message
+        receipt_time = time.time()
         
-        self.y = msg.data[2]
-        # print(f"[DEBUG] \n x: ", self.x, "   y: ", self.y, "/n")
+        self.decision_time = msg.data[0]           # T3 from planner
+        self.planner_capture_time = msg.data[1]    # T0 from planner's view
+        self.planner_receipt_time = msg.data[2]    # T2 when planner got stereo
+        self.decision_frame = int(msg.data[3])
+        self.decision_code = int(msg.data[4])
+        self.current_heading = msg.data[5]
+        self.current_yaw_d = msg.data[6]
+        self.decision_receipt_time = receipt_time  # T5
 
-    # def save_data(self):
-    #     # print(np.shape(self.stereo_x_list))
-    #     # print(np.shape(self.stereo_y_list))
-    #     # print(np.shape(np.vstack((self.stereo_x_list, self.stereo_y_list))))
-    #     print(np.shape(self.stereo_depth_data))
-    #     print(f"saved data in {self.folder_name}")
-    #     save_path = os.path.join(self.folder_name, f"np_data_{self.timestamp}")
-    #     np.savez(save_path, q=self.q_data, dq=self.dq_data, t=self.timestamps, input=self.input_data, 
-    #              u=self.u_data, nav_u=self.nav_u_data, qd=self.qd_data, dqd=self.dqd_data, depth=self.depth_sensor_data, depth_d=self.depth_d_data, 
-    #              quat = self.quat_data, alt=self.alt_data, yaw_d=self.yaw_data, 
-    #              stereo_depth=self.stereo_depth_data, stereo_point=np.vstack((self.stereo_x_list, self.stereo_y_list)))
-    #     print("SAVED DATA")
-    #     print(len(self.alt_data))
-    #     print(len(self.q_data))
-    #     # np.savez(save_path, q=self.q_data, dq=self.dq_data, t=self.timestamps, input=self.input_data, 
-    #     #          u=self.u_data, qd=self.qd_data, dqd=self.dqd_data, depth=self.depth_sensor_data, depth_d=self.depth_d_data, 
-    #     #          quat = self.quat_data, alt=self.alt_data, alt_d=self.alt_d_data, yaw_d=self.yaw_data, 
-    #     #          stereo_depth=self.stereo_depth_data, stereo_point=np.vstack((self.stereo_x_list, self.stereo_y_list)))
     def save_data(self):
         save_path = os.path.join(self.folder_name, f"np_data_{self.timestamp}")
         
@@ -299,7 +351,51 @@ class Logger(Node):
                  kp_th=self.kp_th_data, w_th=self.w_th_data, kps = self.kp_s_data
                  )
      
+    # def reset(self):
+    #     self.q_data = []
+    #     self.dq_data = []
+    #     self.u_data = []
+    #     self.nav_u_data = []
+    #     self.input_data = []
+    #     self.timestamps = []
+    #     self.qd_data = []
+    #     self.dqd_data = []
+    #     self.depth_sensor_data = []
+    #     self.quat_data = []
+    #     self.alt_data = []
+    #     self.alt_d_data = []
+    #     self.yaw_data = []
+
+
+    #     self.amplitude_data = []
+    #     self.center_data = []
+    #     self.pitch_data = []
+    #     self.roll_data = []
+    #     self.freq_offset_data = []
+    #     self.period_data = []
+    #     self.q_off_data = []
+    #     self.sw_data = []
+    #     self.kpv_data = []
+    #     self.learn_data = []
+    #     self.d_pinv_data = []
+    #     self.kp_th_data = []
+    #     self.w_th_data = []
+    #     self.kp_s_data = []
+
+    #     self.depth_d_data = []
+    #     self.stereo_depth = np.nan
+    #     self.x = 0.0
+    #     self.y = 0.0
+    #     self.altitude_d = []
+    #     self.pitch = []
+    #     self.stereo_depth_data = []
+    #     self.stereo_x_list = []
+    #     self.stereo_y_list = []
+
     def reset(self):
+        """
+        Initialize lists of data 
+        """
         self.q_data = []
         self.dq_data = []
         self.u_data = []
@@ -313,8 +409,7 @@ class Logger(Node):
         self.alt_data = []
         self.alt_d_data = []
         self.yaw_data = []
-
-
+        
         self.amplitude_data = []
         self.center_data = []
         self.pitch_data = []
@@ -329,7 +424,7 @@ class Logger(Node):
         self.kp_th_data = []
         self.w_th_data = []
         self.kp_s_data = []
-
+        
         self.depth_d_data = []
         self.stereo_depth = np.nan
         self.x = 0.0
@@ -339,6 +434,17 @@ class Logger(Node):
         self.stereo_depth_data = []
         self.stereo_x_list = []
         self.stereo_y_list = []
+        
+        self.sensor_times = []
+        self.frame_numbers = []
+        self.capture_times = []
+        self.processing_times = []
+        self.stereo_receipt_times = []
+        self.decision_times = []
+        self.decision_receipt_times = []
+        self.decision_codes = []
+        self.heading_data = []
+        self.yaw_d_data = []
 
     def turtle_mode_callback(self, msg):
         if msg.mode == "kill":

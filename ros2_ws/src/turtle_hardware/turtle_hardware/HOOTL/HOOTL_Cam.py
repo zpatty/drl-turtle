@@ -97,13 +97,17 @@ class CamNode(Node):
         self.count = 0
         timer_cb_group = None
         # make timer slower for easier debugging
-        self.call_timer = self.create_timer(0.1, self._cam_cb, callback_group=timer_cb_group)
+        self.call_timer = self.create_timer(0.2, self._cam_cb, callback_group=timer_cb_group)
         # where to pull the images
         script_dir = os.path.dirname(os.path.abspath(__file__))
         # self.image_dir = os.path.join(script_dir, '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/video/09_04_2025_NEA_video/04_16_2025_03_03_17_tetherless_A/')
         # /home/ranger/fall_2025/pysot/02_07_2025_15_39_36_ToyTurtle/left_detect
         # /home/ranger/11_24_2025_16_06_18
-        self.image_dir = os.path.join(script_dir, '/home/ranger/11_24_2025_16_06_18')
+    
+        # self.image_dir = os.path.join(script_dir, '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/video/12_12_2025_11_29_33/')
+        # self.image_dir = os.path.join(script_dir, '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/video/12_12_2025_11_36_06/')
+        # self.image_dir = os.path.join(script_dir, '/home/ranger/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/video/to_be_labelled/12_16_2025_16_47_19/')
+        self.image_dir = os.path.join(script_dir, 'sftp://tortuga@192.168.7.200/home/tortuga/drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware/tracking_data/20251219_121235_L_trial_1/')
 
         self.left_folder = os.path.join(self.image_dir, 'left')
         self.right_folder = os.path.join(self.image_dir, 'right')
@@ -139,6 +143,7 @@ class CamNode(Node):
             msg.data[1] = self.br.cv2_to_compressed_imgmsg(right)
             self.cam_publisher.publish(msg)
             self.count += 1
+            print(self.count)
         else:
             print("Sent all frames!")
             raise KeyboardInterrupt

@@ -55,6 +55,23 @@ parser.add_argument("--roi-file", type=str, default="saved_roi.json",
 parser.add_argument("--force-select-roi", action='store_true',
                     help="Force ROI selection even if saved file exists")
 
+parser.add_argument("--load-templates", type=str, default=None,
+                    help="Load pre-prepared templates from NPZ file")
+
+parser.add_argument("--debug-grid-search", action='store_true',
+                    help="Save detailed visualization of grid search process")
+parser.add_argument("--grid-debug-dir", type=str, default="grid_search_debug",
+                    help="Directory to save grid search debug frames")
+
+parser.add_argument("--hierarchical-search", action='store_true',
+                    help="Use hierarchical (coarse-to-fine) grid search instead of full grid")
+parser.add_argument("--coarse-grid", type=int, default=4,
+                    help="Coarse grid density for hierarchical search")
+parser.add_argument("--fine-grid", type=int, default=8,
+                    help="Fine grid density around best coarse regions")
+parser.add_argument("--top-k-regions", type=int, default=3,
+                    help="Number of top coarse regions to refine")
+
 args = parser.parse_args()
 
 # ============================================================================
@@ -164,6 +181,24 @@ class TrackerNode(Node):
         else:
             self.camera_sub = self.create_subscription(
                 Image, args.camera_topic, self.image_callback, qos_profile)
+        self.debug_grid_search = args.debug_grid_search
+        self.grid_search_count = 0  # Counter for grid search sessions
+        
+        if self.debug_grid_search:
+            self.grid_debug_dir = args.grid_debug_dir
+            os.makedirs(self.grid_debug_dir, exist_ok=True)
+            self.get_logger().info(f'Grid search debugging enabled: {self.grid_debug_dir}')
+            self.template_frames = []
+            self.template_bboxes = []
+            self.max_templates = 5
+
+            self.template_crops_gray = []  # Pre-extracted and converted to grayscale
+            self.template_crops_color = []  # Pre-extracted color versions
+            
+        # Load pre-prepared templates if provided
+        if args.load_templates:
+            self.load_templates_from_file(args.load_templates)
+            self.preprocess_templates()  
         
         self.tvm_client = tvm_client
         self.br = CvBridge()
@@ -225,6 +260,59 @@ class TrackerNode(Node):
         self.get_logger().info(f'Grid search uses TEMPLATE MATCHING (actually searches for turtle!)')
         self.get_logger().info('Waiting for first frame...')
     
+    def load_templates_from_file(self, template_file):
+        """Load pre-prepared templates from NPZ file"""
+        try:
+            data = np.load(template_file, allow_pickle=True)
+            templates = data['templates']
+            metadata = data['metadata']
+            
+            self.get_logger().info(f'Loading {len(templates)} templates from {template_file}')
+            
+            for i, (template, meta) in enumerate(zip(templates, metadata)):
+                # Store template as if it were captured
+                # Create a dummy "frame" that is just the template
+                h, w = template.shape[:2]
+                frame = template.copy()
+                bbox = (0, 0, w, h)  # Use entire template image
+                
+                self.template_frames.append(frame)
+                self.template_bboxes.append(bbox)
+                
+                self.get_logger().info(
+                    f'  Template {i+1}: {meta["source_file"]} ({w}x{h})'
+                )
+            
+            self.get_logger().info(f'✅ Loaded {len(self.template_frames)} templates')
+            return True
+            
+        except Exception as e:
+            self.get_logger().error(f'Failed to load templates: {e}')
+            return False
+    def preprocess_templates(self):
+        """
+        Pre-process all templates for faster grid search
+        Extracts crops and converts to grayscale once
+        """
+        self.get_logger().info('Pre-processing templates for grid search...')
+        
+        self.template_crops_gray = []
+        self.template_crops_color = []
+        
+        for i, (template_frame, template_bbox) in enumerate(zip(self.template_frames, self.template_bboxes)):
+            tx, ty, tw, th = template_bbox
+            
+            # Extract crop
+            crop_color = template_frame[ty:ty+th, tx:tx+tw]
+            crop_gray = cv2.cvtColor(crop_color, cv2.COLOR_BGR2GRAY)
+            
+            # Store pre-processed versions
+            self.template_crops_color.append(crop_color.copy())
+            self.template_crops_gray.append(crop_gray.copy())
+            
+            self.get_logger().info(f'  Template {i+1}: {tw}x{th} -> pre-processed')
+        
+        self.get_logger().info(f'Pre-processed {len(self.template_crops_gray)} templates')
     def load_stitching_params(self):
         """Load stereo stitching parameters from YAML file"""
         try:
@@ -383,12 +471,16 @@ class TrackerNode(Node):
     def generate_fullscreen_scan_positions(self, frame_shape, last_bbox, grid_density=6):
         """Generate positions to scan entire frame"""
         h, w = frame_shape[:2]
-        
+    
         if self.initial_bbox_size is not None:
             box_w, box_h = self.initial_bbox_size
+            print(f"box w and h: {box_w,box_h}")
+            # print("initial box size")
         elif last_bbox is None:
             box_w, box_h = w // 5, h // 5
+            # print("last box size")
         else:
+            # print("else statement ")
             box_w, box_h = last_bbox[2], last_bbox[3]
         
         positions = []
@@ -401,6 +493,334 @@ class TrackerNode(Node):
         
         return positions
     
+    # def try_continuous_scan_template(self, frame):
+    #     """
+    #     CORRECTED grid search using MULTIPLE template matching
+    #     Uses PRE-PROCESSED templates for speed!
+    #     """
+    #     self.get_logger().info(f'🔍 Starting multi-template grid search ({len(self.template_crops_gray)} templates)...')
+        
+    #     # Check if we have any pre-processed templates
+    #     if len(self.template_crops_gray) == 0:
+    #         self.get_logger().warn('No templates available for grid search!')
+    #         return None, 0.0
+        
+    #     # Generate scan positions
+    #     scan_positions = self.generate_fullscreen_scan_positions(
+    #         frame.shape, 
+    #         self.template_bboxes[0] if self.template_bboxes else None,
+    #         grid_density=self.scan_density
+    #     )
+        
+    #     self.get_logger().info(f'Testing {len(self.template_crops_gray)} templates at {len(scan_positions)} positions each...')
+        
+    #     # Convert frame to grayscale once
+    #     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+    #     # Store votes from each template
+    #     position_votes = {}
+        
+    #     # Test each pre-processed template (NO EXTRACTION OR CONVERSION NEEDED!)
+    #     for template_idx, template_gray in enumerate(self.template_crops_gray):
+    #         self.get_logger().info(f'  Template {template_idx+1}/{len(self.template_crops_gray)}: testing...')
+            
+    #         # Template is already extracted and grayscale!
+    #         if template_gray.size == 0:
+    #             self.get_logger().warn(f'  Template {template_idx+1}: invalid, skipping')
+    #             continue
+            
+    #         # Test template at each position
+    #         for pos_idx, search_bbox in enumerate(scan_positions):
+    #             try:
+    #                 sx, sy, sw, sh = search_bbox
+                    
+    #                 # Extract search region
+    #                 search_region = frame_gray[sy:sy+sh, sx:sx+sw]
+                    
+    #                 if search_region.shape[0] > 0 and search_region.shape[1] > 0:
+    #                     # Resize pre-processed template to match search region
+    #                     template_resized = cv2.resize(template_gray, (sw, sh))
+                        
+    #                     # Template matching
+    #                     result = cv2.matchTemplate(search_region, template_resized, cv2.TM_CCOEFF_NORMED)
+    #                     confidence = float(result[0][0])
+                        
+    #                     # Record vote for this position
+    #                     if pos_idx not in position_votes:
+    #                         position_votes[pos_idx] = []
+    #                     position_votes[pos_idx].append(confidence)
+                        
+    #             except Exception as e:
+    #                 continue
+            
+    #         self.get_logger().info(f'  Template {template_idx+1}: completed')
+        
+    #     # Aggregate votes to find best position
+    #     self.get_logger().info('Aggregating results from all templates...')
+        
+    #     best_position_idx = None
+    #     best_aggregated_score = 0.0
+        
+    #     for pos_idx, scores in position_votes.items():
+    #         # Only consider positions that got votes from at least 2 templates
+    #         min_templates = min(2, len(self.template_crops_gray))
+    #         if len(scores) < min_templates:
+    #             continue
+            
+    #         # Aggregate: mean score across templates
+    #         agg_score = np.mean(scores)
+            
+    #         if agg_score > best_aggregated_score:
+    #             best_aggregated_score = agg_score
+    #             best_position_idx = pos_idx
+        
+    #     if best_position_idx is not None:
+    #         best_bbox = scan_positions[best_position_idx]
+    #         individual_scores = position_votes[best_position_idx]
+            
+    #         self.get_logger().info(f'✅ Multi-template search SUCCESS!')
+    #         self.get_logger().info(f'   Best bbox: {best_bbox}')
+    #         self.get_logger().info(f'   Aggregated score: {best_aggregated_score:.3f}')
+    #         self.get_logger().info(f'   Template scores: {[f"{s:.3f}" for s in individual_scores]}')
+            
+    #         return best_bbox, best_aggregated_score
+    #     else:
+    #         self.get_logger().warn('❌ Multi-template search failed')
+    #         return None, 0.0
+
+    def try_continuous_scan_template(self, frame):
+        """
+        CORRECTED grid search using MULTIPLE template matching
+        Uses PRE-PROCESSED templates for speed!
+        With optional debug visualization
+        """
+        self.get_logger().info(f'🔍 Starting multi-template grid search ({len(self.template_crops_gray)} templates)...')
+        
+        # Check if we have any pre-processed templates
+        if len(self.template_crops_gray) == 0:
+            self.get_logger().warn('No templates available for grid search!')
+            return None, 0.0
+        
+        # Increment grid search session counter
+        if self.debug_grid_search:
+            self.grid_search_count += 1
+            session_dir = os.path.join(self.grid_debug_dir, f"search_{self.grid_search_count:04d}")
+            os.makedirs(session_dir, exist_ok=True)
+            self.get_logger().info(f'Saving debug frames to: {session_dir}')
+            
+            # Save the search frame
+            cv2.imwrite(os.path.join(session_dir, "000_search_frame.jpg"), frame)
+            
+            # Save all templates
+            for i, template_color in enumerate(self.template_crops_color):
+                cv2.imwrite(os.path.join(session_dir, f"template_{i+1}.jpg"), template_color)
+        
+        # Generate scan positions
+        scan_positions = self.generate_fullscreen_scan_positions(
+            frame.shape, 
+            self.template_bboxes[0] if self.template_bboxes else None,
+            grid_density=self.scan_density
+        )
+        
+        self.get_logger().info(f'Testing {len(self.template_crops_gray)} templates at {len(scan_positions)} positions each...')
+        
+        # Convert frame to grayscale once
+        frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        h_frame, w_frame = frame.shape[:2]
+        
+        # Store votes from each template
+        position_votes = {}
+        position_scores_by_template = {}  # For debug visualization
+        
+        # Test each pre-processed template
+        for template_idx, template_gray in enumerate(self.template_crops_gray):
+            self.get_logger().info(f'  Template {template_idx+1}/{len(self.template_crops_gray)}: testing...')
+            
+            if template_gray.size == 0:
+                self.get_logger().warn(f'  Template {template_idx+1}: invalid, skipping')
+                continue
+            
+            # Create heatmap for this template
+            if self.debug_grid_search:
+                heatmap = np.zeros(frame.shape[:2], dtype=np.float32)
+            
+            # Test template at each position
+            for pos_idx, search_bbox in enumerate(scan_positions):
+                try:
+                    sx, sy, sw, sh = search_bbox
+                    
+                    # Extract search region
+                    search_region = frame_gray[sy:sy+sh, sx:sx+sw]
+                    
+                    if search_region.shape[0] > 0 and search_region.shape[1] > 0:
+                        # Resize pre-processed template to match search region
+                        template_resized = cv2.resize(template_gray, (sw, sh))
+                        
+                        # Template matching
+                        result = cv2.matchTemplate(search_region, template_resized, cv2.TM_CCOEFF_NORMED)
+                        confidence = float(result[0][0])
+                        
+                        # Record vote for this position
+                        if pos_idx not in position_votes:
+                            position_votes[pos_idx] = []
+                            position_scores_by_template[pos_idx] = {}
+                        position_votes[pos_idx].append(confidence)
+                        position_scores_by_template[pos_idx][template_idx] = confidence
+                        
+                        # Update heatmap
+                        if self.debug_grid_search:
+                            heatmap[sy:sy+sh, sx:sx+sw] = max(heatmap[sy:sy+sh, sx:sx+sw].max(), confidence)
+                        
+                        # Save detailed debug frame every N positions
+                        if self.debug_grid_search and pos_idx % 1 == 0:
+                            debug_frame = frame.copy()
+                            
+                            # Draw all grid positions (faint)
+                            for pos in scan_positions:
+                                cv2.rectangle(debug_frame, 
+                                            (pos[0], pos[1]),
+                                            (pos[0] + pos[2], pos[1] + pos[3]),
+                                            (100, 100, 100), 1)
+                            
+                            # Highlight current position
+                            cv2.rectangle(debug_frame, 
+                                        (sx, sy), (sx+sw, sy+sh),
+                                        (0, 255, 255), 3)
+                            
+                            # Show template in corner
+                            template_display = cv2.resize(self.template_crops_color[template_idx], (100, 100))
+                            debug_frame[10:110, w_frame-110:w_frame-10] = template_display
+                            
+                            # Progress bar
+                            progress = int((pos_idx / len(scan_positions)) * w_frame)
+                            cv2.rectangle(debug_frame, (0, h_frame-10), (progress, h_frame), (0, 255, 255), -1)
+                            
+                            # Info text
+                            cv2.putText(debug_frame, f"Template {template_idx+1}/{len(self.template_crops_gray)}", 
+                                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                            cv2.putText(debug_frame, f"Position {pos_idx+1}/{len(scan_positions)}", 
+                                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                            cv2.putText(debug_frame, f"Score: {confidence:.3f}", 
+                                    (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                            
+                            # Save debug frame
+                            frame_name = f"T{template_idx+1:02d}_pos{pos_idx:04d}_score{confidence:.3f}.jpg"
+                            cv2.imwrite(os.path.join(session_dir, frame_name), debug_frame)
+                        
+                except Exception as e:
+                    continue
+            
+            # Save heatmap for this template
+            if self.debug_grid_search:
+                # Normalize heatmap to 0-255
+                heatmap_norm = cv2.normalize(heatmap, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+                heatmap_colored = cv2.applyColorMap(heatmap_norm, cv2.COLORMAP_JET)
+                
+                # Overlay heatmap on frame
+                overlay = cv2.addWeighted(frame, 0.6, heatmap_colored, 0.4, 0)
+                
+                # Add title
+                cv2.putText(overlay, f"Template {template_idx+1} Heatmap", 
+                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                
+                cv2.imwrite(os.path.join(session_dir, f"heatmap_template_{template_idx+1}.jpg"), overlay)
+                cv2.imwrite(os.path.join(session_dir, f"heatmap_template_{template_idx+1}_raw.jpg"), heatmap_colored)
+            
+            self.get_logger().info(f'  Template {template_idx+1}: completed')
+        
+        # Aggregate votes to find best position
+        self.get_logger().info('Aggregating results from all templates...')
+        
+        best_position_idx = None
+        best_aggregated_score = 0.0
+        all_aggregated_scores = []
+        
+        for pos_idx, scores in position_votes.items():
+            # Only consider positions that got votes from at least 2 templates
+            min_templates = min(2, len(self.template_crops_gray))
+            if len(scores) < min_templates:
+                continue
+            
+            # Aggregate: mean score across templates
+            agg_score = np.mean(scores)
+            all_aggregated_scores.append((pos_idx, agg_score, scores))
+            
+            if agg_score > best_aggregated_score:
+                best_aggregated_score = agg_score
+                best_position_idx = pos_idx
+        
+        # Save aggregated results visualization
+        if self.debug_grid_search:
+            # Create aggregated heatmap
+            agg_heatmap = np.zeros(frame.shape[:2], dtype=np.float32)
+            for pos_idx, agg_score, _ in all_aggregated_scores:
+                sx, sy, sw, sh = scan_positions[pos_idx]
+                agg_heatmap[sy:sy+sh, sx:sx+sw] = max(agg_heatmap[sy:sy+sh, sx:sx+sw].max(), agg_score)
+            
+            # Normalize and colorize
+            agg_heatmap_norm = cv2.normalize(agg_heatmap, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+            agg_heatmap_colored = cv2.applyColorMap(agg_heatmap_norm, cv2.COLORMAP_JET)
+            
+            # Overlay
+            overlay = cv2.addWeighted(frame, 0.6, agg_heatmap_colored, 0.4, 0)
+            
+            # Add best bbox if found
+            if best_position_idx is not None:
+                best_bbox = scan_positions[best_position_idx]
+                sx, sy, sw, sh = best_bbox
+                cv2.rectangle(overlay, (sx, sy), (sx+sw, sy+sh), (0, 255, 0), 3)
+                cv2.putText(overlay, f"BEST: {best_aggregated_score:.3f}", 
+                        (sx, sy-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+            
+            cv2.putText(overlay, "Aggregated Multi-Template Heatmap", 
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+            cv2.putText(overlay, f"{len(self.template_crops_gray)} templates, {len(scan_positions)} positions", 
+                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+            cv2.imwrite(os.path.join(session_dir, "999_final_aggregated_heatmap.jpg"), overlay)
+            cv2.imwrite(os.path.join(session_dir, "999_final_heatmap_raw.jpg"), agg_heatmap_colored)
+            
+            # Save summary text file
+            with open(os.path.join(session_dir, "summary.txt"), 'w') as f:
+                f.write(f"Grid Search Session {self.grid_search_count}\n")
+                f.write(f"Frame: {self.frame_count}\n")
+                f.write(f"Templates: {len(self.template_crops_gray)}\n")
+                f.write(f"Scan positions: {len(scan_positions)}\n")
+                f.write(f"Grid density: {self.scan_density}x{self.scan_density}\n")
+                f.write(f"\n")
+                f.write(f"Best position index: {best_position_idx}\n")
+                f.write(f"Best bbox: {scan_positions[best_position_idx] if best_position_idx else 'None'}\n")
+                f.write(f"Best aggregated score: {best_aggregated_score:.4f}\n")
+                f.write(f"\n")
+                f.write(f"Top 10 positions:\n")
+                sorted_scores = sorted(all_aggregated_scores, key=lambda x: x[1], reverse=True)[:10]
+                for i, (pos_idx, agg_score, individual_scores) in enumerate(sorted_scores):
+                    bbox = scan_positions[pos_idx]
+                    f.write(f"  {i+1}. Position {pos_idx}: score={agg_score:.4f}, bbox={bbox}\n")
+                    f.write(f"      Individual scores: {[f'{s:.3f}' for s in individual_scores]}\n")
+        
+        if best_position_idx is not None:
+            best_bbox = scan_positions[best_position_idx]
+            individual_scores = position_votes[best_position_idx]
+            
+            self.get_logger().info(f'✅ Multi-template search SUCCESS!')
+            self.get_logger().info(f'   Best bbox: {best_bbox}')
+            self.get_logger().info(f'   Aggregated score: {best_aggregated_score:.3f}')
+            self.get_logger().info(f'   Template scores: {[f"{s:.3f}" for s in individual_scores]}')
+            
+            return best_bbox, best_aggregated_score
+        else:
+            self.get_logger().warn('❌ Multi-template search failed')
+            
+            if self.debug_grid_search:
+                # Save failure frame
+                failure_frame = frame.copy()
+                cv2.putText(failure_frame, "GRID SEARCH FAILED", 
+                        (w_frame//2-150, h_frame//2), cv2.FONT_HERSHEY_SIMPLEX, 
+                        1.5, (0, 0, 255), 3)
+                cv2.imwrite(os.path.join(session_dir, "999_FAILED.jpg"), failure_frame)
+            
+            return None, 0.0
     def try_continuous_scan_CORRECTED(self, frame):
         """
         CORRECTED grid search using template matching
@@ -508,7 +928,7 @@ class TrackerNode(Node):
                 f'❌ Grid search failed. Best confidence: {best_confidence:.3f}'
             )
             return None, 0.0
-    
+
     def process_frame(self, frame):
         """Main tracking logic with CORRECTED grid search"""
         self.frame_count += 1
@@ -526,12 +946,47 @@ class TrackerNode(Node):
                     self.initialized = True
                     self.initial_bbox_size = (self.init_rect[2], self.init_rect[3])
                     
-                    # IMPORTANT: Save initial template
-                    self.template_frame = self.init_frame.copy()
-                    self.template_bbox = self.init_rect
+                    # Add initial template if we don't have loaded templates
+                    if len(self.template_frames) == 0:
+                        self.template_frames = [self.init_frame.copy()]
+                        self.template_bboxes = [self.init_rect]
+                        
+                        # Pre-process the initial template
+                        tx, ty, tw, th = self.init_rect
+                        crop_color = self.init_frame[ty:ty+th, tx:tx+tw]
+                        crop_gray = cv2.cvtColor(crop_color, cv2.COLOR_BGR2GRAY)
+                        self.template_crops_color.append(crop_color.copy())
+                        self.template_crops_gray.append(crop_gray.copy())
+                        
+                        # Backward compatibility
+                        self.template_frame = self.init_frame.copy()
+                        self.template_bbox = self.init_rect
+                        
+                        self.get_logger().info(f'✅ Template 1/{self.max_templates} saved and pre-processed')
+                    else:
+                        # Add ROI as additional template to loaded templates
+                        if len(self.template_frames) < self.max_templates:
+                            self.template_frames.append(self.init_frame.copy())
+                            self.template_bboxes.append(self.init_rect)
+                            
+                            # Pre-process the new template
+                            tx, ty, tw, th = self.init_rect
+                            crop_color = self.init_frame[ty:ty+th, tx:tx+tw]
+                            crop_gray = cv2.cvtColor(crop_color, cv2.COLOR_BGR2GRAY)
+                            self.template_crops_color.append(crop_color.copy())
+                            self.template_crops_gray.append(crop_gray.copy())
+                            
+                            self.get_logger().info(
+                                f'✅ Added ROI as template {len(self.template_frames)}/{self.max_templates} and pre-processed'
+                            )
+                        
+                        # Backward compatibility - use first template
+                        self.template_frame = self.template_frames[0]
+                        self.template_bbox = self.template_bboxes[0]
                     
-                    self.get_logger().info(f'Tracker initialized with ROI: {self.init_rect}')
-                    self.get_logger().info(f'✅ Template saved for grid search')
+                    self.get_logger().info(
+                        f'Tracker initialized with {len(self.template_frames)} total templates'
+                    )
                 else:
                     self.get_logger().error(f'Init failed: {response["message"]}')
                     self.roi_selected = False
@@ -568,21 +1023,16 @@ class TrackerNode(Node):
             bbox = list(map(int, outputs['bbox']))
             confidence = outputs.get('best_score', 0.0)
             
-            # Validate bbox size
-            # if not self.is_bbox_valid(bbox):
-            #     self.get_logger().warn(f'Rejecting oversized bbox (conf: {confidence:.3f})')
-            #     self.track_lost_count += 1
-            #     self.centroid_pub.publish(Float32MultiArray(data=[]))
-            #     return
-            
             # Check if confidence is low - trigger grid search
             if confidence < self.confidence_threshold and self.search_attempts < self.max_search_attempts:
                 self.get_logger().warn(
                     f'⚠️  Low confidence ({confidence:.3f}), triggering grid search...'
                 )
                 
-                # Run CORRECTED grid search
-                found_bbox, found_conf = self.try_continuous_scan_CORRECTED(frame)
+                # Run CORRECTED multi-template grid search
+                found_bbox, found_conf = self.try_continuous_scan_template(frame)
+
+                # found_bbox, found_conf = self.try_continuous_scan_CORRECTED(frame)
                 
                 if found_bbox is not None:
                     # Re-initialize tracker with found bbox
@@ -606,11 +1056,20 @@ class TrackerNode(Node):
                 if confidence >= self.confidence_threshold:
                     self.search_attempts = 0
             
-            # Update template when tracking is VERY good
-            # if confidence >= 0.7:
-            #     self.template_frame = frame.copy()
-            #     self.template_bbox = tuple(bbox)
-            #     self.last_good_bbox = bbox
+            # Optional: Update templates with very high confidence detections
+            # Uncomment to add good detections as new templates
+            # if confidence >= 0.95 and len(self.template_frames) < self.max_templates:
+            #     self.template_frames.append(frame.copy())
+            #     self.template_bboxes.append(tuple(bbox))
+            #     
+            #     # Pre-process the new template
+            #     tx, ty, tw, th = bbox
+            #     crop_color = frame[ty:ty+th, tx:tx+tw]
+            #     crop_gray = cv2.cvtColor(crop_color, cv2.COLOR_BGR2GRAY)
+            #     self.template_crops_color.append(crop_color.copy())
+            #     self.template_crops_gray.append(crop_gray.copy())
+            #     
+            #     self.get_logger().info(f'✅ Added high-confidence detection as template {len(self.template_frames)}/{self.max_templates}')
             
             cx = bbox[0] + bbox[2] / 2.0
             cy = bbox[1] + bbox[3] / 2.0
@@ -623,8 +1082,8 @@ class TrackerNode(Node):
             if self.save_data:
                 with open(self.csv_path, 'a') as f:
                     f.write(f"{self.frame_count},{time.time()},{cx},{cy},"
-                           f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]},"
-                           f"{avg_fps:.2f},{confidence:.4f},tracking\n")
+                        f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]},"
+                        f"{avg_fps:.2f},{confidence:.4f},tracking\n")
             
             # Visualization
             if args.show_display or self.save_data:
@@ -638,11 +1097,16 @@ class TrackerNode(Node):
                 
                 info_text = f"FPS: {avg_fps:.1f} | TVM: {1000*inference_time:.1f}ms"
                 cv2.putText(frame, info_text, (10, 30),
-                          cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
                 
                 centroid_text = f"Centroid: ({int(cx)}, {int(cy)})"
                 cv2.putText(frame, centroid_text, (10, 60),
-                          cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                
+                # Show number of templates being used
+                template_text = f"Templates: {len(self.template_crops_gray)}"
+                cv2.putText(frame, template_text, (10, 90),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
                 
                 conf_text = f"Confidence: {confidence:.3f}"
                 if confidence > 0.9:
@@ -655,14 +1119,14 @@ class TrackerNode(Node):
                     conf_color = (0, 0, 255)
                     self.centroid_pub.publish(Float32MultiArray(data=[]))
                 
-                cv2.putText(frame, conf_text, (10, 90),
-                          cv2.FONT_HERSHEY_SIMPLEX, 0.7, conf_color, 2)
+                cv2.putText(frame, conf_text, (10, 120),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, conf_color, 2)
                 
                 # Show if grid search is active
                 if self.search_attempts > 0:
                     search_text = f"Grid searching... (attempt {self.search_attempts})"
-                    cv2.putText(frame, search_text, (10, 120),
-                              cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 165, 0), 2)
+                    cv2.putText(frame, search_text, (10, 150),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 165, 0), 2)
                 
                 if self.save_data:
                     frame_path = os.path.join(self.output_dir, "detection", 
@@ -674,7 +1138,23 @@ class TrackerNode(Node):
                     key = cv2.waitKey(1) & 0xFF
                     if key == ord('r'):
                         self.reset_tracker()
-                    elif key == 27:
+                    elif key == ord('t'):
+                        # Hotkey to manually add current frame as template
+                        if len(self.template_frames) < self.max_templates:
+                            self.template_frames.append(frame.copy())
+                            self.template_bboxes.append(tuple(bbox))
+                            
+                            # Pre-process
+                            tx, ty, tw, th = bbox
+                            crop_color = frame[ty:ty+th, tx:tx+tw]
+                            crop_gray = cv2.cvtColor(crop_color, cv2.COLOR_BGR2GRAY)
+                            self.template_crops_color.append(crop_color.copy())
+                            self.template_crops_gray.append(crop_gray.copy())
+                            
+                            self.get_logger().info(f'✅ Manually added template {len(self.template_frames)}/{self.max_templates}')
+                        else:
+                            self.get_logger().warn(f'Maximum templates ({self.max_templates}) already reached')
+                    elif key == 27:  # ESC
                         raise KeyboardInterrupt
                     
                     try:
@@ -686,7 +1166,8 @@ class TrackerNode(Node):
             if self.frame_count % 30 == 0:
                 self.get_logger().info(
                     f'Frame {self.frame_count} | FPS: {avg_fps:.1f} | '
-                    f'Centroid: [{int(cy)}, {int(cx)}] | Conf: {confidence:.3f}'
+                    f'Centroid: [{int(cy)}, {int(cx)}] | Conf: {confidence:.3f} | '
+                    f'Templates: {len(self.template_crops_gray)}'
                 )
         else:
             # Lost tracking
@@ -698,7 +1179,202 @@ class TrackerNode(Node):
                     f.write(f"{self.frame_count},{time.time()},,,,,,,{avg_fps:.2f},,lost\n")
             
             if self.track_lost_count == 1:
-                self.get_logger().warn('Lost tracking!')
+                self.get_logger().warn('Lost tracking!')  
+    # def process_frame(self, frame):
+    #     """Main tracking logic with CORRECTED grid search"""
+    #     self.frame_count += 1
+        
+    #     # Initialize tracker on first frame
+    #     if not self.initialized:
+    #         if not self.roi_selected:
+    #             self.init_frame = frame.copy()
+    #             self.select_roi()
+    #             return
+            
+    #         try:
+    #             response = self.tvm_client.init(self.init_frame, self.init_rect)
+    #             if response['status'] == 'success':
+    #                 self.initialized = True
+    #                 self.initial_bbox_size = (self.init_rect[2], self.init_rect[3])
+    #                 # MODIFIED: Only add initial template if we don't have loaded templates
+    #                 if len(self.template_frames) == 0:
+    #                     self.template_frames = [self.init_frame.copy()]
+    #                     self.template_bboxes = [self.init_rect]
+    #                     self.get_logger().info(f'Template 1/{self.max_templates} saved')
+    #                     self.template_frame = self.init_frame.copy()
+    #                     self.template_bbox = self.init_rect
+
+    #                 else:
+    #                     # Add current ROI as additional template
+    #                     self.add_template(self.init_frame, self.init_rect)
+                    
+    #                 self.get_logger().info(f'Tracker initialized with {len(self.template_frames)} templates')
+    #                 # # IMPORTANT: Save initial template
+    #                 # self.template_frame = self.init_frame.copy()
+    #                 # self.template_bbox = self.init_rect
+                    
+    #                 # self.get_logger().info(f'Tracker initialized with ROI: {self.init_rect}')
+    #                 # self.get_logger().info(f'✅ Template saved for grid search')
+    #             else:
+    #                 self.get_logger().error(f'Init failed: {response["message"]}')
+    #                 self.roi_selected = False
+    #                 return
+    #         except Exception as e:
+    #             self.get_logger().error(f'TVM server communication failed: {e}')
+    #             return
+        
+    #     # Track in subsequent frames
+    #     t0 = time.time()
+    #     try:
+    #         response = self.tvm_client.track(frame)
+    #     except Exception as e:
+    #         self.get_logger().error(f'TVM tracking failed: {e}')
+    #         return
+    #     t1 = time.time()
+        
+    #     if response['status'] != 'success':
+    #         self.get_logger().error(f'Tracking error: {response.get("message", "Unknown")}')
+    #         return
+        
+    #     outputs = response['outputs']
+    #     inference_time = response['inference_time']
+        
+    #     # Update FPS
+    #     frame_time = t1 - t0
+    #     self.frame_times.append(frame_time)
+    #     if len(self.frame_times) > self.max_fps_samples:
+    #         self.frame_times.pop(0)
+    #     avg_fps = 1.0 / (sum(self.frame_times) / len(self.frame_times))
+        
+    #     # Extract bbox and confidence
+    #     if 'bbox' in outputs:
+    #         bbox = list(map(int, outputs['bbox']))
+    #         confidence = outputs.get('best_score', 0.0)
+            
+    #         # Check if confidence is low - trigger grid search
+    #         if confidence < self.confidence_threshold and self.search_attempts < self.max_search_attempts:
+    #             self.get_logger().warn(
+    #                 f'⚠️  Low confidence ({confidence:.3f}), triggering grid search...'
+    #             )
+                
+    #             # Run CORRECTED grid search
+    #             found_bbox, found_conf = self.try_continuous_scan_CORRECTED(frame)
+                
+    #             if found_bbox is not None:
+    #                 # Re-initialize tracker with found bbox
+    #                 try:
+    #                     response = self.tvm_client.init(frame, tuple(found_bbox))
+    #                     if response['status'] == 'success':
+    #                         bbox = list(map(int, found_bbox))
+    #                         confidence = found_conf
+    #                         self.search_attempts = 0
+    #                         self.track_lost_count = 0
+    #                         self.get_logger().info('✅ Tracker re-initialized from grid search')
+    #                     else:
+    #                         self.search_attempts += 1
+    #                 except Exception as e:
+    #                     self.get_logger().error(f'Re-initialization failed: {e}')
+    #                     self.search_attempts += 1
+    #             else:
+    #                 self.search_attempts += 1
+    #         else:
+    #             # Good tracking - reset search attempts
+    #             if confidence >= self.confidence_threshold:
+    #                 self.search_attempts = 0
+            
+    #         # Update template when tracking is VERY good
+    #         # if confidence >= 0.7:
+    #         #     self.template_frame = frame.copy()
+    #         #     self.template_bbox = tuple(bbox)
+    #         #     self.last_good_bbox = bbox
+            
+    #         cx = bbox[0] + bbox[2] / 2.0
+    #         cy = bbox[1] + bbox[3] / 2.0
+            
+    #         centroid_msg = Float32MultiArray(data=[cy, cx])
+            
+    #         self.track_lost_count = 0
+            
+    #         # Save data
+    #         if self.save_data:
+    #             with open(self.csv_path, 'a') as f:
+    #                 f.write(f"{self.frame_count},{time.time()},{cx},{cy},"
+    #                        f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]},"
+    #                        f"{avg_fps:.2f},{confidence:.4f},tracking\n")
+            
+    #         # Visualization
+    #         if args.show_display or self.save_data:
+    #             cv2.rectangle(frame, (bbox[0], bbox[1]),
+    #                         (bbox[0] + bbox[2], bbox[1] + bbox[3]),
+    #                         (0, 255, 0), 2)
+                
+    #             cv2.circle(frame, (int(cx), int(cy)), 5, (0, 0, 255), -1)
+    #             cv2.line(frame, (int(cx)-15, int(cy)), (int(cx)+15, int(cy)), (0, 0, 255), 2)
+    #             cv2.line(frame, (int(cx), int(cy)-15), (int(cx), int(cy)+15), (0, 0, 255), 2)
+                
+    #             info_text = f"FPS: {avg_fps:.1f} | TVM: {1000*inference_time:.1f}ms"
+    #             cv2.putText(frame, info_text, (10, 30),
+    #                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                
+    #             centroid_text = f"Centroid: ({int(cx)}, {int(cy)})"
+    #             cv2.putText(frame, centroid_text, (10, 60),
+    #                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                
+    #             conf_text = f"Confidence: {confidence:.3f}"
+    #             if confidence > 0.9:
+    #                 conf_color = (0, 255, 0)
+    #                 self.centroid_pub.publish(centroid_msg)
+    #             elif confidence > self.confidence_threshold:
+    #                 conf_color = (0, 165, 255)
+    #                 self.centroid_pub.publish(centroid_msg)
+    #             else:
+    #                 conf_color = (0, 0, 255)
+    #                 self.centroid_pub.publish(Float32MultiArray(data=[]))
+                
+    #             cv2.putText(frame, conf_text, (10, 90),
+    #                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, conf_color, 2)
+                
+    #             # Show if grid search is active
+    #             if self.search_attempts > 0:
+    #                 search_text = f"Grid searching... (attempt {self.search_attempts})"
+    #                 cv2.putText(frame, search_text, (10, 120),
+    #                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 165, 0), 2)
+                
+    #             if self.save_data:
+    #                 frame_path = os.path.join(self.output_dir, "detection", 
+    #                                         f"frame{self.frame_count:05d}.jpg")
+    #                 cv2.imwrite(frame_path, frame)
+                
+    #             if args.show_display:
+    #                 cv2.imshow('Tracker', frame)
+    #                 key = cv2.waitKey(1) & 0xFF
+    #                 if key == ord('r'):
+    #                     self.reset_tracker()
+    #                 elif key == 27:
+    #                     raise KeyboardInterrupt
+                    
+    #                 try:
+    #                     compressed_img = self.br.cv2_to_compressed_imgmsg(frame)
+    #                     self.video_pub.publish(compressed_img)
+    #                 except:
+    #                     pass
+            
+    #         if self.frame_count % 30 == 0:
+    #             self.get_logger().info(
+    #                 f'Frame {self.frame_count} | FPS: {avg_fps:.1f} | '
+    #                 f'Centroid: [{int(cy)}, {int(cx)}] | Conf: {confidence:.3f}'
+    #             )
+    #     else:
+    #         # Lost tracking
+    #         self.track_lost_count += 1
+    #         self.centroid_pub.publish(Float32MultiArray(data=[]))
+            
+    #         if self.save_data:
+    #             with open(self.csv_path, 'a') as f:
+    #                 f.write(f"{self.frame_count},{time.time()},,,,,,,{avg_fps:.2f},,lost\n")
+            
+    #         if self.track_lost_count == 1:
+    #             self.get_logger().warn('Lost tracking!')
     
     def save_roi(self, roi, filename):
         """Save ROI to JSON file"""

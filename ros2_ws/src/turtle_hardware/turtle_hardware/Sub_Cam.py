@@ -503,6 +503,7 @@ class CamSubscriber(Node):
         # fused = np.concatenate((left[:,0:230], right), axis=1)
         cv2.imwrite(self.output_folder + "/left/frame%d.jpg" % self.count, left)
         cv2.imwrite(self.output_folder + "/right/frame%d.jpg" % self.count, right)
+
         self.count += 1
         end_time = time.time()
         seconds = end_time - self.start_time
@@ -516,8 +517,11 @@ class CamSubscriber(Node):
         print(f"[FPS] {fps:.2f}")
 
         stitched = self.interactive_stitch(left, right)
+        cv2.imwrite(self.output_folder + "/detection/frame%d.jpg" % self.count, stitched)
+
         cv2.imshow("stitched", stitched)
         cv2.waitKey(1)
+
 
 
         #### DEPTH ####

@@ -74,31 +74,54 @@ class CamSubscriber(Node):
         self.cam_time = 0
         t = datetime.today().strftime("%m_%d_%Y_%H_%M_%S")
         folder_name =  "video/" + t
-        os.makedirs(folder_name + "/left")
-        os.makedirs(folder_name + "/right")
-        os.makedirs(folder_name + "/detection")
-        os.makedirs(folder_name + "/depth")
+        print(f"folder: {folder_name}")
+        os.makedirs(folder_name + "/left", exist_ok=True)
+        os.makedirs(folder_name + "/right", exist_ok=True)
+        os.makedirs(folder_name + "/detection", exist_ok=True)
+        os.makedirs(folder_name + "/disparity", exist_ok=True)
         self.output_folder = folder_name
         
 
     def img_callback(self, msg):
-        self.cam_time = time.time()
+        """
+        Reads from cam_node topic and calculates depth
+        Publishes to stereo topic used in planning node for obstacle avoidance
+            Format: []
+        """
+        # Image capture time (from ROS message header)
+        capture_time = msg.data[0].header.stamp.sec + msg.data[0].header.stamp.nanosec * 1e-9
+
         left = self.br.compressed_imgmsg_to_cv2(msg.data[0])
         right = self.br.compressed_imgmsg_to_cv2(msg.data[1])
+
         cv2.imwrite(self.output_folder + "/left/frame%d.jpg" % self.count, left)
         cv2.imwrite(self.output_folder + "/right/frame%d.jpg" % self.count, right)
-        self.count += 1
-        end_time = time.time()
-        seconds = end_time - self.start_time
-        fps = 1.0 / seconds
-        print(f"fps: {fps}\n")
-        self.start_time = end_time
+
         stereo_depth, x, y, norm_disparity = self.stereo.update(left, right)
         if x is None:
             x = 0.0
             y = 0.0
         # print(f"stereo_depth: {stereo_depth} x: {x}, y: {y}\n")
-        self.stereo_pub.publish(Float32MultiArray(data=[stereo_depth, x, y]))
+        # timestamp of processed depth
+        processing_time = time.time()
+        # save disparity map
+        cv2.imwrite(f"{self.output_folder}/disparity/frame{self.count:05d}.jpg", norm_disparity)
+        self.stereo_pub.publish(Float32MultiArray(
+        data=[float(self.count), 
+            capture_time, processing_time,
+             stereo_depth, x, y]))
+        self.count += 1
+
+        if self.first:
+            plt.ion()
+            self.fig, ax = plt.subplots()
+            self.im = ax.imshow(norm_disparity)   
+            plt.show()
+            self.first = 0
+        else:
+            self.im.set_data(norm_disparity)
+            self.fig.canvas.flush_events()
+
 
     def img_callback_detect(self, data):
         current_frame = self.br.compressed_imgmsg_to_cv2(data)

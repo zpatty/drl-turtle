@@ -9,7 +9,7 @@
 
 #define AD0_VAL 1
 
-Adafruit_INA219 ina219;
+// Adafruit_INA219 ina219;
 ICM_20948_I2C icm; 
 icm_20948_DMP_data_t data;
 double q1 = 0;
@@ -31,8 +31,11 @@ double loop_time = 0;
 double depth_val = 0;
 
 double alt_val = 0;
-double conf_alt = 0;
+float current = 0;
 
+double conf_alt = 0;
+float busvoltage = 0;
+bool ina_working = false;
 
 MS5837 ms_depth;
 
@@ -41,7 +44,7 @@ static const uint8_t arduinoRxPin = 7;
 static const uint8_t arduinoTxPin = 6;
 // SoftwareSerial pingSerial = SoftwareSerial(arduinoRxPin, arduinoTxPin);
 // static Ping1D ping { pingSerial };
-static Ping1D ping { Serial1 };
+// static Ping1D ping { Serial1 };
 
 
 NRF52Timer ITimer(NRF_TIMER_3);
@@ -53,33 +56,25 @@ volatile uint32_t preMillisTimer0 = 0;
 void setup(void) 
 
 {
-
   Serial.begin(115200);
-
-  while (!Serial) {
-
-      delay(1);
-
-  }
+  Serial.println("=== SETUP START ===");
+  delay(100);
+  Serial.println("Serial Begin");
+  delay(100);
   Serial.println("Serial Begin");
   Wire.begin();
   Wire.setClock(100000);
   Serial.println("Wire init");
   icm.begin(Wire, AD0_VAL);
   Serial.println("ICM Begin");
-  if (!ina219.begin()) {
-
-    Serial.println(F("Failed to find INA chip"));
-
-    while (1) { delay(10); }
-  }
   if (icm.status != ICM_20948_Stat_Ok) {
-
-    Serial.println(F("Failed to find ICM chip"));
-
-    while (1) { delay(10); }
+    Serial.println("WARNING: ICM failed, IMU data will be invalid");
+    // Continue anyway
+  } else {
+    Serial.println("ICM OK");
   }
   Serial.println("ICM Initialized");
+
   while (!ms_depth.init()) {
     Serial.println("Depth init failed!");
     Serial.println("Are SDA/SCL connected correctly?");
@@ -87,30 +82,44 @@ void setup(void)
     Serial.println("\n\n\n");
     delay(5000);
   }
+
+  // int depth_retries = 0;
+  // while (!ms_depth.init() && depth_retries < 5) {
+  //     Serial.println("Depth init failed, retrying...");
+  //     delay(500);
+  //     depth_retries++;
+  // }
+  // if (depth_retries >= 5) {
+  //     Serial.println("WARNING: Depth sensor failed, depth = 0");
+  // } else {
+  //     Serial.println("Depth sensor OK");
+  //     ms_depth.setModel(MS5837::MS5837_30BA);
+  //     ms_depth.setFluidDensity(997);
+  // }
   Serial.println("Depth Initialized");
   ms_depth.setModel(MS5837::MS5837_30BA);
   ms_depth.setFluidDensity(997); // kg/m^3 (freshwater, 1029 for seawater)
 
   bool success = true;
-    // Initialize the DMP. initializeDMP is a weak function. You can overwrite it if you want to e.g. to change the sample rate
+  //   // Initialize the DMP. initializeDMP is a weak function. You can overwrite it if you want to e.g. to change the sample rate
   success &= (icm.initializeDMP() == ICM_20948_Stat_Ok);
 
-  // Enable the DMP orientation sensor, gyroscope, and accelerometer
+  // // Enable the DMP orientation sensor, gyroscope, and accelerometer
   success &= (icm.enableDMPSensor(INV_ICM20948_SENSOR_ORIENTATION) == ICM_20948_Stat_Ok);
 
-  // E.g. For a 5Hz ODR rate when DMP is running at 55Hz, value = (55/5) - 1 = 10.
+  // // E.g. For a 5Hz ODR rate when DMP is running at 55Hz, value = (55/5) - 1 = 10.
   success &= (icm.setDMPODRrate(DMP_ODR_Reg_Quat9, 0) == ICM_20948_Stat_Ok); // Set to the maximum
 
-  // Enable the FIFO
+  // // Enable the FIFO
   success &= (icm.enableFIFO() == ICM_20948_Stat_Ok);
 
-  // Enable the DMP
+  // // Enable the DMP
   success &= (icm.enableDMP() == ICM_20948_Stat_Ok);
 
-  // Reset DMP
+  // // Reset DMP
   success &= (icm.resetDMP() == ICM_20948_Stat_Ok);
 
-  // Reset FIFO
+  // // Reset FIFO
   success &= (icm.resetFIFO() == ICM_20948_Stat_Ok);
 
   if (success){
@@ -125,19 +134,27 @@ void setup(void)
     }
 
   }
-  Serial1.begin(115200);
-  Serial.println("Blue Robotics ping1d-simple.ino");
-  while (!ping.initialize()) {
-      Serial.println("\nPing device failed to initialize!");
-      Serial.println("Are the Ping rx/tx wired correctly?");
-      Serial.print("Ping rx is the green wire, and should be connected to Arduino pin ");
-      Serial.print(arduinoTxPin);
-      Serial.println(" (Arduino tx)");
-      Serial.print("Ping tx is the white wire, and should be connected to Arduino pin ");
-      Serial.print(arduinoRxPin);
-      Serial.println(" (Arduino rx)");
-      delay(2000);
-  }
+  // if (success) {
+  //   Serial.println("DMP enabled!");
+  // } else {
+  //   Serial.println("WARNING: DMP failed, quaternions may be invalid");
+  // // Continue anyway - don't hang
+  // }
+
+
+  // Serial1.begin(115200);
+  // Serial.println("Blue Robotics ping1d-simple.ino");
+  // while (!ping.initialize()) {
+  //     Serial.println("\nPing device failed to initialize!");
+  //     Serial.println("Are the Ping rx/tx wired correctly?");
+  //     Serial.print("Ping rx is the green wire, and should be connected to Arduino pin ");
+  //     Serial.print(arduinoTxPin);
+  //     Serial.println(" (Arduino tx)");
+  //     Serial.print("Ping tx is the white wire, and should be connected to Arduino pin ");
+  //     Serial.print(arduinoRxPin);
+  //     Serial.println(" (Arduino rx)");
+  //     delay(2000);
+  // }
 
   // // Interval in microsecs
   // if (ITimer.attachInterruptInterval(TIMER_INTERVAL_MS * 1000, TimerHandler))
@@ -149,19 +166,20 @@ void setup(void)
   //   Serial.println(F("Can't set ITimer0. Select another freq. or timer"));
   // }
   
-  base_time = millis();
+  // base_time = millis();
 }
 
 
 void loop(void) 
 
 {
-  printIMUData(&icm, &ina219);
-  // ms_depth.read();
+  // Serial.println("Xiao is alive");
+  // printIMUData(&icm, &ina219);
   
-  // Serial.print("Depth: "); 
-  // Serial.print(ms_depth.depth()); 
-  // Serial.println(" m");
+  ms_depth.read();
+  Serial.print("Depth: "); 
+  Serial.print(ms_depth.depth()); 
+  Serial.println(" m");
   
 }
 
@@ -232,9 +250,6 @@ void TimerHandler()
 }
 
 void printIMUData(ICM_20948_I2C *sensor, Adafruit_INA219 * volt_sensor){
-  
-  
-  
   now_time = millis();
   collectIMUData(&icm);
   
@@ -242,18 +257,21 @@ void printIMUData(ICM_20948_I2C *sensor, Adafruit_INA219 * volt_sensor){
   last_time = now_time;
   ms_depth.read();
   depth_val = ms_depth.depth();
-  if (now_time - base_time > 350) {
-    if (ping.update()) {
-      alt_val = ping.distance();
-      conf_alt = ping.confidence();
-      }
-    else{
-      alt_val = 1000000000000;
-      conf_alt = 0.0;
-    }
-    // Serial.println("here");
-    base_time = millis();
-  }
+  // if (now_time - base_time > 350) {
+  //   // if (ping.update()) {
+  //   //   alt_val = ping.distance();
+  //   //   conf_alt = ping.confidence();
+  //   //   }
+  //   // else{
+  //   //   alt_val = 1000000000000;
+  //   //   conf_alt = 0.0;
+  //   // }
+  //   // Serial.println("here");
+  //   alt_val = 1000000000000;
+  //   conf_alt = 0.0;
+
+  //   base_time = millis();
+  // }
   if ((icm.status == ICM_20948_Stat_Ok) || (icm.status == ICM_20948_Stat_FIFOMoreDataAvail)) // Was valid data available?
   {
 
@@ -310,12 +328,32 @@ void printIMUData(ICM_20948_I2C *sensor, Adafruit_INA219 * volt_sensor){
 
   // Ping
   Serial.print(" ], \"Altitude\" :[ ");
-  printFormattedFloat(alt_val, 5, 2);
-  Serial.print(", ");
-  printFormattedFloat(conf_alt, 5, 2);
+
+    // ===== CHECK INA_WORKING FLAG BEFORE CALLING =====
+  // if (ina_working) {
+  //   current = volt_sensor->getCurrent_mA();
+  // } else {
+  //   current = 0.0;  // Safe default
+  // }
+  current = 0.0;
+
+  Serial.print(current);
   Serial.print(" ],");
-  float busvoltage = 0;
-  busvoltage = volt_sensor->getBusVoltage_V();
+  
+  // ===== CHECK INA_WORKING FLAG BEFORE CALLING =====
+  // if (ina_working) {
+  //   busvoltage = volt_sensor->getBusVoltage_V();
+  // } else {
+  //   busvoltage = 0.0;  // Safe default
+  // }
+  busvoltage = 0.0;
+  // current = volt_sensor->getCurrent_mA();
+  // Serial.print(current);
+  // // printFormattedFloat(alt_val, 5, 2);
+  // // Serial.print(", ");
+  // // printFormattedFloat(conf_alt, 5, 2);
+  // Serial.print(" ],");
+  // busvoltage = volt_sensor->getBusVoltage_V();
   Serial.print("\"Voltage\": [ ");
   Serial.print(busvoltage);
 
@@ -335,7 +373,6 @@ void printIMUData(ICM_20948_I2C *sensor, Adafruit_INA219 * volt_sensor){
   // else {
   //   depth_val = NAN;
   // }
-  
 
 } 
 

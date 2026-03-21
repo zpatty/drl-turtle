@@ -165,6 +165,14 @@ class TurtleController(Node):
 
         self.joint_space_control_fn = cornelia_joint_space_trajectory_tracking_control_factory(kp=[2.0]*6, sw=self.sw)
         self.q_ra_fn, self.q_d_ra_fn, q_dd_ra_fn = reverse_stroke_joint_oracle_factory(s=1, sw=self.sw)
+        # self.q_ra_fn, self.q_d_ra_fn, q_dd_ra_fn = reverse_stroke_joint_oracle_factory(s=1, 
+        # sw=self.sw, 
+        # q_off=np.array([x / 180 * np.pi,
+        #  y / 180 * np.pi, 
+        #  z / 180 * np.pi]))
+        # default
+        # q_off=np.array([0.0, 0.0, 30 / 180 * np.pi]
+
         self.q_la_fn, self.q_d_la_fn, q_dd_la_fn = reverse_stroke_joint_oracle_factory(s=-1, sw=self.sw)
         self.nav_u = [0.0, 0.0, 0.0, 0.0]
         self.rear_pitch = 0.0
@@ -278,7 +286,7 @@ class TurtleController(Node):
                 u = (self.Kp.dot((qd - self.q)) + self.KD.dot((dqd - self.dq))) * 150
                 u_rear = - 100 * self.rear_pitch
                 # print(u_rear)
-                # apply the control signal
+                # apply the control signal --- don't change the frequency
                 k_r = 3.0
                 u[7] =  - k_r * (self.q[7] - 5 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) - np.clip(u_rear, -70.0, 70.0) * np.pi / 180) * 150
                 u[9] = - k_r * (self.q[9] + 5 * np.pi / 180 * np.cos(4.0 * np.pi  * self.t) + np.clip(u_rear, -70.0, 70.0) * np.pi / 180) * 150
