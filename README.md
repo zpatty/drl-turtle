@@ -14,13 +14,11 @@ Code and software for the paper: **"Autonomous Sea Turtle Robot for Marine Field
 | Python | 3.12 | Primary runtime (ROS2 node) |
 | Python | 3.10 | Required for TVM inference server |
 | ROS2 | Jazzy | Robot operating system |
-| OpenCV | [VERSION] | Image processing |
-| NumPy | [VERSION] | Numerical computation |
-| PyTorch | [VERSION] | Tracker model weights |
-| TVM | [VERSION] | Optimized inference runtime |
-| Edge Impulse Linux SDK | [VERSION] | FOMO object detection |
-| PyYAML | [VERSION] | Configuration loading |
-| micromamba / conda | [VERSION] | Environment management |
+| OpenCV | 4.12.0.88 | Image processing |
+| NumPy | 1.26.4 | Numerical computation |
+| Edge Impulse Linux SDK | 1.2.2 | FOMO object detection |
+| PyYAML | 6.0.1 | Configuration loading |
+| micromamba / conda | 26.1.1 | Environment management |
 
 ### Operating Systems Tested
 
