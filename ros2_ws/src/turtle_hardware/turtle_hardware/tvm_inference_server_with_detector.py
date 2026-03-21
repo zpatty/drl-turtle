@@ -11,6 +11,7 @@ import socket
 import pickle
 import struct
 import argparse
+import platform
 import os
 
 sys.path.append("./pysot/pysot")
@@ -43,8 +44,14 @@ class TVMInferenceServer:
         cfg.CUDA = False
         
         # Build tracker model in TVM mode
-        print("[TVM Server] Building TVM tracker model...")
-        model = ModelBuilder(mode='tvm')
+        if platform.machine() == 'aarch64':
+            print("[TVM Server] Building TVM tracker model...")
+            model = ModelBuilder(mode='tvm')
+        else:
+            print("[TVM Server] Non-ARM system detected, using PyTorch mode...")
+            model = ModelBuilder(mode='pytorch')  # or 'onnx' if available
+        # print("[TVM Server] Building TVM tracker model...")
+        # model = ModelBuilder(mode='tvm')
         
         # Load tracker weights
         print(f"[TVM Server] Loading tracker weights from {snapshot_path}")

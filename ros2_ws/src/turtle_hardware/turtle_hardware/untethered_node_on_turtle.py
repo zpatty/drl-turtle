@@ -182,13 +182,16 @@ class TurtlePlanner(Node):
         self.flag_command = "null"
         mode_msg = TurtleMode()
         time.sleep(2)
-        print('Position')
+
+        print('[STATUS] Setting Robot to Position Mode\n')
         mode_msg.mode = "p"
         self.mode = mode_msg.mode
         self.mode_pub.publish(mode_msg)
         
     def _timer_cb(self):
-        # 
+        """
+        Carries out either depth or tracking mode
+        """
         self.time = time.time() - self.last_time
         # YAW pitch roll 
         q_eul = euler.quat2euler(self.quat,self.euler_convention)
