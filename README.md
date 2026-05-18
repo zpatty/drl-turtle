@@ -196,7 +196,7 @@ bash launch.sh
 | Node | Script | Role |
 |---|---|---|
 | EdgeImpulse_Tracker | `crush_tracker.py` | FOMO-based visual detection and centroid publishing |
-| TurtleRobot | `TurtleRobot_other.py` | Motor interface |
+| TurtleRobot | `TurtleRobot_tetherless.py` | Motor interface |
 | Camera | `Cam.py` | Stereo camera publishing |
 | Sensors | `TurtleSensors.py` | IMU and depth sensing |
 | Controller | `TurtleController.py` | Low-level motor control |
