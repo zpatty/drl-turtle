@@ -62,7 +62,15 @@ conditions reported in the paper:
 | `NEA_Tracking` | New England Aquarium Giant Ocean Tank tracking trials |
 | `NEA_Obstacle_Avoidance` | New England Aquarium obstacle avoidance trials |
 
-Each trial subfolder contains the following files:
+Each folder contains three subdirectories:
+
+| Subfolder | Description |
+|---|---|
+| `Turtle_Sensor_Data/` | IMU readings, motor positions, and depth/altitude logs |
+| `Time_Synced_Videos/` | Time-synchronized Turtle POV and/or GoPro footage |
+| `Turtle_POV_Camera_Data/` | Raw stereo camera frames and detection outputs, with the following structure: |
+
+`Turtle_POV_Camera_Data/` is organized as:
 
 | File/Folder | Description |
 |---|---|
@@ -74,8 +82,9 @@ Each trial subfolder contains the following files:
 | `detection*.mp4` | Annotated output video |
 
 The `left/` and `right/` folders from any trial can be used directly as input
-to `demo_launch.sh` for offline ROS2 replay. Any trial `.mp4` can be used as
-input to `demo_offline.py`.
+to `demo_launch.sh` for offline ROS2 replay. Any trial `.mp4` from
+`Time_Synced_Videos/` or `Turtle_POV_Camera_Data/` can be used as input to
+`demo_offline.py`.
 
 ---
 
@@ -222,7 +231,7 @@ micromamba activate crush   # or: conda activate crush
 
 python3 demo_offline.py \
     --model ./turtle-tracking-linux-x86_64.eim \
-    --input /path/to/detection_trial.mp4 \
+    --input /path/to/trial_video.mp4 \
     --confidence-threshold 0.7 \
     --save-data \
     --output-dir demo_output/
@@ -292,17 +301,19 @@ To replay a recorded trial through the full tracker and planner stack without
 robot hardware, download any trial folder from the data repository and run:
 
 ```bash
-bash demo_launch.sh --data-dir /path/to/trial_folder/
+bash demo_launch.sh --data-dir /path/to/trial/Turtle_POV_Camera_Data/
 ```
 
-The trial folder must contain `left/` and `right/` subdirectories (all trial
-folders in the data repository have this structure). This launches four ROS2
-nodes — camera replay, tracker, planner, and logger — in a tmux session.
+The `Turtle_POV_Camera_Data/` folder must contain `left/` and `right/`
+subdirectories (all trial folders in the data repository have this structure).
+This launches four ROS2 nodes — camera replay, tracker, planner, and logger —
+in a tmux session.
 
 ```bash
 bash demo_launch.sh --attach                    # Reconnect to running session
 bash demo_launch.sh --kill                      # Stop session
-bash demo_launch.sh --data-dir /path/to/trial/ \
+bash demo_launch.sh \
+    --data-dir /path/to/trial/Turtle_POV_Camera_Data/ \
     --output-dir my_results/ \
     --model ./turtle-tracking.eim               # ARM64 model on Pi
 ```
