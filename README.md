@@ -17,6 +17,9 @@ This repository contains the vision and control software for Crush, a biomimetic
 ---
 
 ## Repository Structure
+The repository root is `drl-turtle/`. All software described in this paper lives
+under `ros2_ws/src/turtle_hardware/turtle_hardware/` — this is the only folder
+readers need to interact with.
 
 ```
 turtle_hardware/
