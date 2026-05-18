@@ -16,31 +16,6 @@ This repository contains the vision and control software for Crush, a biomimetic
 
 ---
 
-## Repository Structure
-
-```
-crush/
-├── models/
-│   └── turtle-detector.eim       # Edge Impulse FOMO model
-├── template_frames/              # Test images for model verification
-│   ├── turtle_front.png
-│   ├── turtle_down.png
-│   ├── turtle_angle.png
-│   ├── turtle_angle_2.png
-│   └── turtle_angle_3.png
-├── demo/
-│   └── demo_clip.mp4             # Short demo video clip [see Data Availability]
-├── crush_tracker.py              # ROS2 FOMO tracker node (live deployment)
-├── untethered_planning_node.py   # Autonomous dive planner (live deployment)
-├── demo_offline.py               # Standalone offline demo (no ROS2 required)
-├── demo_cam.py                   # ROS2 camera replay node (offline ROS2 demo)
-├── demo_planner.py               # ROS2 planner node (offline ROS2 demo)
-├── demo_logger.py                # ROS2 logger node (offline ROS2 demo)
-├── test_detector.py              # Model verification on test images
-├── launch.sh                     # Full robot deployment launcher
-└── demo_launch.sh                # Offline ROS2 demo launcher
-```
-
 ---
 
 ## System Requirements
