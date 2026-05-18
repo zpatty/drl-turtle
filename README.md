@@ -19,27 +19,63 @@ This repository contains the vision and control software for Crush, a biomimetic
 ## Repository Structure
 
 ```
-crush/
-├── models/
-│   └── turtle-detector.eim       # Edge Impulse FOMO model
-├── template_frames/              # Test images for model verification
+turtle_hardware/
+├── turtle-tracking.eim                  # FOMO model (ARM64 — Raspberry Pi 5)
+├── turtle-tracking-linux-x86_64.eim     # FOMO model (x86_64 — laptop/desktop)
+├── template_frames/                     # Test images for model verification
 │   ├── turtle_front.png
 │   ├── turtle_down.png
 │   ├── turtle_angle.png
 │   ├── turtle_angle_2.png
 │   └── turtle_angle_3.png
-├── demo/
-│   └── demo_clip.mp4             # Short demo video clip [see Data Availability]
-├── crush_tracker.py              # ROS2 FOMO tracker node (live deployment)
-├── untethered_planning_node.py   # Autonomous dive planner (live deployment)
-├── demo_offline.py               # Standalone offline demo (no ROS2 required)
-├── demo_cam.py                   # ROS2 camera replay node (offline ROS2 demo)
-├── demo_planner.py               # ROS2 planner node (offline ROS2 demo)
-├── demo_logger.py                # ROS2 logger node (offline ROS2 demo)
-├── test_detector.py              # Model verification on test images
-├── launch.sh                     # Full robot deployment launcher
-└── demo_launch.sh                # Offline ROS2 demo launcher
+├── crush_tracker.py                     # ROS2 FOMO tracker node (live deployment)
+├── untethered_planning_node.py          # Autonomous dive planner (live deployment)
+├── demo_offline.py                      # Standalone offline demo (no ROS2 required)
+├── demo_cam.py                          # ROS2 camera replay node (offline ROS2 demo)
+├── demo_planner.py                      # ROS2 planner node (offline ROS2 demo)
+├── demo_logger.py                       # ROS2 logger node (offline ROS2 demo)
+├── test_detector.py                     # Model verification on test images
+├── launch.sh                            # Full robot deployment launcher
+└── demo_launch.sh                       # Offline ROS2 demo launcher
 ```
+
+> **Note on model architecture:** The `.eim` files are compiled binaries. Use
+> `turtle-tracking-linux-x86_64.eim` on a laptop or desktop (x86_64) and
+> `turtle-tracking.eim` on the Raspberry Pi 5 (ARM64). They are functionally
+> identical — only the target architecture differs.
+
+---
+
+## Data Availability
+
+All raw experimental data are publicly available at:
+
+**https://cwru.box.com/s/8zfq3esnuja9srlxorn7i5mo2dbmhnkp**
+
+The repository is organized into four folders corresponding to the experimental
+conditions reported in the paper:
+
+| Folder | Description |
+|---|---|
+| `Tetherless_Tracking` | Untethered autonomous turtle-following trials |
+| `Alumni_Pool_Obstacle_Avoidance` | Pool-based obstacle avoidance trials |
+| `NEA_Tracking` | New England Aquarium Giant Ocean Tank tracking trials |
+| `NEA_Obstacle_Avoidance` | New England Aquarium obstacle avoidance trials |
+
+Each trial subfolder contains the following files:
+
+| File/Folder | Description |
+|---|---|
+| `left/` | Raw left camera frames (`.jpg`, one per frame) |
+| `right/` | Raw right camera frames (`.jpg`, one per frame) |
+| `stitched/` | Stitched stereo frames used as tracker input |
+| `detection/` | Annotated frames with detection crosshair overlaid |
+| `centroids.csv` | Per-frame centroid coordinates, confidence, and tracking status |
+| `detection*.mp4` | Annotated output video |
+
+The `left/` and `right/` folders from any trial can be used directly as input
+to `demo_launch.sh` for offline ROS2 replay. Any trial `.mp4` can be used as
+input to `demo_offline.py`.
 
 ---
 
@@ -47,20 +83,22 @@ crush/
 
 ### For the offline demo and model verification (no ROS2, no hardware)
 
-Any x86_64 or ARM64 machine with ≥4 GB RAM running Linux, macOS, or Windows (WSL2).
-
-| Package | Version Tested |
-|---|---|
-| Python | 3.10–3.12 |
-| OpenCV | 4.10.0 |
-| NumPy | 1.26.4 |
-| Edge Impulse Linux SDK | 1.2.1 |
-
-### For live robot deployment
+Any x86_64 machine with ≥4 GB RAM running Linux or macOS. Windows users should use WSL2.
 
 | Package | Version Tested | Notes |
 |---|---|---|
-| Python | 3.12.3 | System Python on Raspberry Pi 5 |
+| Python | 3.12.3 | |
+| OpenCV | 4.12.0.88 | |
+| NumPy | 2.2.6 | |
+| Edge Impulse Linux SDK | 1.2.2 | |
+| pyaudio | 0.2.14 | Required by Edge Impulse SDK |
+| six | 1.17.0 | Required by Edge Impulse SDK |
+
+### For live robot deployment (Raspberry Pi 5)
+
+| Package | Version Tested | Notes |
+|---|---|---|
+| Python | 3.12.3 | System Python |
 | ROS2 | Jazzy | Installed system-wide |
 | OpenCV | 4.10.0.84 | |
 | NumPy | 1.26.4 | |
@@ -82,24 +120,29 @@ Any x86_64 or ARM64 machine with ≥4 GB RAM running Linux, macOS, or Windows (W
 This installs everything needed to run `demo_offline.py` and `test_detector.py`
 without ROS2 or robot hardware.
 
-**With micromamba:**
-```bash
-micromamba create -n crush python=3.12
-micromamba activate crush
-pip install opencv-python numpy edge-impulse-linux
-```
 
 **With conda:**
 ```bash
 conda create -n crush python=3.12
 conda activate crush
-pip install opencv-python numpy edge-impulse-linux
+conda install -c conda-forge pyaudio
+pip install opencv-python "numpy>=1.26,<3" six edge-impulse-linux
 ```
 
-Then clone the repository:
+> `pyaudio` and `six` are transitive dependencies of the Edge Impulse Linux SDK.
+> Installing `pyaudio` via conda/micromamba avoids the need for system-level
+> `portaudio` headers that `pip install pyaudio` requires.
+
+Clone the repository and navigate to the working directory:
 ```bash
 git clone https://github.com/zpatty/drl-turtle.git
 cd drl-turtle/ros2_ws/src/turtle_hardware/turtle_hardware
+```
+
+Make the model files executable (required by the Edge Impulse SDK):
+```bash
+chmod +x turtle-tracking.eim
+chmod +x turtle-tracking-linux-x86_64.eim
 ```
 
 **Typical install time:** ~10 minutes on a standard desktop computer.
@@ -110,37 +153,69 @@ ROS2 Jazzy provides `rclpy` and `cv_bridge` system-wide. Install the remaining
 Python dependencies with:
 
 ```bash
-pip3 install opencv-python numpy pyyaml edge-impulse-linux
+pip3 install opencv-python numpy pyyaml six edge-impulse-linux
 ```
 
 Follow the [official ROS2 Jazzy installation guide](https://docs.ros.org/en/jazzy/Installation.html)
 for ROS2 itself.
 
-### Download model and demo data
+---
+
+## Model Verification
+
+Verify the FOMO detector is working correctly on the included test images.
+Run this first to confirm the model and environment are set up correctly
+before proceeding to the demo.
 
 ```bash
-# [TODO — final URL to be added prior to publication]
-wget [DATA_REPOSITORY_URL]/models.zip
-unzip models.zip
+# On laptop/desktop (x86_64):
+python3 test_detector.py --model ./turtle-tracking-linux-x86_64.eim
 
-wget [DATA_REPOSITORY_URL]/demo.zip
-unzip demo.zip
+# On Raspberry Pi (ARM64):
+python3 test_detector.py --model ./turtle-tracking.eim
 ```
+
+**Expected terminal output:**
+```
+  ✅ turtle_front.png    — 1 detection(s)  [312 ms]
+       Detection 1: centroid=(481.2, 241.0)  conf=0.874
+  ✅ turtle_down.png     — 1 detection(s)  [308 ms]
+  ...
+```
+
+To also save annotated images to `test_detector_output/`:
+```bash
+python3 test_detector.py --model ./turtle-tracking-linux-x86_64.eim --save-vis
+```
+
+If a detection is missing, the script reports the best raw confidence score below
+threshold to help diagnose whether the issue is threshold, model, or preprocessing.
+
+**Key parameters:**
+
+| Parameter | Default | Description |
+|---|---|---|
+| `--model` | — | Path to `.eim` FOMO model (required) |
+| `--images` | `template_frames/` | Folder of test images |
+| `--confidence-threshold` | `0.5` | Minimum confidence to report |
+| `--save-vis` | off | Save annotated images to `test_detector_output/` |
 
 ---
 
 ## Demo
 
-Runs the FOMO tracker on a short recorded trial video, producing annotated
-frames and a centroid log. **No ROS2 or hardware required.**
+Runs the FOMO tracker on a recorded trial video, producing annotated frames and
+a centroid log. **No ROS2 or hardware required.**
+
+Download any trial video from the data repository above, then run:
 
 ```bash
 # Activate your environment first:
 micromamba activate crush   # or: conda activate crush
 
 python3 demo_offline.py \
-    --model ./models/turtle-detector.eim \
-    --input demo/demo_clip.mp4 \
+    --model ./turtle-tracking-linux-x86_64.eim \
+    --input /path/to/detection_trial.mp4 \
     --confidence-threshold 0.7 \
     --save-data \
     --output-dir demo_output/
@@ -163,47 +238,12 @@ python3 demo_offline.py \
 
 | Parameter | Default | Description |
 |---|---|---|
-| `--model` | `./models/turtle-detector.eim` | Path to `.eim` FOMO model |
+| `--model` | — | Path to `.eim` FOMO model (required) |
 | `--input` | — | Input video file (required) |
 | `--confidence-threshold` | `0.7` | Minimum detection confidence |
 | `--save-data` | off | Save annotated frames, CSV, and output video |
 | `--show-display` | off | Show live preview window while processing |
 | `--output-dir` | `results/` | Output directory |
-
----
-
-## Model Verification
-
-Verify the FOMO detector is working correctly on the included test images
-before running the demo or deploying on the robot.
-
-```bash
-python3 test_detector.py \
-    --model ./models/turtle-detector.eim \
-    --images template_frames/ \
-    --save-vis
-```
-
-**Expected terminal output:**
-```
-  ✅ turtle_front.png    — 1 detection(s)  [312 ms]
-       Detection 1: centroid=(481.2, 241.0)  conf=0.874
-  ✅ turtle_down.png     — 1 detection(s)  [308 ms]
-  ...
-```
-
-Annotated images are saved to `test_detector_output/` when `--save-vis` is used.
-If a detection is missing, the script reports the best raw confidence score below
-threshold to help diagnose whether the issue is threshold, model, or preprocessing.
-
-**Key parameters:**
-
-| Parameter | Default | Description |
-|---|---|---|
-| `--model` | `./models/turtle-detector.eim` | Path to `.eim` FOMO model |
-| `--images` | `template_frames/` | Folder of test images |
-| `--confidence-threshold` | `0.5` | Minimum confidence to report |
-| `--save-vis` | off | Save annotated images to `test_detector_output/` |
 
 ---
 
@@ -242,29 +282,29 @@ under `logs/turtle_YYYYMMDD_HHMMSS/`.
 ### Offline ROS2 replay (recorded trial data)
 
 To replay a recorded trial through the full tracker and planner stack without
-robot hardware, using the provided trial dataset:
+robot hardware, download any trial folder from the data repository and run:
 
 ```bash
 bash demo_launch.sh --data-dir /path/to/trial_folder/
 ```
 
-The trial folder must contain `left/` and `right/` subdirectories of stereo
-frame images (the format produced by `launch.sh --save-data`). This launches
-four ROS2 nodes — camera replay, tracker, planner, and logger — in a tmux session.
+The trial folder must contain `left/` and `right/` subdirectories (all trial
+folders in the data repository have this structure). This launches four ROS2
+nodes — camera replay, tracker, planner, and logger — in a tmux session.
 
 ```bash
-bash demo_launch.sh --attach                     # Reconnect to running session
-bash demo_launch.sh --kill                       # Stop session
-bash demo_launch.sh --data-dir /path/ \
+bash demo_launch.sh --attach                    # Reconnect to running session
+bash demo_launch.sh --kill                      # Stop session
+bash demo_launch.sh --data-dir /path/to/trial/ \
     --output-dir my_results/ \
-    --model ./models/turtle-detector.eim
+    --model ./turtle-tracking.eim               # ARM64 model on Pi
 ```
 
 ### Tracker standalone (live camera, no full robot stack)
 
 ```bash
 python3 crush_tracker.py \
-    --model ./models/turtle-detector.eim \
+    --model ./turtle-tracking.eim \
     --camera-topic frames \
     --message-type turtlecam \
     --target-class turtle \
@@ -291,17 +331,14 @@ python3 crush_tracker.py \
 To reproduce the quantitative tracking results reported in the paper:
 
 ```bash
-# [TODO — dataset and analysis script to be deposited prior to publication]
-wget [DATASET_URL]/aquarium_tracking_trials.zip
-unzip aquarium_tracking_trials.zip
-
 python3 scripts/reproduce_tracking_analysis.py \
-    --data-dir aquarium_tracking_trials/ \
+    --data-dir /path/to/downloaded/trial/folder/ \
     --output results_paper/
 ```
 
-This will regenerate the tracking performance metrics reported in the paper.
-Expected run time: ~[X] hours on a standard desktop computer.
+All raw trial data needed for reproduction are available at the Box repository
+linked in the Data Availability section above. Expected run time: ~[X] hours
+on a standard desktop computer.
 
 ---
 
