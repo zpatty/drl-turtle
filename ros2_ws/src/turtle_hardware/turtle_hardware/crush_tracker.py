@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Crush Tracker with Stereo Stitching and Edge Impulse 
+ROS2 Edge Impulse Tracker with Stereo Stitching
+Uses ImageImpulseRunner with auto_studio_settings + stereo stitching for wide view
 """
 
 import sys
@@ -30,6 +31,9 @@ try:
 except ImportError:
     HAS_TURTLE_INTERFACES = False
     print("[WARNING] turtle_interfaces not found, TurtleCam support disabled")
+
+CALIB_OFFSET_X = 50  # Pixels to add to X coordinate
+CALIB_OFFSET_Y = 50  # Pixels to add to Y coordinate
 
 # ============================================================================
 # Configuration
@@ -116,7 +120,7 @@ class EdgeImpulseTrackerNode(Node):
         self.target_class = args.target_class
         self.confidence_threshold = args.confidence_threshold
         
-        self.get_logger().info(f"✅ Model loaded successfully")
+        self.get_logger().info(f"Model loaded successfully")
         self.get_logger().info(f"   Project: {model_info['project']['owner']} / {model_info['project']['name']}")
         self.get_logger().info(f"   Labels: {self.labels}")
         self.get_logger().info(f"   Target class: {self.target_class}")
@@ -133,8 +137,8 @@ class EdgeImpulseTrackerNode(Node):
             if args.message_type == "turtlecam":
                 os.makedirs(os.path.join(self.output_dir, "left"), exist_ok=True)
                 os.makedirs(os.path.join(self.output_dir, "right"), exist_ok=True)
-                if args.use_stitching:
-                    os.makedirs(os.path.join(self.output_dir, "stitched"), exist_ok=True)
+                # if args.use_stitching:
+                #     os.makedirs(os.path.join(self.output_dir, "stitched"), exist_ok=True)
             
             self.csv_path = os.path.join(self.output_dir, "centroids.csv")
             with open(self.csv_path, 'w') as f:
@@ -309,12 +313,6 @@ class EdgeImpulseTrackerNode(Node):
             # Use stitched frame if enabled, otherwise use left camera
             if args.use_stitching:
                 frame = self.stitch_frames(left_frame, right_frame)
-                
-                # Save stitched frame if logging
-                if self.save_data:
-                    stitched_path = os.path.join(self.output_dir, "stitched", 
-                                                f"frame{self.frame_count + 1:05d}.jpg")
-                    cv2.imwrite(stitched_path, frame)
             else:
                 frame = left_frame
             
@@ -375,28 +373,26 @@ class EdgeImpulseTrackerNode(Node):
             self.track_lost_count = 0
             tracking_status = "tracking"
             bbox = best_detection['bbox']
-    
+            cx_calibrated = cx + CALIB_OFFSET_X
+            cy_calibrated = cy + CALIB_OFFSET_Y
+
             # Draw crosshair at CENTROID (the real detection)
-            cv2.circle(frame, (int(cx), int(cy)), 8, (0, 0, 255), -1)
-            cv2.line(frame, (int(cx)-20, int(cy)), (int(cx)+20, int(cy)), (0, 0, 255), 3)
-            cv2.line(frame, (int(cx), int(cy)-20), (int(cx), int(cy)+20), (0, 0, 255), 3)
+            cv2.circle(frame, (int(cx_calibrated), int(cy_calibrated)), 8, (0, 0, 255), -1)
+            cv2.line(frame, (int(cx_calibrated)-20, int(cy_calibrated)), 
+                    (int(cx_calibrated)+20, int(cy_calibrated)), (0, 0, 255), 3)
+            cv2.line(frame, (int(cx_calibrated), int(cy_calibrated)-20), 
+                    (int(cx_calibrated), int(cy_calibrated)+20), (0, 0, 255), 3)
             
-            # Draw approximate bbox (just for reference, not meaningful in FOMO)
-            cv2.rectangle(frame, (bbox[0], bbox[1]),
-                        (bbox[0] + bbox[2], bbox[1] + bbox[3]),
-                        (0, 255, 0), 2)
-            # Save data
+            # Optional: Draw FOMO grid cell bbox (apply offset to BOTH corners)
+            cv2.rectangle(frame, 
+                        (bbox[0] + CALIB_OFFSET_X, bbox[1] + CALIB_OFFSET_Y),
+                        (bbox[0] + bbox[2] + CALIB_OFFSET_X, bbox[1] + bbox[3] + CALIB_OFFSET_Y),
+                        (0, 255, 0), 2)            # Save data
             if self.save_data:
                 with open(self.csv_path, 'a') as f:
                     f.write(f"{self.frame_count},{time.time()},{cx},{cy},"
                            f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]},"
                            f"{avg_fps:.2f},{conf:.4f},{tracking_status}\n")
-            
-            if self.frame_count % 30 == 0:
-                self.get_logger().info(
-                    f'Frame {self.frame_count} | FPS: {avg_fps:.1f} | '
-                    f'Centroid: [{int(cy)}, {int(cx)}] | Conf: {conf:.3f}'
-                )
         
         else:
             # No detections
@@ -417,44 +413,7 @@ class EdgeImpulseTrackerNode(Node):
                 self.get_logger().warn('Lost tracking of turtle!')
         
         # ALWAYS run visualization (even when lost)
-        if args.show_display or self.save_data:
-            # Draw bounding box if we have a detection
-            if bbox is not None:
-                cv2.rectangle(frame, (bbox[0], bbox[1]),
-                            (bbox[0] + bbox[2], bbox[1] + bbox[3]),
-                            (0, 255, 0), 2)
-                
-                # Draw centroid crosshair
-                cv2.circle(frame, (int(cx), int(cy)), 5, (0, 0, 255), -1)
-                cv2.line(frame, (int(cx)-15, int(cy)), (int(cx)+15, int(cy)), (0, 0, 255), 2)
-                cv2.line(frame, (int(cx), int(cy)-15), (int(cx), int(cy)+15), (0, 0, 255), 2)
-            
-            # Info text - ALWAYS show
-            info_text = f"FPS: {avg_fps:.1f} | Inference: {1000*inference_time:.1f}ms"
-            cv2.putText(frame, info_text, (10, 30),
-                      cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-            
-            # Status text - show tracking or lost
-            if tracking_status == "tracking":
-                centroid_text = f"Centroid: ({int(cx)}, {int(cy)})"
-                cv2.putText(frame, centroid_text, (10, 60),
-                          cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                
-                conf_text = f"Confidence: {conf:.3f}"
-                conf_color = (0, 255, 0) if conf > 0.9 else (0, 165, 255)
-                cv2.putText(frame, conf_text, (10, 90),
-                          cv2.FONT_HERSHEY_SIMPLEX, 0.7, conf_color, 2)
-            else:
-                status_text = f"LOST TRACKING ({self.track_lost_count} frames)"
-                cv2.putText(frame, status_text, (10, 60),
-                          cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            
-            # Show stitching status
-            if args.message_type == "turtlecam" and args.use_stitching:
-                stitch_text = "Stitched View"
-                cv2.putText(frame, stitch_text, (10, 120),
-                          cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
-            
+        if args.show_display or self.save_data:            
             if self.save_data:
                 frame_path = os.path.join(self.output_dir, "detection", 
                                         f"frame{self.frame_count:05d}.jpg")
@@ -486,7 +445,7 @@ class EdgeImpulseTrackerNode(Node):
 
 def main():
     print("="*60)
-    print("Starting up Crush Tracker")
+    print("ROS2 Edge Impulse Tracker with Stereo Stitching")
     print("="*60)
     print(f"Model: {args.model}")
     print(f"Camera: {args.camera_topic}")
