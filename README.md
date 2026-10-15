@@ -1,7 +1,7 @@
-# Crush: Autonomous Sea Turtle Robot for Marine Fieldwork
+# Crush: Autonomous Following of Marine Animals with a Biomimetic Sea Turtle Robot
 
 **License:** MIT  
-Code and software for the paper: *"Autonomous Sea Turtle Robot for Marine Fieldwork"*
+Code and software for the paper: *"Autonomous Following of Marine Animals with a Biomimetic Sea Turtle Robot"*
 
 ---
 
